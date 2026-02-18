@@ -1,0 +1,414 @@
+dungeons:
+  world: world
+  exit-world: world
+  exit-command: spawn
+  origin:
+    x: 0
+    y: 120
+    z: 0
+  arena-spacing: 140
+  countdown-seconds: 5
+  max-party-size: 5
+  invite-timeout-seconds: 60
+
+enchant-table:
+  enabled: true
+  vanilla:
+    base-cost: 6
+    per-level-cost: 3
+    max-cost: 80
+  cost-multipliers:
+    overall: 1.4
+    damage-enchants: 1.85
+    eco: 1.3
+  eco:
+    command-template: "ecoenchants enchant {player} {enchant} {level}"
+  options:
+    sharpness_v:
+      type: VANILLA
+      slot: 20
+      icon: DIAMOND_SWORD
+      display-name: "&cSharpness V"
+      enchantment: sharpness
+      level: 5
+      cost-levels: 8
+      lore:
+        - "&7Massive weapon power boost."
+    looting_iii:
+      type: VANILLA
+      slot: 24
+      icon: GOLDEN_SWORD
+      display-name: "&6Looting III"
+      enchantment: looting
+      level: 3
+      cost-levels: 8
+      lore:
+        - "&7Improves mob reward quality."
+    unbreaking_iv:
+      type: VANILLA
+      slot: 30
+      icon: ANVIL
+      display-name: "&bUnbreaking IV"
+      enchantment: unbreaking
+      level: 4
+      cost-levels: 6
+      lore:
+        - "&7Greatly extends durability."
+    mending_i:
+      type: VANILLA
+      slot: 32
+      icon: EXPERIENCE_BOTTLE
+      display-name: "&aMending I"
+      enchantment: mending
+      level: 1
+      cost-levels: 14
+      lore:
+        - "&7Repairs with collected XP."
+    eco_lifesteal:
+      type: ECO
+      slot: 39
+      icon: ENCHANTED_BOOK
+      display-name: "&dEco: Lifesteal I"
+      eco-id: lifesteal
+      level: 1
+      cost-levels: 10
+      lore:
+        - "&8Requires EcoEnchants."
+    eco_criticals:
+      type: ECO
+      slot: 41
+      icon: ENCHANTED_BOOK
+      display-name: "&dEco: Criticals I"
+      eco-id: criticals
+      level: 1
+      cost-levels: 10
+      lore:
+        - "&8Requires EcoEnchants."
+
+custom-items:
+  style: JAPANESE
+  combat:
+    enabled: true
+    damage:
+      base-scale: 0.04
+      strength-scaling: 0.0045
+      base-crit-chance: 0.05
+      base-crit-damage-percent: 50.0
+    instant-bow-shots:
+      enabled: true
+      arrow-velocity: 3.0
+      cooldown-ticks: 4
+    mana-abilities:
+      enabled: true
+      require-auraskills: true
+      allow-right-click-block: false
+      notify-cooldown: true
+      damage-scale: 0.06
+      mana-scale: 1.0
+      cooldown-scale: 1.0
+      weapons:
+        oni_cleaver:
+          mana-cost: 40
+          cooldown-seconds: 8
+          damage-multiplier: 1.0
+          radius: 3.6
+          knockback: 0.45
+        tengu_galeblade:
+          mana-cost: 32
+          cooldown-seconds: 6
+          damage-multiplier: 0.95
+          radius: 4.0
+          knockback: 0.52
+        kappa_tidebreaker:
+          mana-cost: 36
+          cooldown-seconds: 7
+          damage-multiplier: 1.05
+          radius: 3.8
+          knockback: 0.4
+        onryo_spiritblade:
+          mana-cost: 46
+          cooldown-seconds: 9
+          damage-multiplier: 1.1
+          radius: 3.7
+          knockback: 0.42
+        jorogumo_stinger:
+          mana-cost: 28
+          cooldown-seconds: 6
+          damage-multiplier: 0.85
+          radius: 3.5
+          knockback: 0.3
+        kitsune_fang:
+          mana-cost: 40
+          cooldown-seconds: 8
+          damage-multiplier: 1.0
+          radius: 4.2
+          knockback: 0.36
+        gashadokuro_nodachi:
+          mana-cost: 58
+          cooldown-seconds: 11
+          damage-multiplier: 1.2
+          radius: 4.1
+          knockback: 0.52
+        flying_raijin:
+          mana-cost: 75
+          cooldown-seconds: 12
+          damage-multiplier: 1.25
+          radius: 4.2
+          knockback: 0.58
+  drops:
+    mob-weapon:
+      base-chance: 0.012
+      yokai:
+        ONI_BRUTE: 0.02
+        TENGU_SKIRMISHER: 0.022
+        KAPPA_RAIDER: 0.018
+        ONRYO_WRAITH: 0.016
+        JOROGUMO_WEAVER: 0.016
+        KITSUNE_TRICKSTER: 0.018
+        GASHADOKURO_SENTINEL: 0.035
+    mob-armor:
+      base-chance: 0.010
+      yokai:
+        ONI_BRUTE: 0.014
+        TENGU_SKIRMISHER: 0.011
+        KAPPA_RAIDER: 0.010
+        ONRYO_WRAITH: 0.010
+        JOROGUMO_WEAVER: 0.009
+        KITSUNE_TRICKSTER: 0.011
+        GASHADOKURO_SENTINEL: 0.022
+    mob-reforge-stone:
+      base-chance: 0.018
+    boss-materials:
+      storm-sigil: 0.38
+      thunder-essence: 0.22
+      raijin-core: 0.10
+      flying-raijin: 0.015
+      armor-piece: 0.35
+      reforge-stone: 0.50
+
+floors:
+  F1:
+    display-name: "Sakura Temple I"
+    min-party-size: 1
+    max-party-size: 5
+    combat-rooms: 4
+    puzzle-rooms: 1
+    treasure-rooms: 1
+    puzzle-types:
+      - SEQUENCE
+      - SYNC
+    room-size: 23
+    base-mob-count: 5
+    mob-health-multiplier: 1.1
+    mob-damage-tier: 0
+    folklore-mobs:
+      enabled: true
+      pool:
+        - ONI_BRUTE
+        - TENGU_SKIRMISHER
+        - KAPPA_RAIDER
+        - ONRYO_WRAITH
+        - JOROGUMO_WEAVER
+        - KITSUNE_TRICKSTER
+    mob-pool:
+      - ZOMBIE
+      - STRAY
+      - PILLAGER
+      - HUSK
+    boss-type: VINDICATOR
+    boss-name: "Ronin Gatekeeper"
+    boss-health-multiplier: 6.0
+    floor-material: BAMBOO_MOSAIC
+    wall-material: DARK_OAK_PLANKS
+    rewards:
+      S:
+        - "give {player} cherry_sapling 3"
+        - "give {player} bamboo 24"
+        - "give {player} diamond 4"
+        - "give {player} emerald 24"
+      A:
+        - "give {player} cherry_sapling 2"
+        - "give {player} bamboo 16"
+        - "give {player} diamond 3"
+        - "give {player} emerald 16"
+      B:
+        - "give {player} bamboo 12"
+        - "give {player} diamond 2"
+        - "give {player} emerald 8"
+      C:
+        - "give {player} bamboo 8"
+        - "give {player} emerald 6"
+      D:
+        - "give {player} bamboo 4"
+        - "give {player} emerald 3"
+
+  F2:
+    display-name: "Sakura Temple II"
+    min-party-size: 2
+    max-party-size: 5
+    combat-rooms: 5
+    puzzle-rooms: 2
+    treasure-rooms: 1
+    puzzle-types:
+      - SEQUENCE
+      - SYNC
+    room-size: 25
+    base-mob-count: 6
+    mob-health-multiplier: 1.35
+    mob-damage-tier: 1
+    folklore-mobs:
+      enabled: true
+      pool:
+        - ONI_BRUTE
+        - TENGU_SKIRMISHER
+        - KAPPA_RAIDER
+        - ONRYO_WRAITH
+        - JOROGUMO_WEAVER
+        - KITSUNE_TRICKSTER
+        - GASHADOKURO_SENTINEL
+    mob-pool:
+      - ZOMBIE
+      - WITHER_SKELETON
+      - PILLAGER
+      - VINDICATOR
+      - STRAY
+    boss-type: EVOKER
+    boss-name: "Onmyoji Shogun"
+    boss-health-multiplier: 7.8
+    floor-material: BLACKSTONE
+    wall-material: POLISHED_BLACKSTONE_BRICKS
+    rewards:
+      S:
+        - "give {player} cherry_sapling 5"
+        - "give {player} bamboo 40"
+        - "give {player} diamond 8"
+        - "give {player} emerald 40"
+      A:
+        - "give {player} cherry_sapling 3"
+        - "give {player} bamboo 24"
+        - "give {player} diamond 6"
+        - "give {player} emerald 26"
+      B:
+        - "give {player} bamboo 18"
+        - "give {player} diamond 4"
+        - "give {player} emerald 18"
+      C:
+        - "give {player} bamboo 12"
+        - "give {player} emerald 12"
+      D:
+        - "give {player} bamboo 8"
+        - "give {player} emerald 8"
+
+  F3:
+    display-name: "Sakura Temple III"
+    min-party-size: 3
+    max-party-size: 5
+    combat-rooms: 6
+    puzzle-rooms: 2
+    treasure-rooms: 2
+    puzzle-types:
+      - SEQUENCE
+      - SYNC
+    room-size: 27
+    base-mob-count: 8
+    mob-health-multiplier: 1.65
+    mob-damage-tier: 2
+    folklore-mobs:
+      enabled: true
+      pool:
+        - ONI_BRUTE
+        - TENGU_SKIRMISHER
+        - KAPPA_RAIDER
+        - ONRYO_WRAITH
+        - JOROGUMO_WEAVER
+        - KITSUNE_TRICKSTER
+        - GASHADOKURO_SENTINEL
+    mob-pool:
+      - WITHER_SKELETON
+      - VINDICATOR
+      - EVOKER
+      - STRAY
+      - HUSK
+    boss-type: RAVAGER
+    boss-name: "Storm Daimyo"
+    boss-health-multiplier: 10.8
+    floor-material: POLISHED_DEEPSLATE
+    wall-material: DEEPSLATE_BRICKS
+    rewards:
+      S:
+        - "give {player} cherry_sapling 7"
+        - "give {player} bamboo 52"
+        - "give {player} diamond 12"
+        - "give {player} emerald 52"
+      A:
+        - "give {player} cherry_sapling 5"
+        - "give {player} bamboo 34"
+        - "give {player} diamond 9"
+        - "give {player} emerald 34"
+      B:
+        - "give {player} bamboo 24"
+        - "give {player} diamond 6"
+        - "give {player} emerald 24"
+      C:
+        - "give {player} bamboo 16"
+        - "give {player} emerald 16"
+      D:
+        - "give {player} bamboo 10"
+        - "give {player} emerald 10"
+
+  F4:
+    display-name: "Sakura Temple IV"
+    min-party-size: 4
+    max-party-size: 5
+    combat-rooms: 7
+    puzzle-rooms: 3
+    treasure-rooms: 2
+    puzzle-types:
+      - SEQUENCE
+      - SYNC
+    room-size: 29
+    base-mob-count: 10
+    mob-health-multiplier: 2.0
+    mob-damage-tier: 3
+    folklore-mobs:
+      enabled: true
+      pool:
+        - ONI_BRUTE
+        - TENGU_SKIRMISHER
+        - KAPPA_RAIDER
+        - ONRYO_WRAITH
+        - JOROGUMO_WEAVER
+        - KITSUNE_TRICKSTER
+        - GASHADOKURO_SENTINEL
+    mob-pool:
+      - WITHER_SKELETON
+      - EVOKER
+      - VINDICATOR
+      - BLAZE
+      - PILLAGER
+    boss-type: WARDEN
+    boss-name: "Raijin Avatar"
+    boss-health-multiplier: 14.0
+    floor-material: BLACKSTONE
+    wall-material: POLISHED_BLACKSTONE_BRICKS
+    rewards:
+      S:
+        - "give {player} cherry_sapling 10"
+        - "give {player} bamboo 72"
+        - "give {player} diamond 16"
+        - "give {player} emerald 72"
+      A:
+        - "give {player} cherry_sapling 7"
+        - "give {player} bamboo 46"
+        - "give {player} diamond 12"
+        - "give {player} emerald 46"
+      B:
+        - "give {player} bamboo 30"
+        - "give {player} diamond 8"
+        - "give {player} emerald 30"
+      C:
+        - "give {player} bamboo 22"
+        - "give {player} emerald 22"
+      D:
+        - "give {player} bamboo 14"
+        - "give {player} emerald 14"
