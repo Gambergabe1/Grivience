@@ -63,7 +63,6 @@ Edit `src/main/resources/config.yml`:
   - `custom-items.drops.boss-materials.storm-sigil`
   - `custom-items.drops.boss-materials.thunder-essence`
   - `custom-items.drops.boss-materials.raijin-core`
-  - `custom-items.drops.boss-materials.flying-raijin`
   - `custom-items.drops.boss-materials.armor-piece`
   - `custom-items.drops.boss-materials.reforge-stone`
 - Flying Raijin crafting recipe:

@@ -202,7 +202,12 @@ public final class FloorConfig {
             }
         }
         if (puzzleTypes.isEmpty()) {
-            puzzleTypes = List.of(RoomType.PUZZLE_SEQUENCE, RoomType.PUZZLE_SYNC);
+            puzzleTypes = List.of(
+                    RoomType.PUZZLE_SEQUENCE,
+                    RoomType.PUZZLE_SYNC,
+                    RoomType.PUZZLE_CHIME,
+                    RoomType.PUZZLE_SEAL
+            );
         }
 
         int roomSize = Math.max(21, section.getInt("room-size", 23));
@@ -316,6 +321,12 @@ public final class FloorConfig {
         }
         if (Objects.equals(normalized, "SYNC")) {
             return RoomType.PUZZLE_SYNC;
+        }
+        if (Objects.equals(normalized, "CHIME")) {
+            return RoomType.PUZZLE_CHIME;
+        }
+        if (Objects.equals(normalized, "SEAL")) {
+            return RoomType.PUZZLE_SEAL;
         }
         try {
             return RoomType.valueOf(normalized);

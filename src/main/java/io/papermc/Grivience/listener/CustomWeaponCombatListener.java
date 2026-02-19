@@ -289,7 +289,11 @@ public final class CustomWeaponCombatListener implements Listener {
 
     private boolean isInstantBowWeapon(CustomWeaponType weaponType) {
         return weaponType == CustomWeaponType.TENGU_STORMBOW
-                || weaponType == CustomWeaponType.KITSUNE_DAWNBOW;
+                || weaponType == CustomWeaponType.KITSUNE_DAWNBOW
+                || weaponType == CustomWeaponType.TENGU_SHORTBOW
+                || weaponType == CustomWeaponType.KITSUNE_SHORTBOW
+                || weaponType == CustomWeaponType.ONRYO_SHORTBOW
+                || weaponType == CustomWeaponType.JOROGUMO_SHORTBOW;
     }
 
     private AmmoSource findAmmo(Player player) {
@@ -351,7 +355,7 @@ public final class CustomWeaponCombatListener implements Listener {
         int powerLevel = Math.max(0, bow.getEnchantmentLevel(Enchantment.POWER));
         double powerBonus = powerLevel > 0 ? (powerLevel * 0.5D) + 0.5D : 0.0D;
         projectile.setDamage(2.0D + powerBonus);
-        projectile.setKnockbackStrength(Math.max(0, bow.getEnchantmentLevel(Enchantment.PUNCH)));
+        projectile.setWeapon(bow.clone());
         if (bow.getEnchantmentLevel(Enchantment.FLAME) > 0) {
             projectile.setFireTicks(100);
         }
@@ -412,7 +416,7 @@ public final class CustomWeaponCombatListener implements Listener {
 
     private ItemStack resolveWeaponItem(Player player, Entity damager) {
         if (damager instanceof Trident trident) {
-            return trident.getItem();
+            return trident.getItemStack();
         }
         if (damager instanceof Projectile projectile) {
             ItemStack tracked = trackedProjectileWeapons.remove(projectile.getUniqueId());
@@ -588,6 +592,10 @@ public final class CustomWeaponCombatListener implements Listener {
                     118.0D, 16.0D, 22.0D, 24.0D,
                     null
             );
+            case TENGU_SHORTBOW -> new WeaponProfile(
+                    112.0D, 14.0D, 26.0D, 18.0D,
+                    null
+            );
             case KAPPA_TIDEBREAKER -> new WeaponProfile(
                     120.0D, 30.0D, 0.0D, 10.0D,
                     new WeaponAbility("Tide Surge", AbilityEffect.TIDE_SURGE, 36.0D, 7.0D, 1.05D, 3.8D, 0.40D)
@@ -596,9 +604,17 @@ public final class CustomWeaponCombatListener implements Listener {
                     145.0D, 45.0D, 5.0D, 20.0D,
                     new WeaponAbility("Wraith Cut", AbilityEffect.SPIRIT_CUT, 46.0D, 9.0D, 1.10D, 3.7D, 0.42D)
             );
+            case ONRYO_SHORTBOW -> new WeaponProfile(
+                    138.0D, 30.0D, 14.0D, 30.0D,
+                    null
+            );
             case JOROGUMO_STINGER -> new WeaponProfile(
                     95.0D, 18.0D, 8.0D, 10.0D,
                     new WeaponAbility("Silk Snare", AbilityEffect.WEB_SNARE, 28.0D, 6.0D, 0.85D, 3.5D, 0.30D)
+            );
+            case JOROGUMO_SHORTBOW -> new WeaponProfile(
+                    104.0D, 14.0D, 24.0D, 18.0D,
+                    null
             );
             case KITSUNE_FANG -> new WeaponProfile(
                     108.0D, 25.0D, 12.0D, 25.0D,
@@ -606,6 +622,10 @@ public final class CustomWeaponCombatListener implements Listener {
             );
             case KITSUNE_DAWNBOW -> new WeaponProfile(
                     126.0D, 22.0D, 14.0D, 40.0D,
+                    null
+            );
+            case KITSUNE_SHORTBOW -> new WeaponProfile(
+                    124.0D, 18.0D, 20.0D, 36.0D,
                     null
             );
             case GASHADOKURO_NODACHI -> new WeaponProfile(

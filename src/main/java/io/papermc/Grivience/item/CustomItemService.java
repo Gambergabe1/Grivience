@@ -7,6 +7,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.RecipeChoice;
@@ -37,7 +38,6 @@ public final class CustomItemService {
     private double stormSigilChance;
     private double thunderEssenceChance;
     private double raijinCoreChance;
-    private double flyingRaijinChance;
     private double bossArmorChance;
     private double bossReforgeStoneChance;
 
@@ -88,7 +88,6 @@ public final class CustomItemService {
         stormSigilChance = clampChance(dropSection.getDouble("boss-materials.storm-sigil", stormSigilChance));
         thunderEssenceChance = clampChance(dropSection.getDouble("boss-materials.thunder-essence", thunderEssenceChance));
         raijinCoreChance = clampChance(dropSection.getDouble("boss-materials.raijin-core", raijinCoreChance));
-        flyingRaijinChance = clampChance(dropSection.getDouble("boss-materials.flying-raijin", flyingRaijinChance));
         bossArmorChance = clampChance(dropSection.getDouble("boss-materials.armor-piece", bossArmorChance));
         bossReforgeStoneChance = clampChance(dropSection.getDouble("boss-materials.reforge-stone", bossReforgeStoneChance));
     }
@@ -103,6 +102,16 @@ public final class CustomItemService {
         recipe.setIngredient('R', new RecipeChoice.ExactChoice(createCraftingItem(RaijinCraftingItemType.RAIJIN_CORE)));
         recipe.setIngredient('N', Material.NETHERITE_SWORD);
         Bukkit.addRecipe(recipe);
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            discoverRecipes(online);
+        }
+    }
+
+    public void discoverRecipes(Player player) {
+        if (player == null) {
+            return;
+        }
+        player.discoverRecipe(recipeFlyingRaijinKey);
     }
 
     public double mobWeaponDropChance(YokaiType type) {
@@ -133,10 +142,6 @@ public final class CustomItemService {
 
     public double raijinCoreChance() {
         return raijinCoreChance;
-    }
-
-    public double flyingRaijinChance() {
-        return flyingRaijinChance;
     }
 
     public double bossArmorChance() {
@@ -183,6 +188,16 @@ public final class CustomItemService {
                     ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "EPIC DUNGEON WEAPON",
                     Map.of(Enchantment.POWER, 6, Enchantment.PUNCH, 2, Enchantment.INFINITY, 1)
             );
+            case TENGU_SHORTBOW -> weapon(
+                    Material.BOW,
+                    ChatColor.AQUA + "Tengu Shortbow",
+                    "TENGU_SHORTBOW",
+                    ChatColor.DARK_GRAY + "Damage: " + ChatColor.RED + "+112",
+                    ChatColor.DARK_GRAY + "Crit Chance: " + ChatColor.BLUE + "+26%",
+                    ChatColor.GRAY + "Light shrine bow built for rapid skirmishing. Right-click to fire instantly.",
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "EPIC DUNGEON WEAPON",
+                    Map.of(Enchantment.POWER, 5, Enchantment.PUNCH, 1, Enchantment.INFINITY, 1)
+            );
             case KAPPA_TIDEBREAKER -> weapon(
                     Material.TRIDENT,
                     ChatColor.GREEN + "Kappa Tidebreaker",
@@ -203,6 +218,16 @@ public final class CustomItemService {
                     ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY DUNGEON WEAPON",
                     Map.of(Enchantment.SHARPNESS, 5, Enchantment.FIRE_ASPECT, 2)
             );
+            case ONRYO_SHORTBOW -> weapon(
+                    Material.BOW,
+                    ChatColor.GRAY + "Onryo Phantom Shortbow",
+                    "ONRYO_SHORTBOW",
+                    ChatColor.DARK_GRAY + "Damage: " + ChatColor.RED + "+138",
+                    ChatColor.DARK_GRAY + "Crit Damage: " + ChatColor.BLUE + "+30%",
+                    ChatColor.GRAY + "A griefbound bow that looses cursed shots instantly.",
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY DUNGEON WEAPON",
+                    Map.of(Enchantment.POWER, 6, Enchantment.PUNCH, 1, Enchantment.INFINITY, 1)
+            );
             case JOROGUMO_STINGER -> weapon(
                     Material.STONE_SWORD,
                     ChatColor.DARK_GREEN + "Jorogumo Stinger",
@@ -212,6 +237,16 @@ public final class CustomItemService {
                     ChatColor.GRAY + "A fang blade coated in cursed silk venom.",
                     ChatColor.BLUE + "" + ChatColor.BOLD + "RARE DUNGEON WEAPON",
                     Map.of(Enchantment.BANE_OF_ARTHROPODS, 5, Enchantment.LOOTING, 2)
+            );
+            case JOROGUMO_SHORTBOW -> weapon(
+                    Material.BOW,
+                    ChatColor.DARK_GREEN + "Jorogumo Silk Shortbow",
+                    "JOROGUMO_SHORTBOW",
+                    ChatColor.DARK_GRAY + "Damage: " + ChatColor.RED + "+104",
+                    ChatColor.DARK_GRAY + "Crit Chance: " + ChatColor.BLUE + "+24%",
+                    ChatColor.GRAY + "Silk-spun frame made for venom-fast right-click shots.",
+                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE DUNGEON WEAPON",
+                    Map.of(Enchantment.POWER, 5, Enchantment.PUNCH, 1, Enchantment.INFINITY, 1)
             );
             case KITSUNE_FANG -> weapon(
                     Material.GOLDEN_SWORD,
@@ -232,6 +267,16 @@ public final class CustomItemService {
                     ChatColor.GRAY + "Foxfire threads blaze along its drawn string.",
                     ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY DUNGEON WEAPON",
                     Map.of(Enchantment.POWER, 7, Enchantment.FLAME, 1, Enchantment.INFINITY, 1, Enchantment.PUNCH, 1)
+            );
+            case KITSUNE_SHORTBOW -> weapon(
+                    Material.BOW,
+                    ChatColor.GOLD + "Kitsune Shortbow",
+                    "KITSUNE_SHORTBOW",
+                    ChatColor.DARK_GRAY + "Damage: " + ChatColor.RED + "+124",
+                    ChatColor.DARK_GRAY + "Crit Damage: " + ChatColor.BLUE + "+36%",
+                    ChatColor.GRAY + "Foxfire shortbow made for burst shots. Right-click to fire instantly.",
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY DUNGEON WEAPON",
+                    Map.of(Enchantment.POWER, 6, Enchantment.FLAME, 1, Enchantment.INFINITY, 1, Enchantment.PUNCH, 1)
             );
             case GASHADOKURO_NODACHI -> weapon(
                     Material.NETHERITE_SWORD,
@@ -871,7 +916,6 @@ public final class CustomItemService {
         stormSigilChance = 0.38D;
         thunderEssenceChance = 0.22D;
         raijinCoreChance = 0.10D;
-        flyingRaijinChance = 0.015D;
         bossArmorChance = 0.35D;
         bossReforgeStoneChance = 0.50D;
     }

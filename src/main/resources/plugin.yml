@@ -4,7 +4,7 @@ main: io.papermc.Grivience.GriviencePlugin
 api-version: "1.21"
 description: Japanese-themed party dungeon runs inspired by SkyBlock-style floors.
 author: Kazutos
-softdepend: [AuraSkills, EcoEnchants]
+softdepend: [AuraSkills, EcoEnchants, Vault]
 
 commands:
   dungeon:
@@ -15,6 +15,26 @@ commands:
     description: Manage your dungeon party.
     usage: /party <create|invite|accept|leave|kick|list|finder>
     aliases: [p]
+  skyblock:
+    description: Open SkyBlock-style island management menus.
+    usage: /skyblock [menu|island|upgrades|minions|settings|permissions|help]
+    aliases: [sb, skyblockmenu]
+  island:
+    description: Manage your SkyBlock island.
+    usage: /island [go|create|expand|info|sethome|setname|setdesc|leave|help]
+    aliases: [is, skyblock island]
+  hub:
+    description: Teleport to the Hub/Spawn.
+    usage: /hub
+    aliases: [spawn, lobby]
+  skyblockadmin:
+    description: Admin commands for SkyBlock management.
+    usage: /skyblockadmin <sethub|reload|help>
+    permission: grivience.admin
+  mobspawn:
+    description: Admin commands for custom monster spawn management.
+    usage: /mobspawn <create|remove|list|info|toggle|monsters|help>
+    permission: grivience.admin
 
 permissions:
   grivience.admin:

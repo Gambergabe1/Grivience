@@ -2,6 +2,7 @@ package io.papermc.Grivience.listener;
 
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.dungeon.DungeonManager;
+import io.papermc.Grivience.item.CustomItemService;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -35,10 +36,12 @@ public final class DungeonListener implements Listener {
     private static final String KEY_NAME_TOKEN = "Temple Key";
 
     private final DungeonManager dungeonManager;
+    private final CustomItemService customItemService;
     private final NamespacedKey runKeyTag;
 
-    public DungeonListener(GriviencePlugin plugin, DungeonManager dungeonManager) {
+    public DungeonListener(GriviencePlugin plugin, DungeonManager dungeonManager, CustomItemService customItemService) {
         this.dungeonManager = dungeonManager;
+        this.customItemService = customItemService;
         this.runKeyTag = new NamespacedKey(plugin, "run-key");
     }
 
@@ -77,6 +80,7 @@ public final class DungeonListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         dungeonManager.handlePlayerJoin(player);
+        customItemService.discoverRecipes(player);
         if (!dungeonManager.isInDungeon(player.getUniqueId()) && removeTempleKeys(player)) {
             player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys were removed because you are not in an active dungeon.");
         }

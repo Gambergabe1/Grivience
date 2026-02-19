@@ -7,7 +7,9 @@ import io.papermc.Grivience.party.PartyManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -274,6 +276,8 @@ public final class DungeonManager {
 
             sendPlayerToExit(player);
         }
+
+        cleanupArena(session);
     }
 
     public String nameOf(UUID playerId) {
@@ -353,7 +357,13 @@ public final class DungeonManager {
     private RoomType randomPuzzleType(FloorConfig floor) {
         List<RoomType> types = floor.puzzleTypes();
         if (types.isEmpty()) {
-            return RoomType.PUZZLE_SEQUENCE;
+            RoomType[] fallback = {
+                    RoomType.PUZZLE_SEQUENCE,
+                    RoomType.PUZZLE_SYNC,
+                    RoomType.PUZZLE_CHIME,
+                    RoomType.PUZZLE_SEAL
+            };
+            return fallback[ThreadLocalRandom.current().nextInt(fallback.length)];
         }
         return types.get(ThreadLocalRandom.current().nextInt(types.size()));
     }
@@ -401,5 +411,30 @@ public final class DungeonManager {
         long minutesPart = seconds / 60L;
         long secondsPart = seconds % 60L;
         return String.format("%02d:%02d", minutesPart, secondsPart);
+    }
+
+    private void cleanupArena(DungeonSession session) {
+        World world = session.arenaWorld();
+        if (world == null) {
+            return;
+        }
+        List<ArenaLayout.Cuboid> volumes = session.cleanupVolumes();
+        if (volumes.isEmpty()) {
+            return;
+        }
+
+        for (ArenaLayout.Cuboid cuboid : volumes) {
+            for (int x = cuboid.minX(); x <= cuboid.maxX(); x++) {
+                for (int y = cuboid.minY(); y <= cuboid.maxY(); y++) {
+                    for (int z = cuboid.minZ(); z <= cuboid.maxZ(); z++) {
+                        Block block = world.getBlockAt(x, y, z);
+                        if (block.getType() == Material.AIR) {
+                            continue;
+                        }
+                        block.setType(Material.AIR, false);
+                    }
+                }
+            }
+        }
     }
 }

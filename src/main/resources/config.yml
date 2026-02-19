@@ -11,6 +11,38 @@ dungeons:
   max-party-size: 5
   invite-timeout-seconds: 60
 
+navigation-item:
+  enabled: true
+
+skyblock:
+  world-name: skyblock_world
+  hub-world: world
+  island-spacing: 100
+  starting-size: 32
+  upgrade-sizes:
+    - 32
+    - 48
+    - 64
+    - 80
+    - 96
+    - 112
+    - 128
+  upgrade-costs:
+    2: 5000
+    3: 15000
+    4: 30000
+    5: 50000
+    6: 75000
+    7: 100000
+  hub-spawn:
+    x: 0
+    y: 100
+    z: 0
+    yaw: 0
+    pitch: 0
+  nether-portal-to-hub:
+    enabled: true
+
 enchant-table:
   enabled: true
   vanilla:
@@ -182,9 +214,354 @@ custom-items:
       storm-sigil: 0.38
       thunder-essence: 0.22
       raijin-core: 0.10
-      flying-raijin: 0.015
       armor-piece: 0.35
       reforge-stone: 0.50
+
+custom-monsters:
+  enabled: true
+  monsters:
+    # Drops Netherite Ingots for Crimson Armor
+    blaze_knight:
+      display-name: "&6Blaze Knight"
+      entity-type: BLAZE
+      health: 40.0
+      damage: 5.0
+      speed: 0.25
+      exp-reward: 25
+      glowing: true
+      drops:
+        netherite_ingot:
+          material: NETHERITE_INGOT
+          chance: 0.15
+          min-amount: 1
+          max-amount: 2
+        blaze_rod:
+          material: BLAZE_ROD
+          chance: 0.5
+          min-amount: 1
+          max-amount: 3
+
+    # Drops Prismarine Crystals for Azure Armor
+    sea_guardian:
+      display-name: "&bSea Guardian"
+      entity-type: GUARDIAN
+      health: 50.0
+      damage: 6.0
+      speed: 0.3
+      exp-reward: 30
+      glowing: true
+      drops:
+        prismarine_crystals:
+          material: PRISMARINE_CRYSTALS
+          chance: 0.2
+          min-amount: 2
+          max-amount: 4
+        prismarine_shard:
+          material: PRISMARINE_SHARD
+          chance: 0.6
+          min-amount: 2
+          max-amount: 5
+
+    # Drops Coal for Onyx Armor
+    shadow_stalker:
+      display-name: "&8Shadow Stalker"
+      entity-type: ENDERMAN
+      health: 45.0
+      damage: 7.0
+      speed: 0.28
+      exp-reward: 35
+      glowing: false
+      drops:
+        coal:
+          material: COAL
+          chance: 0.3
+          min-amount: 3
+          max-amount: 6
+        ender_pearl:
+          material: ENDER_PEARL
+          chance: 0.4
+          min-amount: 1
+          max-amount: 2
+
+    # Drops Lightning Rods for Storm Armor
+    storm_elemental:
+      display-name: "&eStorm Elemental"
+      entity-type: CREEPER
+      health: 35.0
+      damage: 4.0
+      speed: 0.32
+      exp-reward: 20
+      glowing: true
+      drops:
+        lightning_rod:
+          material: LIGHTNING_ROD
+          chance: 0.18
+          min-amount: 1
+          max-amount: 2
+        gunpowder:
+          material: GUNPOWDER
+          chance: 0.7
+          min-amount: 2
+          max-amount: 4
+
+    # Drops Nether Stars for Shogun Armor (Boss)
+    withered_samurai:
+      display-name: "&cWithered Samurai"
+      entity-type: WITHER_SKELETON
+      health: 150.0
+      damage: 10.0
+      speed: 0.22
+      exp-reward: 100
+      glowing: true
+      drops:
+        nether_star:
+          material: NETHER_STAR
+          chance: 0.25
+          min-amount: 1
+          max-amount: 1
+        ancient_debris:
+          material: ANCIENT_DEBRIS
+          chance: 0.3
+          min-amount: 1
+          max-amount: 2
+        netherite_ingot:
+          material: NETHERITE_INGOT
+          chance: 0.2
+          min-amount: 1
+          max-amount: 2
+
+custom-armor:
+  enabled: true
+  sets:
+    crimson:
+      display-name: "&cCrimson Warrior"
+      description: "A fierce armor forged in volcanic flames."
+      pieces-required: 2
+      crafting-material: NETHERITE_INGOT
+      bonuses:
+        - "&72 Pieces: &fSpeed I"
+        - "&74 Pieces: &fStrength I"
+      pieces:
+        helmet:
+          material: NETHERITE_HELMET
+          display-name: "&cCrimson Helm"
+          lore:
+            - "&7Part of the Crimson Warrior set."
+            - "&8Forged in lava."
+          armor: 3
+          toughness: 2.0
+          glowing: true
+        chestplate:
+          material: NETHERITE_CHESTPLATE
+          display-name: "&cCrimson Plate"
+          lore:
+            - "&7Part of the Crimson Warrior set."
+            - "&8Radiates heat."
+          armor: 8
+          toughness: 2.0
+          glowing: true
+        leggings:
+          material: NETHERITE_LEGGINGS
+          display-name: "&cCrimson Greaves"
+          lore:
+            - "&7Part of the Crimson Warrior set."
+            - "&8Burns enemies."
+          armor: 6
+          toughness: 2.0
+          glowing: true
+        boots:
+          material: NETHERITE_BOOTS
+          display-name: "&cCrimson Boots"
+          lore:
+            - "&7Part of the Crimson Warrior set."
+            - "&8Leave fiery footprints."
+          armor: 3
+          toughness: 2.0
+          glowing: true
+
+    azure:
+      display-name: "&bAzure Guardian"
+      description: "Mystical armor blessed by ocean spirits."
+      pieces-required: 2
+      crafting-material: PRISMARINE_CRYSTALS
+      bonuses:
+        - "&72 Pieces: &fRegeneration I"
+        - "&74 Pieces: &fWater Breathing"
+      pieces:
+        helmet:
+          material: DIAMOND_HELMET
+          display-name: "&bAzure Visor"
+          lore:
+            - "&7Part of the Azure Guardian set."
+            - "&8Glowing with sea energy."
+          armor: 3
+          toughness: 1.5
+          glowing: true
+        chestplate:
+          material: DIAMOND_CHESTPLATE
+          display-name: "&bAzure Cuirass"
+          lore:
+            - "&7Part of the Azure Guardian set."
+            - "&8Protected by tides."
+          armor: 8
+          toughness: 1.5
+          glowing: true
+        leggings:
+          material: DIAMOND_LEGGINGS
+          display-name: "&bAzure Legguards"
+          lore:
+            - "&7Part of the Azure Guardian set."
+            - "&8Flow like water."
+          armor: 6
+          toughness: 1.5
+          glowing: true
+        boots:
+          material: DIAMOND_BOOTS
+          display-name: "&bAzure Treads"
+          lore:
+            - "&7Part of the Azure Guardian set."
+            - "&8Walk on waves."
+          armor: 3
+          toughness: 1.5
+          glowing: true
+
+    onyx:
+      display-name: "&8Onyx Shadow"
+      description: "Dark armor worn by master assassins."
+      pieces-required: 2
+      crafting-material: COAL
+      bonuses:
+        - "&72 Pieces: &f10% Damage Reflection"
+        - "&74 Pieces: &fInvisibility (when not moving)"
+      pieces:
+        helmet:
+          material: BLACKSTONE
+          display-name: "&8Onyx Mask"
+          lore:
+            - "&7Part of the Onyx Shadow set."
+            - "&8Hides your identity."
+          armor: 3
+          toughness: 1.0
+          glowing: false
+        chestplate:
+          material: BLACKSTONE
+          display-name: "&8Onyx Vest"
+          lore:
+            - "&7Part of the Onyx Shadow set."
+            - "&8Absorbs light."
+          armor: 8
+          toughness: 1.0
+          glowing: false
+        leggings:
+          material: BLACKSTONE
+          display-name: "&8Onyx Leggings"
+          lore:
+            - "&7Part of the Onyx Shadow set."
+            - "&8Silent as night."
+          armor: 6
+          toughness: 1.0
+          glowing: false
+        boots:
+          material: BLACKSTONE
+          display-name: "&8Onyx Boots"
+          lore:
+            - "&7Part of the Onyx Shadow set."
+            - "&8Step without sound."
+          armor: 3
+          toughness: 1.0
+          glowing: false
+
+    storm:
+      display-name: "&eStorm Caller"
+      description: "Armor crackling with electrical energy."
+      pieces-required: 2
+      crafting-material: LIGHTNING_ROD
+      bonuses:
+        - "&72 Pieces: &fSpeed II"
+        - "&74 Pieces: &fJump Boost II"
+      pieces:
+        helmet:
+          material: GOLDEN_HELMET
+          display-name: "&eStorm Crown"
+          lore:
+            - "&7Part of the Storm Caller set."
+            - "&8Attracts lightning."
+          armor: 3
+          toughness: 1.5
+          glowing: true
+        chestplate:
+          material: GOLDEN_CHESTPLATE
+          display-name: "&eStorm Guard"
+          lore:
+            - "&7Part of the Storm Caller set."
+            - "&8Channels thunder."
+          armor: 8
+          toughness: 1.5
+          glowing: true
+        leggings:
+          material: GOLDEN_LEGGINGS
+          display-name: "&eStorm Leggings"
+          lore:
+            - "&7Part of the Storm Caller set."
+            - "&8Swift as wind."
+          armor: 6
+          toughness: 1.5
+          glowing: true
+        boots:
+          material: GOLDEN_BOOTS
+          display-name: "&eStorm Boots"
+          lore:
+            - "&7Part of the Storm Caller set."
+            - "&8Leap like lightning."
+          armor: 3
+          toughness: 1.5
+          glowing: true
+
+    shogun:
+      display-name: "&6Shogun Warlord"
+      description: "Legendary armor of ancient warlords."
+      pieces-required: 4
+      crafting-material: NETHER_STAR
+      bonuses:
+        - "&74 Pieces: &f15% Damage Reduction"
+        - "&74 Pieces: &fIncreased Armor Toughness"
+      pieces:
+        helmet:
+          material: NETHERITE_HELMET
+          display-name: "&6Shogun Kabuto"
+          lore:
+            - "&7Part of the Shogun Warlord set."
+            - "&8Worn by legendary generals."
+          armor: 4
+          toughness: 3.0
+          glowing: true
+        chestplate:
+          material: NETHERITE_CHESTPLATE
+          display-name: "&6Shogun O-Yoroi"
+          lore:
+            - "&7Part of the Shogun Warlord set."
+            - "&8Impenetrable defense."
+          armor: 10
+          toughness: 3.0
+          glowing: true
+        leggings:
+          material: NETHERITE_LEGGINGS
+          display-name: "&6Shogun Haidate"
+          lore:
+            - "&7Part of the Shogun Warlord set."
+            - "&8Protects the legs."
+          armor: 7
+          toughness: 3.0
+          glowing: true
+        boots:
+          material: NETHERITE_BOOTS
+          display-name: "&6Shogun Sune-Ate"
+          lore:
+            - "&7Part of the Shogun Warlord set."
+            - "&8Stands firm in battle."
+          armor: 4
+          toughness: 3.0
+          glowing: true
 
 floors:
   F1:
@@ -197,6 +574,8 @@ floors:
     puzzle-types:
       - SEQUENCE
       - SYNC
+      - CHIME
+      - SEAL
     room-size: 23
     base-mob-count: 5
     mob-health-multiplier: 1.1
@@ -252,6 +631,8 @@ floors:
     puzzle-types:
       - SEQUENCE
       - SYNC
+      - CHIME
+      - SEAL
     room-size: 25
     base-mob-count: 6
     mob-health-multiplier: 1.35
@@ -309,6 +690,8 @@ floors:
     puzzle-types:
       - SEQUENCE
       - SYNC
+      - CHIME
+      - SEAL
     room-size: 27
     base-mob-count: 8
     mob-health-multiplier: 1.65
@@ -366,6 +749,8 @@ floors:
     puzzle-types:
       - SEQUENCE
       - SYNC
+      - CHIME
+      - SEAL
     room-size: 29
     base-mob-count: 10
     mob-health-multiplier: 2.0

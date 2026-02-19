@@ -56,7 +56,7 @@ public final class CustomItemEnchantListener implements Listener {
 
         result = customItemService.syncWeaponEnchantLore(result);
         event.setResult(result);
-        inventory.setRepairCost(1);
+        event.getView().setRepairCost(1);
     }
 
     private boolean isCustomDungeonWeapon(ItemStack item) {

@@ -1,7 +1,11 @@
 package io.papermc.Grivience.party;
 
 import io.papermc.Grivience.GriviencePlugin;
+import io.papermc.Grivience.skyblock.island.Island;
+import io.papermc.Grivience.skyblock.island.IslandManager;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
@@ -21,6 +25,7 @@ public final class PartyManager {
     private final Map<UUID, Party> partiesById = new HashMap<>();
     private final Map<UUID, UUID> partyByPlayer = new HashMap<>();
     private final Map<UUID, Map<UUID, Long>> invitesByTarget = new HashMap<>();
+    private IslandManager islandManager;
 
     private int maxPartySize;
     private long inviteTimeoutMillis;
@@ -28,6 +33,10 @@ public final class PartyManager {
     public PartyManager(GriviencePlugin plugin) {
         this.plugin = plugin;
         reloadFromConfig();
+    }
+
+    public void setIslandManager(IslandManager islandManager) {
+        this.islandManager = islandManager;
     }
 
     public void reloadFromConfig() {
@@ -255,6 +264,58 @@ public final class PartyManager {
 
     private String shortId(UUID id) {
         return id.toString().substring(0, 8);
+    }
+
+    public String warpPartyToIsland(Player leader) {
+        if (!isInParty(leader.getUniqueId())) {
+            return "You are not in a party.";
+        }
+
+        Party party = getParty(leader.getUniqueId());
+        if (party == null) {
+            return "Party not found.";
+        }
+
+        if (!party.isLeader(leader.getUniqueId())) {
+            return "Only the party leader can warp the party.";
+        }
+
+        if (islandManager == null) {
+            return "Island system is not available.";
+        }
+
+        Island island = islandManager.getIsland(leader.getUniqueId());
+        if (island == null) {
+            return "You do not have an island. Use /island create to create one.";
+        }
+
+        if (island.getCenter() == null) {
+            return "Your island location is not available.";
+        }
+
+        Location destination = island.getCenter().clone().add(0.5, 2, 0.5);
+        int warpedCount = 0;
+
+        for (UUID memberId : party.members()) {
+            if (memberId.equals(leader.getUniqueId())) {
+                continue;
+            }
+
+            Player member = Bukkit.getPlayer(memberId);
+            if (member != null && member.isOnline()) {
+                member.teleport(destination);
+                member.sendMessage(ChatColor.GREEN + "Warped to " + leader.getName() + "'s island!");
+                warpedCount++;
+            }
+        }
+
+        leader.sendMessage(ChatColor.GREEN + "Warped " + warpedCount + " party member(s) to your island.");
+        
+        if (warpedCount > 0) {
+            leader.playSound(leader.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_TELEPORT, 1.0F, 1.0F);
+        }
+
+        return null;
     }
 
     public record PartySnapshot(

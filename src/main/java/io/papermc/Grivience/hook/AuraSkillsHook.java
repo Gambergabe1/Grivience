@@ -154,10 +154,16 @@ public final class AuraSkillsHook {
         if (statsEnumClass == null || rawName == null || rawName.isBlank()) {
             return null;
         }
-        try {
-            return Enum.valueOf((Class) statsEnumClass, rawName.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
+        String targetName = rawName.toUpperCase(Locale.ROOT);
+        Object[] constants = statsEnumClass.getEnumConstants();
+        if (constants == null) {
             return null;
         }
+        for (Object constant : constants) {
+            if (constant instanceof Enum<?> enumConstant && enumConstant.name().equals(targetName)) {
+                return constant;
+            }
+        }
+        return null;
     }
 }
