@@ -26,6 +26,7 @@ public final class IslandManager {
     private int startingSize;
     private List<Integer> upgradeSizes;
     private Map<Integer, Double> upgradeCosts;
+    private int islandSpawnY;
 
     public IslandManager(GriviencePlugin plugin) {
         this.plugin = plugin;
@@ -50,11 +51,13 @@ public final class IslandManager {
                     6, 75000.0,
                     7, 100000.0
             );
+            islandSpawnY = 80;
             return;
         }
 
         islandSpacing = skyblockSection.getInt("island-spacing", 100);
         startingSize = skyblockSection.getInt("starting-size", 32);
+        islandSpawnY = skyblockSection.getInt("island-spawn-y", 80);
         upgradeSizes = skyblockSection.getIntegerList("upgrade-sizes");
         if (upgradeSizes.isEmpty()) {
             upgradeSizes = Arrays.asList(32, 48, 64, 80, 96, 112, 128);
@@ -136,11 +139,22 @@ public final class IslandManager {
         islandsById.put(island.getId(), island);
         playerToIsland.put(player.getUniqueId(), island.getId());
 
-        saveIsland(island);
-
         IslandGenerator.generateIsland(island);
 
-        player.teleport(spawnLocation.clone().add(0.5, 1, 0.5));
+        // Set default island spawn to the platform center and persist.
+        Location defaultSpawn = spawnLocation.clone().add(0.5, 1, 0.5);
+        island.setSpawnPoint(defaultSpawn);
+        saveIsland(island);
+
+        Location safeSpawn = getSafeSpawnLocation(island);
+        if (safeSpawn != null) {
+            player.teleport(safeSpawn);
+            player.setBedSpawnLocation(safeSpawn, true);
+        } else {
+            Location fallback = defaultSpawn;
+            player.teleport(fallback);
+            player.setBedSpawnLocation(fallback, true);
+        }
 
         player.sendMessage(ChatColor.GREEN + "Your island has been created!");
         player.sendMessage(ChatColor.GRAY + "Size: " + startingSize + "x" + startingSize);
@@ -165,7 +179,7 @@ public final class IslandManager {
             x = (x / islandSpacing) * islandSpacing;
             z = (z / islandSpacing) * islandSpacing;
 
-            Location center = new Location(islandWorld, x + 0.5, 80, z + 0.5);
+            Location center = new Location(islandWorld, x + 0.5, islandSpawnY, z + 0.5);
 
             if (!isLocationOccupied(center)) {
                 return center;
@@ -175,7 +189,7 @@ public final class IslandManager {
         int searchRadius = maxRadius + islandSpacing;
         for (int x = -searchRadius; x <= searchRadius; x += islandSpacing) {
             for (int z = -searchRadius; z <= searchRadius; z += islandSpacing) {
-                Location center = new Location(islandWorld, x + 0.5, 80, z + 0.5);
+                Location center = new Location(islandWorld, x + 0.5, islandSpawnY, z + 0.5);
                 if (!isLocationOccupied(center)) {
                     return center;
                 }
@@ -211,11 +225,35 @@ public final class IslandManager {
             return islandsById.get(islandId);
         }
 
+        for (Island candidate : islandsById.values()) {
+            if (candidate != null && candidate.isMember(playerUuid)) {
+                return candidate;
+            }
+        }
+
         return null;
     }
 
     public Island getIslandById(UUID islandId) {
         return islandsById.get(islandId);
+    }
+
+    public Location getSafeSpawnLocation(Island island) {
+        if (island == null || island.getCenter() == null) return null;
+
+        Location spawnPoint = island.getSpawnPoint();
+        if (spawnPoint != null) {
+            Location safe = WorldHelper.findSafeLocation(spawnPoint);
+            return safe != null ? safe : spawnPoint;
+        }
+
+        Location center = island.getCenter();
+        if (center == null) {
+            return null;
+        }
+        Location centerSpot = center.clone().add(0.5, 1, 0.5);
+        Location safeCenter = WorldHelper.findSafeLocation(centerSpot);
+        return safeCenter != null ? safeCenter : centerSpot;
     }
 
     public boolean expandIsland(Player player, int newLevel) {
@@ -368,6 +406,18 @@ public final class IslandManager {
 
     public Collection<Island> getAllIslands() {
         return islandsById.values();
+    }
+
+    public Island getIslandAt(Location location) {
+        if (location == null || islandWorld == null || !location.getWorld().equals(islandWorld)) {
+            return null;
+        }
+        for (Island island : islandsById.values()) {
+            if (island != null && island.isWithinIsland(location)) {
+                return island;
+            }
+        }
+        return null;
     }
 
     public int getTotalIslands() {

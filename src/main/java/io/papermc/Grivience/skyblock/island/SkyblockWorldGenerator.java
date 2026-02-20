@@ -48,7 +48,8 @@ public final class SkyblockWorldGenerator extends org.bukkit.generator.ChunkGene
 
     @Override
     public boolean shouldGenerateMobs() {
-        return false;
+        // Allow natural mob spawning on player-built islands.
+        return true;
     }
 
     @Override

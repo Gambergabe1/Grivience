@@ -41,8 +41,9 @@ Japanese-themed dungeon + SkyBlock plugin for Paper `1.21.x`.
 - Adventurer profile card showing party/dungeon state.
 
 ### Custom Dungeon Items and Combat
-- 14 custom dungeon weapons.
-- 12 custom dungeon armor pieces across `Shogun`, `Shinobi`, `Onmyoji`.
+- 16 custom dungeon weapons (added Hayabusa Katana, Raijin Shortbow).
+- Config-driven shortbows fire instantly on left and right click.
+- 12+ custom dungeon armor pieces across `Shogun`, `Shinobi`, `Onmyoji`, plus config armor sets.
 - Passive custom-armor combat buffs and full-set effects for dungeon armor sets.
 - Flying Raijin crafting recipe using boss materials:
   - `storm_sigil`
@@ -75,9 +76,22 @@ Japanese-themed dungeon + SkyBlock plugin for Paper `1.21.x`.
 - Automatic spawn cycling with per-point nearby-entity caps.
 - Admin spawn-point management command set (`/mobspawn ...`).
 
+### Bazaar Shop
+- `/bazaar` GUI with two catalogs:
+  - Plugin items (custom weapons/armor/materials/reforge stones + config armor-set pieces)
+  - Base server items (all vanilla materials where `Material#isItem` is true)
+- Hypixel-style instant buy/sell + orders:
+  - Instant trades use live best buy/sell orders when Vault is enabled; falls back to NPC pricing.
+  - Middle-click = create buy order, Drop = create sell order (stack size).
+- Economy handling:
+  - Uses Vault economy when available (`bazaar.use-vault-economy`)
+  - Optional XP-level fallback for instant trades when Vault is unavailable (`bazaar.allow-level-fallback`)
+- Configurable default prices and per-item override maps under `bazaar.*` in `config.yml`.
+
 ### Config-Driven Custom Armor Sets
 - Separate config-based armor-set system under `custom-armor.*` (enabled by default).
-- Default config ships with multiple sets (`crimson`, `azure`, `onyx`, `storm`, `shogun`) and set-bonus effects.
+- Default config ships with multiple sets (`crimson`, `azure`, `onyx`, `storm`, `shogun`, `stormborne`, `blossom`) and set-bonus effects.
+- Armor crafting supports custom materials via `custom:<id>` ingredients (e.g., dragon_scale, blossom_fiber).
 - Auto-registered recipes for configured sets/pieces.
 - Runtime set-bonus listeners and effect application for configured armor sets.
 
@@ -86,6 +100,7 @@ Japanese-themed dungeon + SkyBlock plugin for Paper `1.21.x`.
 - Per-player island creation and persistence (`plugins/Grivience/skyblock/islands/*.yml`).
 - Configurable island sizes, upgrade tiers, and costs (Vault-aware if available).
 - Island visit support (`/island go <player>`) with visit history/counter tracking.
+- Coop islands with member lists; visitors blocked from breaking/containers/redstone, members allowed.
 - Island metadata management:
   - Name (`/island setname`)
   - Description (`/island setdesc`)
@@ -100,12 +115,14 @@ Japanese-themed dungeon + SkyBlock plugin for Paper `1.21.x`.
 Implemented:
 - Main/Island/Upgrades/Minions/Settings/Permissions menu navigation.
 - Island expansion action through GUI (real upgrade call).
-- Upgrade/minion/settings/permissions interactions currently return UI feedback messages.
+- Wardrobe tile opens wardrobe GUI; instant access via `/wardrobe`.
+- Collection/Recipes tiles open AuroraCollections when installed.
+- Fast travel tile dispatches `/hub`.
+- Visitor protections: visitors cannot break blocks or interact with containers/redstone on islands.
+- Admin island warp: `/skyblockadmin goto <player>`.
+- Coop management via `/island coop <add|remove|list>`.
 
 Placeholder / coming soon:
-- Fast travel
-- Collection
-- Recipes
 - Menu enchanting shortcut
 - Biome change from GUI
 - Set island spawn from GUI
@@ -128,10 +145,12 @@ Placeholder / coming soon:
 - `/party` (opens party finder)
 - `/party <create|invite|accept|leave|kick|list|finder|gui>`
 - `/reforge`
+- `/bazaar [menu|custom|vanilla|help]`
 - Aliases:
   - `/dg` for `/dungeon`
   - `/p` for `/party`
   - `/rf` for `/reforge`
+  - `/bz` for `/bazaar`
 - Admin:
   - `/dungeon reload`
   - `/dungeon give <player> <item_id> [amount]`
@@ -148,6 +167,7 @@ Placeholder / coming soon:
 - `/island setname <name>`
 - `/island setdesc <description>`
 - `/island warp` (party leader warp to leader island)
+- `/island coop <add|remove|list> <player>` (coop members share protections)
 - `/island kick` (placeholder)
 - `/island leave` (placeholder)
 - `/island help`
@@ -155,8 +175,10 @@ Placeholder / coming soon:
 - `/hub`
 - `/spawn`
 - `/lobby`
+- `/visit <player>` (alias `/v`, `/vi`) – visit any island
+- `/wardrobe` (alias `/wd`) – open wardrobe GUI
 - Admin:
-  - `/skyblockadmin <sethub|reload|help>`
+  - `/skyblockadmin <sethub|reload|goto|help>` (goto teleports to a player's island)
 
 ### Monster Spawn Admin
 - `/mobspawn create <monster_id>`

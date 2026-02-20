@@ -35,6 +35,7 @@ public final class DungeonManager {
     private final GriviencePlugin plugin;
     private final PartyManager partyManager;
     private final CustomItemService customItemService;
+    private final RewardChestManager rewardChestManager;
 
     private final Map<UUID, DungeonSession> sessionsByParty = new HashMap<>();
     private final Map<UUID, DungeonSession> sessionsByPlayer = new HashMap<>();
@@ -51,10 +52,11 @@ public final class DungeonManager {
     private int startCountdownSeconds;
     private String exitCommand;
 
-    public DungeonManager(GriviencePlugin plugin, PartyManager partyManager, CustomItemService customItemService) {
+    public DungeonManager(GriviencePlugin plugin, PartyManager partyManager, CustomItemService customItemService, RewardChestManager rewardChestManager) {
         this.plugin = plugin;
         this.partyManager = partyManager;
         this.customItemService = customItemService;
+        this.rewardChestManager = rewardChestManager;
         reloadFromConfig();
     }
 
@@ -256,7 +258,8 @@ public final class DungeonManager {
         sessionsByMob.entrySet().removeIf(entry -> entry.getValue() == session);
         freeArenaSlots.offer(session.arenaSlot());
 
-        if (success) {
+        boolean useRewardChest = success && rewardChestManager != null && rewardChestManager.hasPool();
+        if (success && !useRewardChest) {
             executeRewards(session, grade, score);
         }
 
@@ -270,6 +273,10 @@ public final class DungeonManager {
             if (success) {
                 player.sendMessage(ChatColor.GOLD + "[Dungeon] " + ChatColor.GREEN + "Grade: " + grade + ChatColor.GRAY
                         + " | Score: " + score + ChatColor.GRAY + " | Time: " + formatTime(elapsedSeconds));
+                if (useRewardChest) {
+                    rewardChestManager.openRewardChest(player, session.floor().id(), grade, score, () -> sendPlayerToExit(player));
+                    continue;
+                }
             } else {
                 player.sendMessage(ChatColor.GOLD + "[Dungeon] " + ChatColor.RED + "Run failed.");
             }

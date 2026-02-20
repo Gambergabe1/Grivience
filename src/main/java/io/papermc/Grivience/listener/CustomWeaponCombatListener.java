@@ -130,7 +130,7 @@ public final class CustomWeaponCombatListener implements Listener {
             return;
         }
 
-        WeaponProfile profile = applyReforge(profile(weaponType), customItemService.reforgeOf(weaponItem));
+        WeaponProfile profile = applyReforge(profile(weaponType), customItemService.reforgeOf(weaponItem), weaponItem);
         double auraStrength = auraSkillsHook.getStat(attacker, AuraSkillsHook.StatKey.STRENGTH);
         double auraCritChance = auraSkillsHook.getStat(attacker, AuraSkillsHook.StatKey.CRIT_CHANCE);
         double auraCritDamage = auraSkillsHook.getStat(attacker, AuraSkillsHook.StatKey.CRIT_DAMAGE);
@@ -182,10 +182,12 @@ public final class CustomWeaponCombatListener implements Listener {
         Action action = event.getAction();
         boolean rightClickAir = action == Action.RIGHT_CLICK_AIR;
         boolean rightClickBlock = action == Action.RIGHT_CLICK_BLOCK;
-        if (!rightClickAir && !rightClickBlock) {
+        boolean leftClickAir = action == Action.LEFT_CLICK_AIR;
+        boolean leftClickBlock = action == Action.LEFT_CLICK_BLOCK;
+        if (!rightClickAir && !rightClickBlock && !leftClickAir && !leftClickBlock) {
             return;
         }
-        if (rightClickBlock && event.getClickedBlock() != null && event.getClickedBlock().getType().isInteractable()) {
+        if ((rightClickBlock || leftClickBlock) && event.getClickedBlock() != null && event.getClickedBlock().getType().isInteractable()) {
             return;
         }
 
@@ -254,7 +256,7 @@ public final class CustomWeaponCombatListener implements Listener {
             return;
         }
 
-        WeaponProfile profile = applyReforge(profile(weaponType), customItemService.reforgeOf(item));
+        WeaponProfile profile = applyReforge(profile(weaponType), customItemService.reforgeOf(item), item);
         WeaponAbility ability = resolveAbility(weaponType, profile.defaultAbility());
         if (ability == null) {
             return;
@@ -293,7 +295,8 @@ public final class CustomWeaponCombatListener implements Listener {
                 || weaponType == CustomWeaponType.TENGU_SHORTBOW
                 || weaponType == CustomWeaponType.KITSUNE_SHORTBOW
                 || weaponType == CustomWeaponType.ONRYO_SHORTBOW
-                || weaponType == CustomWeaponType.JOROGUMO_SHORTBOW;
+                || weaponType == CustomWeaponType.JOROGUMO_SHORTBOW
+                || weaponType == CustomWeaponType.RAIJIN_SHORTBOW;
     }
 
     private AmmoSource findAmmo(Player player) {
@@ -636,18 +639,27 @@ public final class CustomWeaponCombatListener implements Listener {
                     210.0D, 100.0D, 10.0D, 35.0D,
                     new WeaponAbility("Thunder Step", AbilityEffect.THUNDER_STEP, 75.0D, 12.0D, 1.25D, 4.2D, 0.58D)
             );
+            case HAYABUSA_KATANA -> new WeaponProfile(
+                    175.0D, 55.0D, 32.0D, 28.0D,
+                    new WeaponAbility("Aerial Dash", AbilityEffect.WIND_SLASH, 42.0D, 6.5D, 1.05D, 3.5D, 0.35D)
+            );
+            case RAIJIN_SHORTBOW -> new WeaponProfile(
+                    140.0D, 24.0D, 30.0D, 42.0D,
+                    null
+            );
         };
     }
 
-    private WeaponProfile applyReforge(WeaponProfile profile, ReforgeType reforgeType) {
+    private WeaponProfile applyReforge(WeaponProfile profile, ReforgeType reforgeType, ItemStack weapon) {
         if (profile == null || reforgeType == null) {
             return profile;
         }
+        CustomItemService.ReforgeStats stats = customItemService.reforgeStats(reforgeType, weapon);
         return new WeaponProfile(
-                profile.flatDamage() + reforgeType.damageBonus(),
-                profile.strength() + reforgeType.strengthBonus(),
-                profile.critChancePercent() + reforgeType.critChanceBonus(),
-                profile.critDamagePercent() + reforgeType.critDamageBonus(),
+                profile.flatDamage() + stats.damageBonus(),
+                profile.strength() + stats.strengthBonus(),
+                profile.critChancePercent() + stats.critChanceBonus(),
+                profile.critDamagePercent() + stats.critDamageBonus(),
                 profile.defaultAbility()
         );
     }

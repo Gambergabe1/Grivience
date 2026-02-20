@@ -5,7 +5,9 @@ import java.util.Locale;
 public enum RaijinCraftingItemType {
     STORM_SIGIL,
     THUNDER_ESSENCE,
-    RAIJIN_CORE;
+    RAIJIN_CORE,
+    DRAGON_SCALE,
+    BLOSSOM_FIBER;
 
     public static RaijinCraftingItemType parse(String input) {
         if (input == null || input.isBlank()) {

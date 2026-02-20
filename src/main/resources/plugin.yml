@@ -4,7 +4,12 @@ main: io.papermc.Grivience.GriviencePlugin
 api-version: "1.21"
 description: Japanese-themed party dungeon runs inspired by SkyBlock-style floors.
 author: Kazutos
-softdepend: [AuraSkills, EcoEnchants, Vault]
+softdepend:
+  - AuraSkills
+  - EcoEnchants
+  - Vault
+  - AuroraCollections
+  - WorldEdit
 
 commands:
   dungeon:
@@ -15,6 +20,22 @@ commands:
     description: Manage your dungeon party.
     usage: /party <create|invite|accept|leave|kick|list|finder>
     aliases: [p]
+  reforge:
+    description: Open the reforge menu.
+    usage: /reforge
+    aliases: [rf]
+  wardrobe:
+    description: Open your wardrobe.
+    usage: /wardrobe
+    aliases: [wd]
+  bazaar:
+    description: Open the Bazaar shop menu.
+    usage: /bazaar [menu|custom|vanilla|help]
+    aliases: [bz]
+  grisanity:
+    description: Quick sanity checks for recipes and mob spawning.
+    usage: /grisanity [all|recipes|mobs]
+    permission: grivience.admin
   skyblock:
     description: Open SkyBlock-style island management menus.
     usage: /skyblock [menu|island|upgrades|minions|settings|permissions|help]
@@ -23,13 +44,21 @@ commands:
     description: Manage your SkyBlock island.
     usage: /island [go|create|expand|info|sethome|setname|setdesc|leave|help]
     aliases: [is, skyblock island]
+  visit:
+    description: Visit a player's island.
+    usage: /visit <player>
+    aliases: [vi, v]
   hub:
     description: Teleport to the Hub/Spawn.
     usage: /hub
     aliases: [spawn, lobby]
+  dungeonhub:
+    description: Teleport to the Dungeon Hub or set its location.
+    usage: /dungeonhub [set <world> <x> <y> <z> [yaw] [pitch]]
+    aliases: [dhub]
   skyblockadmin:
     description: Admin commands for SkyBlock management.
-    usage: /skyblockadmin <sethub|reload|help>
+    usage: /skyblockadmin <sethub|reload|goto|help>
     permission: grivience.admin
   mobspawn:
     description: Admin commands for custom monster spawn management.

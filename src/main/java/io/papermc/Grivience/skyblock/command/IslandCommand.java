@@ -5,6 +5,7 @@ import io.papermc.Grivience.skyblock.island.IslandManager;
 import io.papermc.Grivience.party.PartyManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -50,6 +51,7 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
             case "setname" -> handleSetName(player, args);
             case "setdesc" -> handleSetDesc(player, args);
             case "warp" -> handleWarp(player);
+            case "coop" -> handleCoop(player, args);
             case "help" -> sendHelp(player);
             default -> {
                 player.sendMessage(ChatColor.RED + "Unknown command. Use /island help");
@@ -78,14 +80,12 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
                 return;
             }
 
-            // Log the visit
             targetIsland.addVisit(player.getName());
             islandManager.saveIsland(targetIsland);
 
-            player.teleport(targetIsland.getCenter().clone().add(0.5, 2, 0.5));
+            player.teleport(islandManager.getSafeSpawnLocation(targetIsland));
             player.sendMessage(ChatColor.GREEN + "Teleported to " + targetName + "'s island.");
-            
-            // Show visit count
+
             int totalVisits = targetIsland.getTotalVisits();
             long playerVisits = targetIsland.getVisitCount(player.getName());
             player.sendMessage(ChatColor.GRAY + "Total visits to this island: " + ChatColor.YELLOW + totalVisits);
@@ -106,7 +106,7 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        player.teleport(island.getCenter().clone().add(0.5, 2, 0.5));
+        player.teleport(islandManager.getSafeSpawnLocation(island));
         player.sendMessage(ChatColor.GREEN + "Teleported to your island.");
     }
 
@@ -192,10 +192,17 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        island.setCenter(player.getLocation());
+        Location playerLoc = player.getLocation();
+        if (!island.isWithinIsland(playerLoc)) {
+            player.sendMessage(ChatColor.RED + "You must be on your island to set the spawn point.");
+            return;
+        }
+
+        island.setSpawnPoint(playerLoc);
         islandManager.saveIsland(island);
 
         player.sendMessage(ChatColor.GREEN + "Island spawn point set to your current location.");
+        player.sendMessage(ChatColor.GRAY + "Use /island go to test it.");
     }
 
     private void handleKick(Player player, String[] args) {
@@ -276,6 +283,55 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.GREEN + "Island description updated.");
     }
 
+    private void handleCoop(Player player, String[] args) {
+        Island island = islandManager.getIsland(player.getUniqueId());
+        if (island == null) {
+            player.sendMessage(ChatColor.RED + "You don't have an island.");
+            return;
+        }
+        if (args.length < 2) {
+            player.sendMessage(ChatColor.YELLOW + "Usage: /island coop <add|remove|list> <player>");
+            return;
+        }
+        String action = args[1].toLowerCase(Locale.ROOT);
+        switch (action) {
+            case "add" -> {
+                if (args.length < 3) {
+                    player.sendMessage(ChatColor.YELLOW + "Usage: /island coop add <player>");
+                    return;
+                }
+                OfflinePlayer target = Bukkit.getOfflinePlayer(args[2]);
+                island.addMember(target.getUniqueId());
+                islandManager.saveIsland(island);
+                player.sendMessage(ChatColor.GREEN + "Added " + ChatColor.AQUA + target.getName() + ChatColor.GREEN + " to your island coop.");
+            }
+            case "remove" -> {
+                if (args.length < 3) {
+                    player.sendMessage(ChatColor.YELLOW + "Usage: /island coop remove <player>");
+                    return;
+                }
+                OfflinePlayer target = Bukkit.getOfflinePlayer(args[2]);
+                island.removeMember(target.getUniqueId());
+                islandManager.saveIsland(island);
+                player.sendMessage(ChatColor.YELLOW + "Removed " + ChatColor.AQUA + target.getName() + ChatColor.YELLOW + " from your island coop.");
+            }
+            case "list" -> {
+                var members = island.getMembers();
+                if (members.isEmpty()) {
+                    player.sendMessage(ChatColor.GRAY + "No coop members.");
+                } else {
+                    List<String> names = new ArrayList<>();
+                    for (UUID id : members) {
+                        OfflinePlayer p = Bukkit.getOfflinePlayer(id);
+                        names.add(p.getName() != null ? p.getName() : id.toString());
+                    }
+                    player.sendMessage(ChatColor.GREEN + "Coop members: " + ChatColor.AQUA + String.join(", ", names));
+                }
+            }
+            default -> player.sendMessage(ChatColor.YELLOW + "Usage: /island coop <add|remove|list> <player>");
+        }
+    }
+
     private void sendHelp(Player player) {
         player.sendMessage(ChatColor.GOLD + "=== Island Commands ===");
         player.sendMessage(ChatColor.YELLOW + "/island create" + ChatColor.GRAY + " - Create your island");
@@ -288,6 +344,7 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/island setname <name>" + ChatColor.GRAY + " - Rename your island");
         player.sendMessage(ChatColor.YELLOW + "/island setdesc <desc>" + ChatColor.GRAY + " - Set island description");
         player.sendMessage(ChatColor.YELLOW + "/island warp" + ChatColor.GRAY + " - Warp party to your island (Leader)");
+        player.sendMessage(ChatColor.YELLOW + "/island coop <add|remove|list> <player>" + ChatColor.GRAY + " - Manage coop members");
     }
 
     private Player requirePlayer(CommandSender sender) {
@@ -320,7 +377,7 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             List<String> commands = new ArrayList<>(List.of(
                     "go", "create", "expand", "info", "sethome",
-                    "setname", "setdesc", "leave", "warp", "help"
+                    "setname", "setdesc", "leave", "warp", "coop", "help"
             ));
             return filterPrefix(commands, args[0]);
         }

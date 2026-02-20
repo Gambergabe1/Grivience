@@ -13,6 +13,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.Bukkit;
 
 import java.util.UUID;
 
@@ -42,6 +43,18 @@ public final class SkyblockListener implements Listener {
             player.sendMessage(ChatColor.YELLOW + "Use " + ChatColor.GREEN + "/island create" + ChatColor.YELLOW +
                     " to create your island!");
             player.sendMessage("");
+        } else {
+            Island island = islandManager.getIsland(player.getUniqueId());
+            Location spawn = islandManager.getSafeSpawnLocation(island);
+            if (spawn != null && islandWorld != null) {
+                // Teleport shortly after join to ensure chunks are loaded.
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (player.isOnline()) {
+                        player.teleport(spawn);
+                        player.setBedSpawnLocation(spawn, true);
+                    }
+                }, 2L);
+            }
         }
     }
 
@@ -51,8 +64,8 @@ public final class SkyblockListener implements Listener {
         Island island = islandManager.getIsland(player.getUniqueId());
 
         if (island != null && island.getCenter() != null) {
-            Location spawnLocation = island.getCenter().clone().add(0.5, 2, 0.5);
-            if (islandManager.getIslandWorld() != null &&
+            Location spawnLocation = islandManager.getSafeSpawnLocation(island);
+            if (spawnLocation != null && islandManager.getIslandWorld() != null &&
                     spawnLocation.getWorld().equals(islandManager.getIslandWorld())) {
                 event.setRespawnLocation(spawnLocation);
             }

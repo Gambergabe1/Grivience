@@ -91,7 +91,7 @@ public final class DungeonGuiManager implements Listener {
                 true
         ));
         inventory.setItem(15, taggedItem(
-                Material.COMPASS,
+                Material.NETHER_STAR,
                 ChatColor.AQUA + "Party Finder",
                 List.of(
                         ChatColor.GRAY + "Browse active public parties.",
@@ -160,7 +160,7 @@ public final class DungeonGuiManager implements Listener {
                 ""
         ));
         inventory.setItem(47, taggedItem(
-                Material.COMPASS,
+                Material.NETHER_STAR,
                 ChatColor.AQUA + "Party Finder",
                 List.of(ChatColor.GRAY + "Switch to active party listings."),
                 "open_party_finder",
@@ -268,7 +268,7 @@ public final class DungeonGuiManager implements Listener {
                 ""
         ));
         inventory.setItem(51, taggedItem(
-                Material.COMPASS,
+                Material.NETHER_STAR,
                 ChatColor.AQUA + "Refresh",
                 List.of(ChatColor.GRAY + "Reload party list"),
                 "open_party_finder",

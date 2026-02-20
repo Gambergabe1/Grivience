@@ -10,6 +10,52 @@ dungeons:
   countdown-seconds: 5
   max-party-size: 5
   invite-timeout-seconds: 60
+  reward-chest:
+    options-per-run: 5
+    pools:
+      coins_small:
+        weight: 60
+        icon: EMERALD
+        name: "&aCoin Pouch"
+        lore:
+          - "&7Vault deposit"
+          - "&6+15,000 coins"
+        commands:
+          - "eco give {player} 15000"
+      coins_large:
+        weight: 25
+        icon: EMERALD_BLOCK
+        name: "&6Fortune Cache"
+        lore:
+          - "&7Larger coin bundle"
+          - "&6+50,000 coins"
+        commands:
+          - "eco give {player} 50000"
+      essence:
+        weight: 35
+        icon: EXPERIENCE_BOTTLE
+        name: "&bDungeon Essence"
+        lore:
+          - "&7Infuse gear or trades"
+          - "&b+8 levels"
+        commands:
+          - "xp give {player} 8 levels"
+      reforge_stone:
+        weight: 20
+        icon: ENCHANTED_BOOK
+        name: "&dReforge Stone"
+        lore:
+          - "&7Random dungeon reforge stone"
+        commands:
+          - "reforge give {player} random"
+      boss_relic:
+        weight: 15
+        icon: NETHERITE_SCRAP
+        name: "&cBoss Relic Cache"
+        lore:
+          - "&7High-tier crafting mats"
+        commands:
+          - "give {player} netherite_ingot 2"
 
 navigation-item:
   enabled: true
@@ -19,6 +65,7 @@ skyblock:
   hub-world: world
   island-spacing: 100
   starting-size: 32
+  island-spawn-y: 80
   upgrade-sizes:
     - 32
     - 48
@@ -119,6 +166,18 @@ enchant-table:
 
 custom-items:
   style: JAPANESE
+  reforge:
+    use-vault-economy: true
+    basic-level-cost: 5
+    basic-cost-coins: 2500.0
+    stone-cost-multiplier: 1200.0
+    rarity-cost-multipliers:
+      COMMON: 0.75
+      UNCOMMON: 0.90
+      RARE: 1.00
+      EPIC: 1.30
+      LEGENDARY: 1.70
+      MYTHIC: 2.20
   combat:
     enabled: true
     damage:
@@ -216,6 +275,26 @@ custom-items:
       raijin-core: 0.10
       armor-piece: 0.35
       reforge-stone: 0.50
+
+bazaar:
+  enabled: true
+  use-vault-economy: true
+  allow-level-fallback: true
+  default-sell-multiplier: 0.60
+  default-prices:
+    vanilla-buy: 32.0
+    custom-buy: 5000.0
+  material-price-overrides:
+    DIAMOND: 120.0
+    EMERALD: 96.0
+    NETHERITE_INGOT: 900.0
+    NETHER_STAR: 1600.0
+  material-sell-overrides: {}
+  custom-price-overrides:
+    flying_raijin: 250000.0
+    armor_shogun_helmet: 45000.0
+    armor_shogun_chestplate: 60000.0
+  custom-sell-overrides: {}
 
 custom-monsters:
   enabled: true
@@ -534,6 +613,92 @@ custom-armor:
             - "&8Worn by legendary generals."
           armor: 4
           toughness: 3.0
+          glowing: true
+
+    stormborne:
+      display-name: "&3Stormborne Vanguard"
+      description: "Armor tempered in dragon storms."
+      pieces-required: 2
+      crafting-material: custom:dragon_scale
+      bonuses:
+        - "&72 Pieces: &fSpeed I"
+        - "&74 Pieces: &fResistance I"
+      pieces:
+        helmet:
+          material: NETHERITE_HELMET
+          display-name: "&3Stormborne Helm"
+          lore:
+            - "&7Storm-hardened protection."
+            - "&8Crackles with static."
+          armor: 4
+          toughness: 3.0
+          glowing: true
+        chestplate:
+          material: NETHERITE_CHESTPLATE
+          display-name: "&3Stormborne Plate"
+          lore:
+            - "&7Plate infused with dragon lightning."
+            - "&8Hums with energy."
+          armor: 9
+          toughness: 3.0
+          glowing: true
+        leggings:
+          material: NETHERITE_LEGGINGS
+          display-name: "&3Stormborne Greaves"
+          lore:
+            - "&7Reinforced for shock impacts."
+          armor: 7
+          toughness: 3.0
+          glowing: true
+        boots:
+          material: NETHERITE_BOOTS
+          display-name: "&3Stormborne Boots"
+          lore:
+            - "&7Grounded against lightning."
+          armor: 4
+          toughness: 3.0
+          glowing: true
+
+    blossom:
+      display-name: "&dBlossom Attendant"
+      description: "Light robes woven from sacred petals."
+      pieces-required: 2
+      crafting-material: custom:blossom_fiber
+      bonuses:
+        - "&72 Pieces: &fHaste I"
+        - "&74 Pieces: &fRegeneration I"
+      pieces:
+        helmet:
+          material: LEATHER_HELMET
+          display-name: "&dBlossom Hood"
+          lore:
+            - "&7Gentle petal veil."
+          armor: 2
+          toughness: 0.5
+          glowing: true
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: "&dBlossom Wraps"
+          lore:
+            - "&7Silken guardian weave."
+          armor: 5
+          toughness: 0.5
+          glowing: true
+        leggings:
+          material: LEATHER_LEGGINGS
+          display-name: "&dBlossom Trousers"
+          lore:
+            - "&7Light and flexible."
+          armor: 4
+          toughness: 0.5
+          glowing: true
+        boots:
+          material: LEATHER_BOOTS
+          display-name: "&dBlossom Sandals"
+          lore:
+            - "&7Soft petals underfoot."
+          armor: 2
+          toughness: 0.5
           glowing: true
         chestplate:
           material: NETHERITE_CHESTPLATE

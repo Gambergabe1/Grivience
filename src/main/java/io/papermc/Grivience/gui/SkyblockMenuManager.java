@@ -63,136 +63,194 @@ public final class SkyblockMenuManager implements Listener {
 
         fillBackground(inventory);
 
-        inventory.setItem(10, createMenuItem(
-                Material.GRASS_BLOCK,
-                ChatColor.GREEN + "Island Management",
-                List.of(
-                        ChatColor.GRAY + "Manage your island settings",
-                        ChatColor.GRAY + "and configurations.",
-                        "",
-                        ChatColor.YELLOW + "Click to open"
-                ),
-                "open_island",
-                "",
-                true
-        ));
-
-        inventory.setItem(12, createMenuItem(
-                Material.DIAMOND,
-                ChatColor.GOLD + "Island Upgrades",
-                List.of(
-                        ChatColor.GRAY + "Upgrade your island with",
-                        ChatColor.GRAY + "powerful enhancements.",
-                        "",
-                        ChatColor.YELLOW + "Click to browse upgrades"
-                ),
-                "open_upgrades",
-                "",
-                true
-        ));
-
-        inventory.setItem(14, createMenuItem(
-                Material.ZOMBIE_SPAWN_EGG,
-                ChatColor.DARK_AQUA + "Minions",
-                List.of(
-                        ChatColor.GRAY + "Manage your minions and",
-                        ChatColor.GRAY + "automate your island.",
-                        "",
-                        ChatColor.YELLOW + "Click to manage minions"
-                ),
-                "open_minions",
-                "",
-                true
-        ));
-
-        inventory.setItem(16, createMenuItem(
-                Material.OAK_DOOR,
-                ChatColor.RED + "Island Settings",
-                List.of(
-                        ChatColor.GRAY + "Configure island permissions",
-                        ChatColor.GRAY + "and visitor settings.",
-                        "",
-                        ChatColor.YELLOW + "Click to open settings"
-                ),
-                "open_settings",
-                "",
-                true
-        ));
-
         Island island = islandManager != null ? islandManager.getIsland(player.getUniqueId()) : null;
         int islandLevel = island != null ? island.getUpgradeLevel() : 0;
         int islandSize = island != null ? island.getSize() : 0;
         String islandName = island != null ? island.getName() : "No Island";
         int totalIslands = islandManager != null ? islandManager.getTotalIslands() : 0;
 
-        inventory.setItem(22, createMenuItem(
+        // Top row anchors
+        inventory.setItem(10, createMenuItem(
                 Material.NETHER_STAR,
-                ChatColor.LIGHT_PURPLE + "Island Overview",
+                ChatColor.GOLD + "Collections",
                 List.of(
-                        ChatColor.GRAY + "Island: " + ChatColor.AQUA + islandName,
-                        ChatColor.GRAY + "Island Level: " + ChatColor.GREEN + "" + islandLevel,
-                        ChatColor.GRAY + "Island Size: " + ChatColor.GREEN + "" + islandSize + "x" + islandSize,
-                        ChatColor.GRAY + "Total Islands: " + ChatColor.YELLOW + "" + totalIslands,
+                        ChatColor.GRAY + "View gathered resources",
+                        ChatColor.GRAY + "and claim milestones.",
                         "",
-                        ChatColor.DARK_GRAY + "Your island statistics"
-                ),
-                "noop",
-                "",
-                true
-        ));
-
-        inventory.setItem(4, createMenuItem(
-                Material.COMPASS,
-                ChatColor.AQUA + "Fast Travel",
-                List.of(
-                        ChatColor.GRAY + "Travel to different locations",
-                        ChatColor.GRAY + "on your island.",
-                        "",
-                        ChatColor.YELLOW + "Click to open fast travel"
-                ),
-                "open_fast_travel",
-                "",
-                true
-        ));
-
-        inventory.setItem(29, createMenuItem(
-                Material.BOOK,
-                ChatColor.BLUE + "Collection",
-                List.of(
-                        ChatColor.GRAY + "View your item collections",
-                        ChatColor.GRAY + "and unlock rewards.",
-                        "",
-                        ChatColor.YELLOW + "Click to view collections"
+                        ChatColor.YELLOW + "Click to open collections"
                 ),
                 "open_collection",
                 "",
                 true
         ));
 
-        inventory.setItem(31, createMenuItem(
+        inventory.setItem(12, createMenuItem(
+                Material.IRON_SWORD,
+                ChatColor.AQUA + "Skills",
+                List.of(
+                        ChatColor.GRAY + "Track your combat, mining,",
+                        ChatColor.GRAY + "foraging and more.",
+                        "",
+                        ChatColor.YELLOW + "Coming soon"
+                ),
+                "coming_soon",
+                "skills",
+                true
+        ));
+
+        inventory.setItem(14, createMenuItem(
                 Material.CRAFTING_TABLE,
-                ChatColor.DARK_PURPLE + "Recipes",
+                ChatColor.LIGHT_PURPLE + "Recipes",
                 List.of(
                         ChatColor.GRAY + "Browse unlocked recipes",
-                        ChatColor.GRAY + "and crafting guides.",
+                        ChatColor.GRAY + "for custom items.",
                         "",
-                        ChatColor.YELLOW + "Click to view recipes"
+                        ChatColor.YELLOW + "Click to open recipes"
                 ),
                 "open_recipes",
                 "",
                 true
         ));
 
-        inventory.setItem(33, createMenuItem(
+        inventory.setItem(16, createMenuItem(
+                Material.COMPASS,
+                ChatColor.AQUA + "Fast Travel",
+                List.of(
+                        ChatColor.GRAY + "Hop to hub, dungeon hub,",
+                        ChatColor.GRAY + "or your island spawn.",
+                        "",
+                        ChatColor.YELLOW + "Click to fast travel"
+                ),
+                "open_fast_travel",
+                "",
+                true
+        ));
+
+        // Middle row
+        inventory.setItem(19, createMenuItem(
+                Material.LEATHER_CHESTPLATE,
+                ChatColor.DARK_GREEN + "Wardrobe",
+                List.of(
+                        ChatColor.GRAY + "Swap armor presets quickly.",
+                        "",
+                        ChatColor.YELLOW + "Click to open wardrobe"
+                ),
+                "open_wardrobe",
+                "",
+                true
+        ));
+
+        inventory.setItem(20, createMenuItem(
+                Material.BONE,
+                ChatColor.YELLOW + "Pets",
+                List.of(
+                        ChatColor.GRAY + "Manage companions and buffs.",
+                        "",
+                        ChatColor.YELLOW + "Coming soon"
+                ),
+                "coming_soon",
+                "pets",
+                false
+        ));
+
+        ItemStack profile = createMenuItem(
+                Material.PLAYER_HEAD,
+                ChatColor.LIGHT_PURPLE + "Profile",
+                List.of(
+                        ChatColor.GRAY + "Island: " + ChatColor.AQUA + islandName,
+                        ChatColor.GRAY + "Level: " + ChatColor.GREEN + islandLevel,
+                        ChatColor.GRAY + "Size: " + ChatColor.GREEN + islandSize + "x" + islandSize,
+                        ChatColor.GRAY + "Total Islands: " + ChatColor.YELLOW + totalIslands,
+                        "",
+                        ChatColor.YELLOW + "Click to view island"
+                ),
+                "open_island",
+                "",
+                true
+        );
+        if (profile.getItemMeta() instanceof org.bukkit.inventory.meta.SkullMeta skullMeta) {
+            skullMeta.setOwningPlayer(player);
+            profile.setItemMeta(skullMeta);
+        }
+        inventory.setItem(22, profile);
+
+        inventory.setItem(24, createMenuItem(
+                Material.ANVIL,
+                ChatColor.DARK_AQUA + "Reforge",
+                List.of(
+                        ChatColor.GRAY + "Apply reforges to gear",
+                        ChatColor.GRAY + "for custom stats.",
+                        "",
+                        ChatColor.YELLOW + "Click to open reforge"
+                ),
+                "open_reforge",
+                "",
+                true
+        ));
+
+        inventory.setItem(25, createMenuItem(
                 Material.ENCHANTING_TABLE,
                 ChatColor.DARK_BLUE + "Enchanting",
                 List.of(
-                        ChatColor.GRAY + "Access your enchanting table",
-                        ChatColor.GRAY + "and upgrade items.",
+                        ChatColor.GRAY + "Access enchanting features.",
                         "",
-                        ChatColor.YELLOW + "Click to open enchanting"
+                        ChatColor.YELLOW + "Coming soon"
                 ),
                 "open_enchanting",
+                "",
+                true
+        ));
+
+        // Bottom row
+        inventory.setItem(28, createMenuItem(
+                Material.ZOMBIE_SPAWN_EGG,
+                ChatColor.GREEN + "Minions",
+                List.of(
+                        ChatColor.GRAY + "Manage island minions.",
+                        "",
+                        ChatColor.YELLOW + "Click to manage"
+                ),
+                "open_minions",
+                "",
+                true
+        ));
+
+        inventory.setItem(30, createMenuItem(
+                Material.DIAMOND,
+                ChatColor.GOLD + "Island Upgrades",
+                List.of(
+                        ChatColor.GRAY + "Expand island size and perks.",
+                        "",
+                        ChatColor.YELLOW + "Click to browse"
+                ),
+                "open_upgrades",
+                "",
+                true
+        ));
+
+        inventory.setItem(32, createMenuItem(
+                Material.NETHERITE_SWORD,
+                ChatColor.RED + "Dungeons",
+                List.of(
+                        ChatColor.GRAY + "Enter dungeon hub and runs.",
+                        "",
+                        ChatColor.YELLOW + "Click to open dungeon menu"
+                ),
+                "open_dungeon",
+                "",
+                true
+        ));
+
+        inventory.setItem(34, createMenuItem(
+                Material.NETHER_STAR,
+                ChatColor.AQUA + "Bazaar",
+                List.of(
+                        ChatColor.GRAY + "Open the bazaar to trade",
+                        ChatColor.GRAY + "custom items and mats.",
+                        "",
+                        ChatColor.YELLOW + "Click to open bazaar"
+                ),
+                "open_bazaar",
                 "",
                 true
         ));
@@ -833,17 +891,15 @@ public final class SkyblockMenuManager implements Listener {
     }
 
     private void fillBackground(Inventory inventory) {
-        ItemStack border = createMenuItem(
+        ItemStack filler = createMenuItem(
                 Material.BLACK_STAINED_GLASS_PANE,
                 ChatColor.BLACK + " ",
                 List.of(),
                 "noop",
                 ""
         );
-        for (int slot : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 48, 50, 51, 52, 53}) {
-            if (slot < inventory.getSize()) {
-                inventory.setItem(slot, border.clone());
-            }
+        for (int i = 0; i < inventory.getSize(); i++) {
+            inventory.setItem(i, filler.clone());
         }
 
         ItemStack accent = createMenuItem(
@@ -853,7 +909,15 @@ public final class SkyblockMenuManager implements Listener {
                 "noop",
                 ""
         );
-        for (int slot : new int[]{45, 53}) {
+        int[] borderSlots = {
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                9, 17,
+                18, 26,
+                27, 35,
+                36, 44,
+                45, 46, 47, 48, 49, 50, 51, 52, 53
+        };
+        for (int slot : borderSlots) {
             if (slot < inventory.getSize()) {
                 inventory.setItem(slot, accent.clone());
             }
@@ -962,9 +1026,44 @@ public final class SkyblockMenuManager implements Listener {
                     player.sendMessage(ChatColor.RED + "Invalid upgrade level.");
                 }
             }
-            case "change_biome", "set_spawn", "invite_member",
-                 "kick_member", "rename_island", "set_description", "open_fast_travel",
-                 "open_collection", "open_recipes", "open_enchanting", "open_banned" -> {
+            case "open_collection", "open_recipes" -> {
+                playUiClick(player);
+                if (!openAuroraCollections(player)) {
+                    player.sendMessage(ChatColor.RED + "Collections are unavailable. Install and enable AuroraCollections.");
+                }
+            }
+            case "open_wardrobe" -> {
+                playUiClick(player);
+                plugin.getServer().dispatchCommand(player, "wardrobe");
+            }
+            case "open_reforge" -> {
+                playUiClick(player);
+                if (!plugin.getServer().dispatchCommand(player, "reforge")) {
+                    player.sendMessage(ChatColor.RED + "Reforge command unavailable.");
+                }
+            }
+            case "open_bazaar" -> {
+                playUiClick(player);
+                if (!plugin.getServer().dispatchCommand(player, "bazaar")) {
+                    player.sendMessage(ChatColor.RED + "Bazaar command unavailable.");
+                }
+            }
+            case "open_dungeon" -> {
+                playUiClick(player);
+                if (!plugin.getServer().dispatchCommand(player, "dungeon menu")) {
+                    player.sendMessage(ChatColor.RED + "Dungeon menu unavailable.");
+                }
+            }
+            case "open_fast_travel" -> {
+                playUiClick(player);
+                // Try hub as a reasonable fast travel target.
+                if (!plugin.getServer().dispatchCommand(player, "hub")) {
+                    player.sendMessage(ChatColor.RED + "Fast travel not available.");
+                }
+            }
+            case "coming_soon", "change_biome", "set_spawn", "invite_member",
+                 "kick_member", "rename_island", "set_description",
+                 "open_enchanting", "open_banned" -> {
                 playUiClick(player);
                 player.sendMessage(ChatColor.YELLOW + "Feature coming soon: " + action);
             }
@@ -990,6 +1089,17 @@ public final class SkyblockMenuManager implements Listener {
 
     private void playUiError(Player player) {
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7F, 0.8F);
+    }
+
+    private boolean openAuroraCollections(Player player) {
+        if (plugin == null) {
+            return false;
+        }
+        if (plugin.getServer().getPluginManager().getPlugin("AuroraCollections") == null) {
+            return false;
+        }
+        // AuroraCollections exposes /collections as the main GUI entry point.
+        return plugin.getServer().dispatchCommand(player, "collections");
     }
 
     private Island createPlaceholderIsland(Player player) {

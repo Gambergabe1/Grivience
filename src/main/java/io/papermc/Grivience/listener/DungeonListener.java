@@ -38,11 +38,15 @@ public final class DungeonListener implements Listener {
     private final DungeonManager dungeonManager;
     private final CustomItemService customItemService;
     private final NamespacedKey runKeyTag;
+    private final NamespacedKey guiActionKey;
+    private final NamespacedKey guiValueKey;
 
     public DungeonListener(GriviencePlugin plugin, DungeonManager dungeonManager, CustomItemService customItemService) {
         this.dungeonManager = dungeonManager;
         this.customItemService = customItemService;
         this.runKeyTag = new NamespacedKey(plugin, "run-key");
+        this.guiActionKey = new NamespacedKey(plugin, "gui-action");
+        this.guiValueKey = new NamespacedKey(plugin, "gui-value");
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -81,8 +85,15 @@ public final class DungeonListener implements Listener {
         Player player = event.getPlayer();
         dungeonManager.handlePlayerJoin(player);
         customItemService.discoverRecipes(player);
-        if (!dungeonManager.isInDungeon(player.getUniqueId()) && removeTempleKeys(player)) {
-            player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys were removed because you are not in an active dungeon.");
+        if (!dungeonManager.isInDungeon(player.getUniqueId())) {
+            boolean removedKeys = removeTempleKeys(player);
+            boolean removedMenuItems = removeDungeonMenuItems(player);
+            if (removedKeys) {
+                player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys were removed because you are not in an active dungeon.");
+            }
+            if (removedMenuItems) {
+                player.sendMessage(org.bukkit.ChatColor.RED + "Dungeon menu items were removed because you are not in an active dungeon.");
+            }
         }
     }
 
@@ -117,11 +128,15 @@ public final class DungeonListener implements Listener {
             return;
         }
         ItemStack item = event.getItemInHand();
-        if (!isTempleKey(item)) {
+        if (!isTempleKey(item) && !isDungeonMenuItem(item)) {
             return;
         }
         event.setCancelled(true);
-        event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "Temple Keys cannot be placed.");
+        if (isTempleKey(item)) {
+            event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "Temple Keys cannot be placed.");
+        } else {
+            event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "This item cannot be placed.");
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -136,11 +151,15 @@ public final class DungeonListener implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent event) {
         ItemStack item = event.getItemDrop().getItemStack();
-        if (!isTempleKey(item)) {
+        if (!isTempleKey(item) && !isDungeonMenuItem(item)) {
             return;
         }
         event.setCancelled(true);
-        event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "Temple Keys cannot be dropped.");
+        if (isTempleKey(item)) {
+            event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "Temple Keys cannot be dropped.");
+        } else {
+            event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "Dungeon menu items cannot be dropped.");
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -154,7 +173,18 @@ public final class DungeonListener implements Listener {
                 keyHotbar = isTempleKey(player.getInventory().getItem(hotbar));
             }
         }
-        if (!keyCurrent && !keyCursor && !keyHotbar) {
+
+        boolean menuCurrent = isDungeonMenuItem(event.getCurrentItem());
+        boolean menuCursor = isDungeonMenuItem(event.getCursor());
+        boolean menuHotbar = false;
+        if (event.getClick() == ClickType.NUMBER_KEY && event.getWhoClicked() instanceof Player player) {
+            int hotbar = event.getHotbarButton();
+            if (hotbar >= 0) {
+                menuHotbar = isDungeonMenuItem(player.getInventory().getItem(hotbar));
+            }
+        }
+
+        if (!keyCurrent && !keyCursor && !keyHotbar && !menuCurrent && !menuCursor && !menuHotbar) {
             return;
         }
 
@@ -165,15 +195,23 @@ public final class DungeonListener implements Listener {
 
         event.setCancelled(true);
         if (event.getWhoClicked() instanceof Player player) {
-            player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys cannot be moved into containers.");
+            if (keyCurrent || keyCursor || keyHotbar) {
+                player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys cannot be moved into containers.");
+            } else {
+                player.sendMessage(org.bukkit.ChatColor.RED + "Dungeon menu items cannot be moved into containers.");
+            }
         }
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (!isTempleKey(event.getOldCursor())) {
+        boolean isKey = isTempleKey(event.getOldCursor());
+        boolean isMenu = isDungeonMenuItem(event.getOldCursor());
+
+        if (!isKey && !isMenu) {
             return;
         }
+
         int topSize = event.getView().getTopInventory().getSize();
         boolean draggingIntoTop = event.getRawSlots().stream().anyMatch(slot -> slot < topSize);
         if (!draggingIntoTop) {
@@ -185,7 +223,11 @@ public final class DungeonListener implements Listener {
         }
         event.setCancelled(true);
         if (event.getWhoClicked() instanceof Player player) {
-            player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys cannot be moved into containers.");
+            if (isKey) {
+                player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys cannot be moved into containers.");
+            } else {
+                player.sendMessage(org.bukkit.ChatColor.RED + "Dungeon menu items cannot be moved into containers.");
+            }
         }
     }
 
@@ -195,7 +237,7 @@ public final class DungeonListener implements Listener {
             return;
         }
         ItemStack item = event.getItem().getItemStack();
-        if (!isTempleKey(item)) {
+        if (!isTempleKey(item) && !isDungeonMenuItem(item)) {
             return;
         }
         if (dungeonManager.isInDungeon(player.getUniqueId())) {
@@ -204,7 +246,11 @@ public final class DungeonListener implements Listener {
 
         event.setCancelled(true);
         event.getItem().remove();
-        player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys crumble outside the dungeon.");
+        if (isTempleKey(item)) {
+            player.sendMessage(org.bukkit.ChatColor.RED + "Temple Keys crumble outside the dungeon.");
+        } else {
+            player.sendMessage(org.bukkit.ChatColor.RED + "This item crumbles outside the dungeon.");
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -227,6 +273,15 @@ public final class DungeonListener implements Listener {
         return display != null && display.contains(KEY_NAME_TOKEN);
     }
 
+    private boolean isDungeonMenuItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        String action = meta.getPersistentDataContainer().get(guiActionKey, PersistentDataType.STRING);
+        return action != null && !action.isBlank();
+    }
+
     private boolean removeTempleKeys(Player player) {
         boolean removed = removeTempleKeysFromInventory(player.getInventory());
         removed |= removeTempleKeysFromInventory(player.getEnderChest());
@@ -238,6 +293,25 @@ public final class DungeonListener implements Listener {
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             ItemStack item = inventory.getItem(slot);
             if (!isTempleKey(item)) {
+                continue;
+            }
+            inventory.setItem(slot, null);
+            removed = true;
+        }
+        return removed;
+    }
+
+    private boolean removeDungeonMenuItems(Player player) {
+        boolean removed = removeDungeonMenuItemsFromInventory(player.getInventory());
+        removed |= removeDungeonMenuItemsFromInventory(player.getEnderChest());
+        return removed;
+    }
+
+    private boolean removeDungeonMenuItemsFromInventory(Inventory inventory) {
+        boolean removed = false;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack item = inventory.getItem(slot);
+            if (!isDungeonMenuItem(item)) {
                 continue;
             }
             inventory.setItem(slot, null);

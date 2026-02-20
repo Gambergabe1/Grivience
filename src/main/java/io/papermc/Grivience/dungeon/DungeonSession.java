@@ -2210,45 +2210,46 @@ public final class DungeonSession {
         );
         meta.addPage(
                 ChatColor.BLUE + "Shrine Bell Sync\n\n"
-                        + ChatColor.BLACK + "The 4 plates are at room corners.\n"
-                        + "Stand on enough plates at once.\n"
-                        + "Keep them active for 2 seconds.\n\n"
-                        + "Action bar shows live count.\n"
-                        + "Spark particles mark empty plates."
+                        + ChatColor.BLACK + "Plates sit in each corner.\n"
+                        + "Action bar shows plates needed.\n"
+                        + "Stand on plates together and\n"
+                        + "hold for 2 seconds to clear.\n\n"
+                        + "Sparkles mark empty plates."
         );
         meta.addPage(
                 ChatColor.DARK_RED + "Ofuda Sequence\n\n"
-                        + ChatColor.BLACK + "Pad row (left -> right):\n"
-                        + "Vermilion, Jade, Indigo, Gold.\n\n"
-                        + "Higher floors use longer sequences.\n"
-                        + "Step in the chat order.\n"
-                        + "Next target glows with particles.\n"
-                        + "Wrong step resets progress."
+                        + ChatColor.BLACK + "Pad row (L -> R):\n"
+                        + "Vermilion, Jade, Indigo, Gold.\n"
+                        + "Chat shows the order to press.\n"
+                        + "Follow exactly; next pad glows.\n"
+                        + "Higher floors = longer combos.\n"
+                        + "Wrong pad resets the chain."
         );
         meta.addPage(
                 ChatColor.AQUA + "Storm Chime Memory\n\n"
-                        + ChatColor.BLACK + "Four bells ring in order:\n"
-                        + "North, West, East, South.\n\n"
-                        + "Repeat the shown order exactly.\n"
-                        + "Wrong bell resets progress.\n"
-                        + "Notes mark the next bell."
+                        + ChatColor.BLACK + "Four bells chime in order:\n"
+                        + "North, West, East, South.\n"
+                        + "Memorize the pattern shown,\n"
+                        + "then ring bells in that order.\n"
+                        + "Notes point to the next bell.\n"
+                        + "Mistakes reset the sequence."
         );
         meta.addPage(
                 ChatColor.DARK_PURPLE + "Thunder Seal Align\n\n"
-                        + ChatColor.BLACK + "Each corner lever has a target.\n"
-                        + "Lime glass = ON\n"
-                        + "Gray glass = OFF\n\n"
-                        + "Match all levers to target\n"
-                        + "and hold for 2 seconds."
+                        + ChatColor.BLACK + "Corner levers have targets:\n"
+                        + "Lime glass = Lever ON (up)\n"
+                        + "Gray glass = Lever OFF (down)\n"
+                        + "Match all levers, then hold\n"
+                        + "positions for 2 seconds."
         );
         meta.addPage(
                 ChatColor.DARK_GREEN + "Tips\n\n"
-                        + ChatColor.BLACK + "Assign each player a role.\n"
-                        + "Call order out loud for memory rooms.\n"
-                        + "Check HUD for hold timers.\n"
-                        + "Use particles to spot mistakes.\n"
-                        + "Use action bar for live progress.\n"
-                        + "Reset quickly after mistakes."
+                        + ChatColor.BLACK + "Assign callers for orders.\n"
+                        + "Count down before group steps.\n"
+                        + "Use action bar for timers/count.\n"
+                        + "Particles show next target or\n"
+                        + "missing plates.\n"
+                        + "If reset, regroup and retry fast."
         );
         meta.getPersistentDataContainer().set(puzzleGuideTag, PersistentDataType.BYTE, (byte) 1);
         book.setItemMeta(meta);

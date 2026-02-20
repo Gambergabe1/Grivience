@@ -19,6 +19,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -26,8 +27,11 @@ import java.util.Map;
 public final class CustomItemService {
     private final JavaPlugin plugin;
     private final NamespacedKey itemIdKey;
+    private final Map<String, Integer> modelDataOverrides = new HashMap<>();
     private final NamespacedKey reforgeIdKey;
+    private final NamespacedKey reforgeBaseNameKey;
     private final NamespacedKey recipeFlyingRaijinKey;
+    private final NamespacedKey customMaterialKey;
 
     private ItemStyle itemStyle = ItemStyle.JAPANESE;
     private double mobWeaponBaseChance;
@@ -44,7 +48,10 @@ public final class CustomItemService {
     public CustomItemService(JavaPlugin plugin) {
         this.plugin = plugin;
         this.itemIdKey = new NamespacedKey(plugin, "custom-item-id");
+        this.customMaterialKey = new NamespacedKey(plugin, "custom_material");
+        loadModelOverrides();
         this.reforgeIdKey = new NamespacedKey(plugin, "custom-reforge-id");
+        this.reforgeBaseNameKey = new NamespacedKey(plugin, "custom-reforge-base-name");
         this.recipeFlyingRaijinKey = new NamespacedKey(plugin, "flying-raijin-recipe");
         resetDropDefaults();
     }
@@ -102,6 +109,19 @@ public final class CustomItemService {
         recipe.setIngredient('R', new RecipeChoice.ExactChoice(createCraftingItem(RaijinCraftingItemType.RAIJIN_CORE)));
         recipe.setIngredient('N', Material.NETHERITE_SWORD);
         Bukkit.addRecipe(recipe);
+
+        ShapedRecipe katana = new ShapedRecipe(new NamespacedKey(plugin, "hayabusa_katana_recipe"), createWeapon(CustomWeaponType.HAYABUSA_KATANA));
+        katana.shape(" D ", " D ", " S ");
+        katana.setIngredient('D', new RecipeChoice.ExactChoice(createCraftingItem(RaijinCraftingItemType.DRAGON_SCALE)));
+        katana.setIngredient('S', Material.STICK);
+        Bukkit.addRecipe(katana);
+
+        ShapedRecipe stormbow = new ShapedRecipe(new NamespacedKey(plugin, "raijin_shortbow_recipe"), createWeapon(CustomWeaponType.RAIJIN_SHORTBOW));
+        stormbow.shape("FB ", "F T", "FB ");
+        stormbow.setIngredient('F', new RecipeChoice.ExactChoice(createCraftingItem(RaijinCraftingItemType.BLOSSOM_FIBER)));
+        stormbow.setIngredient('T', new RecipeChoice.ExactChoice(createCraftingItem(RaijinCraftingItemType.THUNDER_ESSENCE)));
+        stormbow.setIngredient('B', Material.BOW);
+        Bukkit.addRecipe(stormbow);
         for (Player online : Bukkit.getOnlinePlayers()) {
             discoverRecipes(online);
         }
@@ -300,6 +320,26 @@ public final class CustomItemService {
                     ChatColor.GOLD + "" + ChatColor.BOLD + "MYTHIC DUNGEON WEAPON",
                     Map.of(Enchantment.SHARPNESS, 7, Enchantment.LOOTING, 4, Enchantment.UNBREAKING, 5, Enchantment.MENDING, 1)
             );
+            case HAYABUSA_KATANA -> weapon(
+                    Material.NETHERITE_SWORD,
+                    ChatColor.AQUA + "Hayabusa Katana",
+                    "HAYABUSA_KATANA",
+                    ChatColor.DARK_GRAY + "Damage: " + ChatColor.RED + "+175",
+                    ChatColor.DARK_GRAY + "Crit Chance: " + ChatColor.BLUE + "+32%",
+                    ChatColor.GRAY + "A katana honed for aerial strikes.",
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "EPIC DUNGEON WEAPON",
+                    Map.of(Enchantment.SHARPNESS, 6, Enchantment.SWEEPING_EDGE, 3, Enchantment.UNBREAKING, 5)
+            );
+            case RAIJIN_SHORTBOW -> weapon(
+                    Material.BOW,
+                    ChatColor.YELLOW + "Raijin Shortbow",
+                    "RAIJIN_SHORTBOW",
+                    ChatColor.DARK_GRAY + "Damage: " + ChatColor.RED + "+140",
+                    ChatColor.DARK_GRAY + "Crit Chance: " + ChatColor.BLUE + "+30%",
+                    ChatColor.GRAY + "Instantly looses thunder-charged arrows.",
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY DUNGEON WEAPON",
+                    Map.of(Enchantment.POWER, 6, Enchantment.INFINITY, 1, Enchantment.UNBREAKING, 4)
+            );
         };
     }
 
@@ -475,6 +515,20 @@ public final class CustomItemService {
                     ChatColor.GRAY + "The divine core required for Flying Raijin.",
                     ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY CRAFTING MATERIAL"
             );
+            case DRAGON_SCALE -> material(
+                    Material.PRISMARINE_SHARD,
+                    ChatColor.DARK_GREEN + "Dragon Scale",
+                    "DRAGON_SCALE",
+                    ChatColor.GRAY + "A hardened scale from storm dragons.",
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "EPIC CRAFTING MATERIAL"
+            );
+            case BLOSSOM_FIBER -> material(
+                    Material.STRING,
+                    ChatColor.LIGHT_PURPLE + "Blossom Fiber",
+                    "BLOSSOM_FIBER",
+                    ChatColor.GRAY + "Silk woven from sacred cherry blossoms.",
+                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE CRAFTING MATERIAL"
+            );
         };
     }
 
@@ -515,16 +569,6 @@ public final class CustomItemService {
         };
     }
 
-    public ItemStack createReforgeAnvil() {
-        return material(
-                Material.ANVIL,
-                ChatColor.DARK_AQUA + "Reforge Anvil",
-                "REFORGE_ANVIL",
-                ChatColor.GRAY + "Right-click to open the reforge menu",
-                ChatColor.AQUA + "" + ChatColor.BOLD + "UTILITY ITEM"
-        );
-    }
-
     public String itemId(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {
             return null;
@@ -559,11 +603,19 @@ public final class CustomItemService {
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         meta.getPersistentDataContainer().set(reforgeIdKey, PersistentDataType.STRING, reforgeType.name());
 
+        String baseName = meta.getPersistentDataContainer().get(reforgeBaseNameKey, PersistentDataType.STRING);
+        if (baseName == null || baseName.isBlank()) {
+            baseName = meta.hasDisplayName() ? meta.getDisplayName() : ChatColor.WHITE + result.getType().name();
+            meta.getPersistentDataContainer().set(reforgeBaseNameKey, PersistentDataType.STRING, baseName);
+        }
+        meta.setDisplayName(reforgeType.color() + reforgeType.displayName() + " " + baseName);
+
         List<String> lore = meta.hasLore() && meta.getLore() != null
                 ? new ArrayList<>(meta.getLore())
                 : new ArrayList<>();
         lore.removeIf(this::isReforgeLoreLine);
         lore.add(ChatColor.DARK_GRAY + "Reforge: " + reforgeType.color() + reforgeType.displayName());
+        lore.add(ChatColor.DARK_GRAY + "Bonus: " + reforgeBonusLine(reforgeType, result));
         meta.setLore(lore);
         result.setItemMeta(meta);
         return syncWeaponEnchantLore(result);
@@ -586,24 +638,37 @@ public final class CustomItemService {
         return updated;
     }
 
-    public String reforgeBonusLine(ReforgeType type) {
+    public ReforgeStats reforgeStats(ReforgeType type, ItemStack weapon) {
+        if (type == null) {
+            return new ReforgeStats(0.0D, 0.0D, 0.0D, 0.0D);
+        }
+        ReforgeType.ReforgeStatProfile profile = type.statsFor(rarityOf(weapon));
+        return new ReforgeStats(
+                profile.damageBonus(),
+                profile.strengthBonus(),
+                profile.critChanceBonus(),
+                profile.critDamageBonus()
+        );
+    }
+
+    public String reforgeBonusLine(ReforgeType type, ItemStack weapon) {
         if (type == null) {
             return ChatColor.GRAY + "No reforge";
         }
+        ReforgeStats stats = reforgeStats(type, weapon);
         List<String> parts = new ArrayList<>();
-        if (type.damageBonus() > 0.0D) {
-            parts.add(ChatColor.RED + "+" + (int) type.damageBonus() + " Damage");
-        }
-        if (type.strengthBonus() > 0.0D) {
-            parts.add(ChatColor.RED + "+" + (int) type.strengthBonus() + " Strength");
-        }
-        if (type.critChanceBonus() > 0.0D) {
-            parts.add(ChatColor.BLUE + "+" + (int) type.critChanceBonus() + "% Crit Chance");
-        }
-        if (type.critDamageBonus() > 0.0D) {
-            parts.add(ChatColor.BLUE + "+" + (int) type.critDamageBonus() + "% Crit Damage");
+        appendBonusPart(parts, stats.damageBonus(), " Damage", ChatColor.RED);
+        appendBonusPart(parts, stats.strengthBonus(), " Strength", ChatColor.RED);
+        appendBonusPart(parts, stats.critChanceBonus(), "% Crit Chance", ChatColor.BLUE);
+        appendBonusPart(parts, stats.critDamageBonus(), "% Crit Damage", ChatColor.BLUE);
+        if (parts.isEmpty()) {
+            return ChatColor.GRAY + "No bonus";
         }
         return String.join(ChatColor.GRAY + ", ", parts);
+    }
+
+    public String reforgeBonusLine(ReforgeType type) {
+        return reforgeBonusLine(type, null);
     }
 
     public ItemStack createItemByKey(String key) {
@@ -626,10 +691,6 @@ public final class CustomItemService {
         if (reforgeStoneType != null) {
             return createReforgeStone(reforgeStoneType);
         }
-
-        if ("REFORGE_ANVIL".equalsIgnoreCase(key)) {
-            return createReforgeAnvil();
-        }
         return null;
     }
 
@@ -647,7 +708,6 @@ public final class CustomItemService {
         for (ReforgeStoneType type : ReforgeStoneType.values()) {
             keys.add(type.name().toLowerCase());
         }
-        keys.add("reforge_anvil");
         return keys;
     }
 
@@ -702,7 +762,7 @@ public final class CustomItemService {
         lore.add(line1);
         lore.add("");
         lore.add(rarity);
-        return build(material, name, id, lore, Map.of(), false);
+        return build(material, name, id, lore, Map.of(), false, true);
     }
 
     private ItemStack armor(
@@ -737,15 +797,36 @@ public final class CustomItemService {
             Map<Enchantment, Integer> enchants,
             boolean hideEnchants
     ) {
+        return build(material, name, id, lore, enchants, hideEnchants, false);
+    }
+
+    private ItemStack build(
+            Material material,
+            String name,
+            String id,
+            List<String> lore,
+            Map<Enchantment, Integer> enchants,
+            boolean hideEnchants,
+            boolean markAsMaterial
+    ) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(styledName(name));
         meta.setLore(styledLore(lore, hideEnchants));
         meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, id);
+        if (markAsMaterial) {
+            meta.getPersistentDataContainer().set(customMaterialKey, PersistentDataType.STRING, id);
+        }
         if (hideEnchants) {
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
         item.setItemMeta(meta);
+
+        Integer model = modelDataOverrides.get(id.toLowerCase(Locale.ROOT));
+        if (model != null) {
+            meta.setCustomModelData(model);
+            item.setItemMeta(meta);
+        }
 
         for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
             item.addUnsafeEnchantment(entry.getKey(), entry.getValue());
@@ -759,6 +840,20 @@ public final class CustomItemService {
             case SKYBLOCK -> ChatColor.GOLD + "✪ " + ChatColor.RESET + original;
             case MINIMAL -> ChatColor.WHITE + strip(original);
         };
+    }
+
+    private void loadModelOverrides() {
+        modelDataOverrides.clear();
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection("resource-pack.models");
+        if (section == null) {
+            return;
+        }
+        for (String key : section.getKeys(false)) {
+            int value = section.getInt(key, -1);
+            if (value > 0) {
+                modelDataOverrides.put(key.toLowerCase(Locale.ROOT), value);
+            }
+        }
     }
 
     private List<String> styledLore(List<String> lore, boolean weapon) {
@@ -816,7 +911,11 @@ public final class CustomItemService {
             return false;
         }
         String stripped = strip(line);
-        return stripped != null && stripped.toLowerCase().startsWith("reforge:");
+        if (stripped == null) {
+            return false;
+        }
+        String normalized = stripped.toLowerCase(Locale.ROOT);
+        return normalized.startsWith("reforge:") || normalized.startsWith("bonus:");
     }
 
     private boolean isEnchantLoreLine(String line) {
@@ -890,6 +989,53 @@ public final class CustomItemService {
         };
     }
 
+    private void appendBonusPart(List<String> parts, double value, String label, ChatColor color) {
+        int rounded = (int) Math.round(value);
+        if (rounded == 0) {
+            return;
+        }
+        String sign = rounded > 0 ? "+" : "";
+        parts.add(color + sign + rounded + label);
+    }
+
+    public ItemRarity rarityOf(ItemStack weapon) {
+        if (weapon == null || !weapon.hasItemMeta()) {
+            return ItemRarity.RARE;
+        }
+        ItemMeta meta = weapon.getItemMeta();
+        if (!meta.hasLore() || meta.getLore() == null) {
+            return ItemRarity.RARE;
+        }
+        List<String> lore = meta.getLore();
+        for (int i = lore.size() - 1; i >= 0; i--) {
+            String line = lore.get(i);
+            String plain = strip(line);
+            if (plain == null) {
+                continue;
+            }
+            String upper = plain.toUpperCase(Locale.ROOT);
+            if (upper.contains("MYTHIC")) {
+                return ItemRarity.MYTHIC;
+            }
+            if (upper.contains("LEGENDARY")) {
+                return ItemRarity.LEGENDARY;
+            }
+            if (upper.contains("EPIC")) {
+                return ItemRarity.EPIC;
+            }
+            if (upper.contains("RARE")) {
+                return ItemRarity.RARE;
+            }
+            if (upper.contains("UNCOMMON")) {
+                return ItemRarity.UNCOMMON;
+            }
+            if (upper.contains("COMMON")) {
+                return ItemRarity.COMMON;
+            }
+        }
+        return ItemRarity.RARE;
+    }
+
     private void resetDropDefaults() {
         mobWeaponBaseChance = 0.012D;
         yokaiWeaponChances.clear();
@@ -931,4 +1077,13 @@ public final class CustomItemService {
         String stripped = ChatColor.stripColor(text);
         return stripped == null ? text : stripped;
     }
+
+    public record ReforgeStats(
+            double damageBonus,
+            double strengthBonus,
+            double critChanceBonus,
+            double critDamageBonus
+    ) {
+    }
+
 }

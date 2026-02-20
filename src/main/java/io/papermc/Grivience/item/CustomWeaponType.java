@@ -16,7 +16,9 @@ public enum CustomWeaponType {
     KITSUNE_DAWNBOW,
     KITSUNE_SHORTBOW,
     GASHADOKURO_NODACHI,
-    FLYING_RAIJIN;
+    FLYING_RAIJIN,
+    HAYABUSA_KATANA,
+    RAIJIN_SHORTBOW;
 
     public static CustomWeaponType parse(String input) {
         if (input == null || input.isBlank()) {

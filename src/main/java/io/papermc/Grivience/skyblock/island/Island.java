@@ -7,14 +7,17 @@ import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public final class Island implements ConfigurationSerializable {
     private final UUID id;
     private final UUID owner;
     private Location center;
+    private Location spawnPoint;
     private int level;
     private int size;
     private String name;
@@ -23,19 +26,22 @@ public final class Island implements ConfigurationSerializable {
     private long lastVisited;
     private Map<String, Long> visits;
     private int totalVisits;
+    private Set<UUID> members;
 
     public Island(UUID owner, String ownerName, Location center) {
         this.id = UUID.randomUUID();
         this.owner = owner;
         this.center = center;
+        this.spawnPoint = null;
         this.level = 1;
-        this.size = 32; // Starting size (32x32)
+        this.size = 32;
         this.name = ownerName + "'s Island";
         this.description = "A humble island home.";
         this.createdAt = System.currentTimeMillis();
         this.lastVisited = System.currentTimeMillis();
         this.visits = new HashMap<>();
         this.totalVisits = 0;
+        this.members = new HashSet<>();
     }
 
     public Island(Map<String, Object> data) {
@@ -48,8 +54,8 @@ public final class Island implements ConfigurationSerializable {
         this.createdAt = (long) data.getOrDefault("createdAt", 0L);
         this.lastVisited = (long) data.getOrDefault("lastVisited", 0L);
         this.totalVisits = (int) data.getOrDefault("totalVisits", 0);
+        this.members = new HashSet<>();
 
-        // Deserialize visits
         this.visits = new HashMap<>();
         Object visitsObj = data.get("visits");
         if (visitsObj instanceof ConfigurationSection) {
@@ -58,8 +64,16 @@ public final class Island implements ConfigurationSerializable {
                 visits.put(key, visitsSection.getLong(key));
             }
         }
+        Object membersObj = data.get("members");
+        if (membersObj instanceof List<?> list) {
+            for (Object o : list) {
+                try {
+                    members.add(UUID.fromString(o.toString()));
+                } catch (Exception ignored) {
+                }
+            }
+        }
 
-        // Deserialize location
         String worldName = (String) data.get("world");
         double x = (double) data.get("x");
         double y = (double) data.get("y");
@@ -67,6 +81,17 @@ public final class Island implements ConfigurationSerializable {
         World world = org.bukkit.Bukkit.getWorld(worldName);
         if (world != null) {
             this.center = new Location(world, x, y, z);
+        }
+
+        if (data.containsKey("spawnX") && data.containsKey("spawnY") && data.containsKey("spawnZ")) {
+            double spawnX = (double) data.get("spawnX");
+            double spawnY = (double) data.get("spawnY");
+            double spawnZ = (double) data.get("spawnZ");
+            float spawnYaw = (float) (double) data.getOrDefault("spawnYaw", 0.0f);
+            float spawnPitch = (float) (double) data.getOrDefault("spawnPitch", 0.0f);
+            if (world != null) {
+                this.spawnPoint = new Location(world, spawnX, spawnY, spawnZ, spawnYaw, spawnPitch);
+            }
         }
     }
 
@@ -84,7 +109,6 @@ public final class Island implements ConfigurationSerializable {
         data.put("lastVisited", lastVisited);
         data.put("totalVisits", totalVisits);
 
-        // Serialize visits
         if (!visits.isEmpty()) {
             Map<String, Object> visitsMap = new HashMap<>();
             for (Map.Entry<String, Long> entry : visits.entrySet()) {
@@ -100,10 +124,24 @@ public final class Island implements ConfigurationSerializable {
             data.put("z", center.getZ());
         }
 
+        if (spawnPoint != null) {
+            data.put("spawnX", spawnPoint.getX());
+            data.put("spawnY", spawnPoint.getY());
+            data.put("spawnZ", spawnPoint.getZ());
+            data.put("spawnYaw", spawnPoint.getYaw());
+            data.put("spawnPitch", spawnPoint.getPitch());
+        }
+        if (members != null && !members.isEmpty()) {
+            List<String> memberList = new java.util.ArrayList<>();
+            for (UUID uuid : members) {
+                memberList.add(uuid.toString());
+            }
+            data.put("members", memberList);
+        }
+
         return data;
     }
 
-    // Getters
     public UUID getId() {
         return id;
     }
@@ -114,6 +152,16 @@ public final class Island implements ConfigurationSerializable {
 
     public Location getCenter() {
         return center;
+    }
+
+    public Location getSpawnPoint() {
+        if (spawnPoint != null) {
+            return spawnPoint.clone().add(0.5, 1, 0.5);
+        }
+        if (center != null) {
+            return center.clone().add(0.5, 1, 0.5);
+        }
+        return null;
     }
 
     public int getLevel() {
@@ -140,13 +188,38 @@ public final class Island implements ConfigurationSerializable {
         return lastVisited;
     }
 
-    // Setters
     public void setCenter(Location center) {
         this.center = center;
     }
 
+    public void setSpawnPoint(Location spawnPoint) {
+        this.spawnPoint = spawnPoint.clone();
+        this.spawnPoint.setYaw(0);
+        this.spawnPoint.setPitch(0);
+    }
+
     public void setLevel(int level) {
         this.level = level;
+    }
+
+    public Set<UUID> getMembers() {
+        return Set.copyOf(members);
+    }
+
+    public void addMember(UUID uuid) {
+        if (uuid != null) {
+            members.add(uuid);
+        }
+    }
+
+    public void removeMember(UUID uuid) {
+        if (uuid != null) {
+            members.remove(uuid);
+        }
+    }
+
+    public boolean isMember(UUID uuid) {
+        return uuid != null && members.contains(uuid);
     }
 
     public void setSize(int size) {
@@ -165,7 +238,6 @@ public final class Island implements ConfigurationSerializable {
         this.lastVisited = lastVisited;
     }
 
-    // Utility methods
     public Location getMinCorner() {
         if (center == null) return null;
         int halfSize = size / 2;
@@ -190,12 +262,9 @@ public final class Island implements ConfigurationSerializable {
     }
 
     public int getUpgradeLevel() {
-        // Calculate upgrade level based on size
-        // 32 = level 1, 48 = level 2, 64 = level 3, etc.
         return (size - 32) / 16 + 1;
     }
 
-    // Visit tracking methods
     public void addVisit(String playerName) {
         visits.put(playerName.toLowerCase(), System.currentTimeMillis());
         totalVisits++;
