@@ -24,12 +24,46 @@ public final class HubCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("set")) {
+            return handleSet(sender, args);
+        }
+
         Player player = requirePlayer(sender);
         if (player == null) {
             return true;
         }
 
         teleportToHub(player);
+        return true;
+    }
+
+    private boolean handleSet(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ChatColor.RED + "This command can only be used in-game.");
+            return true;
+        }
+
+        if (!sender.hasPermission("grivience.admin")) {
+            sender.sendMessage(ChatColor.RED + "You do not have permission to set the hub.");
+            return true;
+        }
+
+        Location loc = player.getLocation();
+        plugin.getConfig().set("skyblock.hub-world", loc.getWorld().getName());
+        plugin.getConfig().set("skyblock.hub-spawn.x", loc.getX());
+        plugin.getConfig().set("skyblock.hub-spawn.y", loc.getY());
+        plugin.getConfig().set("skyblock.hub-spawn.z", loc.getZ());
+        plugin.getConfig().set("skyblock.hub-spawn.yaw", loc.getYaw());
+        plugin.getConfig().set("skyblock.hub-spawn.pitch", loc.getPitch());
+        plugin.saveConfig();
+        if (plugin.getFastTravelManager() != null) {
+            plugin.getFastTravelManager().syncHubWarpsFromConfig();
+        }
+
+        sender.sendMessage(ChatColor.GREEN + "Hub location set to " + loc.getWorld().getName() + " (" + 
+            String.format("%.1f", loc.getX()) + ", " + String.format("%.1f", loc.getY()) + ", " + 
+            String.format("%.1f", loc.getZ()) + ") yaw " + String.format("%.1f", loc.getYaw()) + 
+            " pitch " + String.format("%.1f", loc.getPitch()) + ".");
         return true;
     }
 
@@ -71,7 +105,7 @@ public final class HubCommand implements CommandExecutor, TabCompleter {
             double z = plugin.getConfig().getDouble(path + ".z");
             float yaw = (float) plugin.getConfig().getDouble(path + ".yaw", 0);
             float pitch = (float) plugin.getConfig().getDouble(path + ".pitch", 0);
-            return new Location(world, x + 0.5, y, z + 0.5, yaw, pitch);
+            return new Location(world, x, y, z, yaw, pitch);
         }
         return world.getSpawnLocation().add(0.5, 0, 0.5);
     }
@@ -86,6 +120,20 @@ public final class HubCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (args.length == 1) {
+            return filter(List.of("set"), args[0]);
+        }
         return List.of();
+    }
+
+    private List<String> filter(List<String> input, String prefix) {
+        String p = prefix.toLowerCase(Locale.ROOT);
+        List<String> out = new ArrayList<>();
+        for (String candidate : input) {
+            if (candidate.toLowerCase(Locale.ROOT).startsWith(p)) {
+                out.add(candidate);
+            }
+        }
+        return out;
     }
 }

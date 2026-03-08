@@ -23,10 +23,13 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -102,7 +105,10 @@ public final class DungeonListener implements Listener {
         if (event.getClickedBlock() == null) {
             return;
         }
-        dungeonManager.handlePlayerInteract(event.getPlayer(), event.getAction(), event.getClickedBlock());
+        boolean cancel = dungeonManager.handlePlayerInteract(event.getPlayer(), event.getAction(), event.getClickedBlock());
+        if (cancel) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -118,6 +124,54 @@ public final class DungeonListener implements Listener {
             return;
         }
         dungeonManager.handlePlayerMove(event.getPlayer(), from, to);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent event) {
+        Player player = event.getPlayer();
+        if (!dungeonManager.isInDungeon(player.getUniqueId())) {
+            return;
+        }
+        if (player.hasPermission("grivience.admin")) {
+            return;
+        }
+        PlayerTeleportEvent.TeleportCause cause = event.getCause();
+        if (cause == PlayerTeleportEvent.TeleportCause.PLUGIN) {
+            return;
+        }
+
+        // Avoid referencing enum constants that may be absent on older API jars pulled in by shaded deps.
+        // Comparing by name keeps the plugin binary-compatible when servers add new teleport causes.
+        String causeName = cause.name();
+        if ("ENDER_PEARL".equals(causeName)
+                || "CHORUS_FRUIT".equals(causeName)
+                || "CONSUMABLE_EFFECT".equals(causeName)
+                || "COMMAND".equals(causeName)
+                || "END_GATEWAY".equals(causeName)
+                || "END_PORTAL".equals(causeName)
+                || "NETHER_PORTAL".equals(causeName)
+                || "SPECTATE".equals(causeName)) {
+            event.setCancelled(true);
+            player.sendMessage(org.bukkit.ChatColor.RED + "Teleporting is disabled during a dungeon run. Use /dungeon abandon to leave.");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        if (!dungeonManager.isInDungeon(event.getPlayer().getUniqueId())) {
+            return;
+        }
+        event.setCancelled(true);
+        event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "Buckets cannot be used during a dungeon run.");
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBucketFill(PlayerBucketFillEvent event) {
+        if (!dungeonManager.isInDungeon(event.getPlayer().getUniqueId())) {
+            return;
+        }
+        event.setCancelled(true);
+        event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "Buckets cannot be used during a dungeon run.");
     }
 
     @EventHandler(ignoreCancelled = true)

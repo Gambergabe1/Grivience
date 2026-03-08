@@ -1,0 +1,169 @@
+=== cobblestone_generator ===
+T1: outer=cobblestone x10 center=wood_pickaxe x1
+T2: outer=cobblestone x20 center=cobblestone_generator_1 x1
+T3: outer=cobblestone x40 center=cobblestone_generator_2 x1
+T4: outer=cobblestone x64 center=cobblestone_generator_3 x1
+T5: outer=enchanted_cobblestone x1 center=cobblestone_generator_4 x1
+T6: outer=enchanted_cobblestone x2 center=cobblestone_generator_5 x1
+T7: outer=enchanted_cobblestone x4 center=cobblestone_generator_6 x1
+T8: outer=enchanted_cobblestone x8 center=cobblestone_generator_7 x1
+T9: outer=enchanted_cobblestone x16 center=cobblestone_generator_8 x1
+T10: outer=enchanted_cobblestone x32 center=cobblestone_generator_9 x1
+T11: outer=enchanted_cobblestone x64 center=cobblestone_generator_10 x1
+T12: missing
+=== coal_generator ===
+T1: outer=coal x10 center=wood_pickaxe x1
+T2: outer=coal x20 center=coal_generator_1 x1
+T3: outer=coal x40 center=coal_generator_2 x1
+T4: outer=coal x64 center=coal_generator_3 x1
+T5: outer=enchanted_coal x1 center=coal_generator_4 x1
+T6: outer=enchanted_coal x3 center=coal_generator_5 x1
+T7: outer=enchanted_coal x8 center=coal_generator_6 x1
+T8: outer=enchanted_coal x16 center=coal_generator_7 x1
+T9: outer=enchanted_coal x32 center=coal_generator_8 x1
+T10: outer=enchanted_coal x64 center=coal_generator_9 x1
+T11: outer=enchanted_coal_block x1 center=coal_generator_10 x1
+T12: missing
+=== iron_generator ===
+T1: outer=iron_ingot x10 center=wood_pickaxe x1
+T2: outer=iron_ingot x20 center=iron_generator_1 x1
+T3: outer=iron_ingot x40 center=iron_generator_2 x1
+T4: outer=iron_ingot x64 center=iron_generator_3 x1
+T5: outer=enchanted_iron x1 center=iron_generator_4 x1
+T6: outer=enchanted_iron x3 center=iron_generator_5 x1
+T7: outer=enchanted_iron x8 center=iron_generator_6 x1
+T8: outer=enchanted_iron x16 center=iron_generator_7 x1
+T9: outer=enchanted_iron x32 center=iron_generator_8 x1
+T10: outer=enchanted_iron x64 center=iron_generator_9 x1
+T11: outer=enchanted_iron_block x1 center=iron_generator_10 x1
+T12: missing
+=== gold_generator ===
+T1: outer=gold_ingot x10 center=wood_pickaxe x1
+T2: outer=gold_ingot x20 center=gold_generator_1 x1
+T3: outer=gold_ingot x40 center=gold_generator_2 x1
+T4: outer=gold_ingot x64 center=gold_generator_3 x1
+T5: outer=enchanted_gold x1 center=gold_generator_4 x1
+T6: outer=enchanted_gold x3 center=gold_generator_5 x1
+T7: outer=enchanted_gold x8 center=gold_generator_6 x1
+T8: outer=enchanted_gold x16 center=gold_generator_7 x1
+T9: outer=enchanted_gold x32 center=gold_generator_8 x1
+T10: outer=enchanted_gold x64 center=gold_generator_9 x1
+T11: outer=enchanted_gold_block x1 center=gold_generator_10 x1
+T12: missing
+=== redstone_generator ===
+T1: outer=redstone x16 center=wood_pickaxe x1
+T2: outer=redstone x32 center=redstone_generator_1 x1
+T3: outer=redstone x64 center=redstone_generator_2 x1
+T4: outer=enchanted_redstone x1 center=redstone_generator_3 x1
+T5: outer=enchanted_redstone x3 center=redstone_generator_4 x1
+T6: outer=enchanted_redstone x8 center=redstone_generator_5 x1
+T7: outer=enchanted_redstone x16 center=redstone_generator_6 x1
+T8: outer=enchanted_redstone x32 center=redstone_generator_7 x1
+T9: outer=enchanted_redstone x64 center=redstone_generator_8 x1
+T10: outer=enchanted_redstone_block x1 center=redstone_generator_9 x1
+T11: outer=enchanted_redstone_block x2 center=redstone_generator_10 x1
+T12: missing
+=== lapis_generator ===
+T1: outer=lapis_lazuli x32 center=wood_pickaxe x1
+T2: outer=lapis_lazuli x64 center=lapis_generator_1 x1
+T3: outer=enchanted_lapis_lazuli x1 center=lapis_generator_2 x1
+T4: outer=enchanted_lapis_lazuli x3 center=lapis_generator_3 x1
+T5: outer=enchanted_lapis_lazuli x8 center=lapis_generator_4 x1
+T6: outer=enchanted_lapis_lazuli x16 center=lapis_generator_5 x1
+T7: outer=enchanted_lapis_lazuli x32 center=lapis_generator_6 x1
+T8: outer=enchanted_lapis_lazuli x64 center=lapis_generator_7 x1
+T9: outer=enchanted_lapis_lazuli_block x1 center=lapis_generator_8 x1
+T10: outer=enchanted_lapis_lazuli_block x2 center=lapis_generator_9 x1
+T11: outer=enchanted_lapis_lazuli_block x4 center=lapis_generator_10 x1
+T12: missing
+=== diamond_generator ===
+T1: outer=diamond x10 center=wood_pickaxe x1
+T2: outer=diamond x20 center=diamond_generator_1 x1
+T3: outer=diamond x40 center=diamond_generator_2 x1
+T4: outer=diamond x64 center=diamond_generator_3 x1
+T5: outer=enchanted_diamond x1 center=diamond_generator_4 x1
+T6: outer=enchanted_diamond x3 center=diamond_generator_5 x1
+T7: outer=enchanted_diamond x8 center=diamond_generator_6 x1
+T8: outer=enchanted_diamond x16 center=diamond_generator_7 x1
+T9: outer=enchanted_diamond x32 center=diamond_generator_8 x1
+T10: outer=enchanted_diamond x64 center=diamond_generator_9 x1
+T11: outer=enchanted_diamond_block x1 center=diamond_generator_10 x1
+T12: missing
+=== emerald_generator ===
+T1: outer=emerald x10 center=wood_pickaxe x1
+T2: outer=emerald x20 center=emerald_generator_1 x1
+T3: outer=emerald x40 center=emerald_generator_2 x1
+T4: outer=emerald x64 center=emerald_generator_3 x1
+T5: outer=enchanted_emerald x1 center=emerald_generator_4 x1
+T6: outer=enchanted_emerald x3 center=emerald_generator_5 x1
+T7: outer=enchanted_emerald x8 center=emerald_generator_6 x1
+T8: outer=enchanted_emerald x16 center=emerald_generator_7 x1
+T9: outer=enchanted_emerald x32 center=emerald_generator_8 x1
+T10: outer=enchanted_emerald x64 center=emerald_generator_9 x1
+T11: outer=enchanted_emerald_block x1 center=emerald_generator_10 x1
+T12: missing
+=== wheat_generator ===
+T1: outer=wheat x10 center=wood_hoe x1
+T2: outer=wheat x20 center=wheat_generator_1 x1
+T3: outer=wheat x40 center=wheat_generator_2 x1
+T4: outer=wheat x64 center=wheat_generator_3 x1
+T5: outer=hay_block x12 center=wheat_generator_4 x1
+T6: outer=hay_block x24 center=wheat_generator_5 x1
+T7: outer=hay_block x48 center=wheat_generator_6 x1
+T8: outer=hay_block x64 center=wheat_generator_7 x1
+T9: outer=enchanted_hay_block x1 center=wheat_generator_8 x1
+T10: outer=enchanted_hay_block x2 center=wheat_generator_9 x1
+T11: outer=enchanted_hay_block x4 center=wheat_generator_10 x1
+T12: missing
+=== carrot_generator ===
+T1: outer=carrot_item x16 center=wood_hoe x1
+T2: outer=carrot_item x32 center=carrot_generator_1 x1
+T3: outer=carrot_item x64 center=carrot_generator_2 x1
+T4: outer=enchanted_carrot x1 center=carrot_generator_3 x1
+T5: outer=enchanted_carrot x3 center=carrot_generator_4 x1
+T6: outer=enchanted_carrot x8 center=carrot_generator_5 x1
+T7: outer=enchanted_carrot x16 center=carrot_generator_6 x1
+T8: outer=enchanted_carrot x32 center=carrot_generator_7 x1
+T9: outer=enchanted_carrot x64 center=carrot_generator_8 x1
+T10: outer=enchanted_golden_carrot x1 center=carrot_generator_9 x1
+T11: outer=enchanted_golden_carrot x2 center=carrot_generator_10 x1
+T12: missing
+=== potato_generator ===
+T1: outer=potato_item x16 center=wood_hoe x1
+T2: outer=potato_item x32 center=potato_generator_1 x1
+T3: outer=potato_item x64 center=potato_generator_2 x1
+T4: outer=enchanted_potato x1 center=potato_generator_3 x1
+T5: outer=enchanted_potato x3 center=potato_generator_4 x1
+T6: outer=enchanted_potato x8 center=potato_generator_5 x1
+T7: outer=enchanted_potato x16 center=potato_generator_6 x1
+T8: outer=enchanted_potato x32 center=potato_generator_7 x1
+T9: outer=enchanted_potato x64 center=potato_generator_8 x1
+T10: outer=enchanted_baked_potato x1 center=potato_generator_9 x1
+T11: outer=enchanted_baked_potato x2 center=potato_generator_10 x1
+T12: missing
+=== sugar_cane_generator ===
+T1: outer=sugar_cane x16 center=wood_hoe x1
+T2: outer=sugar_cane x32 center=sugar_cane_generator_1 x1
+T3: outer=sugar_cane x64 center=sugar_cane_generator_2 x1
+T4: outer=enchanted_sugar x1 center=sugar_cane_generator_3 x1
+T5: outer=enchanted_sugar x3 center=sugar_cane_generator_4 x1
+T6: outer=enchanted_sugar x8 center=sugar_cane_generator_5 x1
+T7: outer=enchanted_sugar x16 center=sugar_cane_generator_6 x1
+T8: outer=enchanted_sugar x32 center=sugar_cane_generator_7 x1
+T9: outer=enchanted_sugar x64 center=sugar_cane_generator_8 x1
+T10: outer=enchanted_sugar_cane x1 center=sugar_cane_generator_9 x1
+T11: outer=enchanted_sugar_cane x2 center=sugar_cane_generator_10 x1
+T12: missing
+=== nether_warts_generator ===
+T1: outer=nether_stalk x10 center=wood_hoe x1
+T2: outer=nether_stalk x20 center=nether_warts_generator_1 x1
+T3: outer=nether_stalk x40 center=nether_warts_generator_2 x1
+T4: outer=nether_stalk x64 center=nether_warts_generator_3 x1
+T5: outer=enchanted_nether_stalk x1 center=nether_warts_generator_4 x1
+T6: outer=enchanted_nether_stalk x2 center=nether_warts_generator_5 x1
+T7: outer=enchanted_nether_stalk x4 center=nether_warts_generator_6 x1
+T8: outer=enchanted_nether_stalk x8 center=nether_warts_generator_7 x1
+T9: outer=enchanted_nether_stalk x16 center=nether_warts_generator_8 x1
+T10: outer=enchanted_nether_stalk x32 center=nether_warts_generator_9 x1
+T11: outer=enchanted_nether_stalk x64 center=nether_warts_generator_10 x1
+T12: missing

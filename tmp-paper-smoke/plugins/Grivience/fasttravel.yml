@@ -1,0 +1,43 @@
+# Fast Travel Configuration
+# Destinations are automatically unlocked when players visit them.
+# Use player heads by specifying a 'head-owner' with a Minecraft username.
+#
+# Built-in Hub Warps (automatically loaded from main config):
+#   - hub (Main Hub)
+#   - dungeonhub (Dungeon Hub)
+#   - minehub (Mining Hub)
+#   - farmhub (Farm Hub)
+#   - endmine (End Mines)
+#
+# Add custom destinations below using the same format.
+
+# Example custom destination - Shopping District
+shopping:
+  name: "Shopping District"
+  world: "world"
+  x: 100
+  y: 70
+  z: 100
+  yaw: 180
+  pitch: 0
+  description: "Browse shops and trade with other players"
+  head-owner: "MHF_Villager"
+  required-level: 0
+  permission: ""
+
+# Example custom destination - Forest Hub
+forest:
+  name: "Forest Hub"
+  world: "world"
+  x: -200
+  y: 70
+  z: -150
+  yaw: 45
+  pitch: 0
+  description: "Gateway to the dense forests"
+  head-owner: "MHF_Treewood"
+  required-level: 3
+  permission: ""
+
+# Player unlocks are stored automatically and should not be edited manually.
+unlocks: {}

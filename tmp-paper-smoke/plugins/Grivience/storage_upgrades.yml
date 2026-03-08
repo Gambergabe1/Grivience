@@ -1,0 +1,209 @@
+# Storage System Upgrade Configuration
+# This file defines the upgrade paths for each storage type.
+# Each storage type can have multiple tiers with increasing slot capacity.
+
+upgrades:
+  # Personal Storage - Basic backpack storage
+  personal:
+    enabled: true
+    tiers:
+      tier-1:
+        slots: 27
+        cost: 0
+        name: "&7Base Storage"
+        commands: []
+      tier-2:
+        slots: 36
+        cost: 5000
+        name: "&aExpanded Storage I"
+        commands:
+          - "eco give {player} 1000"
+      tier-3:
+        slots: 45
+        cost: 15000
+        name: "&bExpanded Storage II"
+        commands:
+          - "eco give {player} 2500"
+      tier-4:
+        slots: 54
+        cost: 30000
+        name: "&6Expanded Storage III"
+        commands:
+          - "eco give {player} 5000"
+
+  # Vault Storage - Bank-like secure storage
+  vault:
+    enabled: true
+    tiers:
+      tier-1:
+        slots: 27
+        cost: 0
+        name: "&7Base Vault"
+        commands: []
+      tier-2:
+        slots: 45
+        cost: 10000
+        name: "&aLarge Vault I"
+        commands: []
+      tier-3:
+        slots: 54
+        cost: 25000
+        name: "&bLarge Vault II"
+        commands: []
+      tier-4:
+        slots: 72
+        cost: 50000
+        name: "&6Large Vault III"
+        commands: []
+      tier-5:
+        slots: 90
+        cost: 100000
+        name: "&dMassive Vault I"
+        commands: []
+      tier-6:
+        slots: 108
+        cost: 200000
+        name: "&dMassive Vault II"
+        commands: []
+      tier-7:
+        slots: 126
+        cost: 350000
+        name: "&5Massive Vault III"
+        commands: []
+      tier-8:
+        slots: 144
+        cost: 500000
+        name: "&cColossal Vault I"
+        commands: []
+      tier-9:
+        slots: 162
+        cost: 750000
+        name: "&4Colossal Vault II"
+        commands: []
+
+  # Ender Storage - Portable ender chest storage
+  ender:
+    enabled: true
+    tiers:
+      tier-1:
+        slots: 27
+        cost: 0
+        name: "&7Base Ender Storage"
+        commands: []
+      tier-2:
+        slots: 36
+        cost: 7500
+        name: "&aExpanded Ender I"
+        commands: []
+      tier-3:
+        slots: 45
+        cost: 20000
+        name: "&bExpanded Ender II"
+        commands: []
+      tier-4:
+        slots: 54
+        cost: 40000
+        name: "&6Expanded Ender III"
+        commands: []
+
+  # Backpack Storage - Portable shulker-style storage
+  backpack:
+    enabled: true
+    tiers:
+      tier-1:
+        slots: 9
+        cost: 0
+        name: "&7Small Backpack"
+        commands: []
+      tier-2:
+        slots: 18
+        cost: 3000
+        name: "&aMedium Backpack"
+        commands: []
+      tier-3:
+        slots: 27
+        cost: 8000
+        name: "&bLarge Backpack"
+        commands: []
+      tier-4:
+        slots: 36
+        cost: 18000
+        name: "&6Huge Backpack"
+        commands: []
+      tier-5:
+        slots: 45
+        cost: 35000
+        name: "&dMassive Backpack"
+        commands: []
+
+  # Warehouse Storage - Bulk item storage
+  warehouse:
+    enabled: true
+    tiers:
+      tier-1:
+        slots: 54
+        cost: 0
+        name: "&7Small Warehouse"
+        commands: []
+      tier-2:
+        slots: 108
+        cost: 25000
+        name: "&aMedium Warehouse"
+        commands: []
+      tier-3:
+        slots: 162
+        cost: 75000
+        name: "&bLarge Warehouse"
+        commands: []
+      tier-4:
+        slots: 216
+        cost: 150000
+        name: "&6Huge Warehouse"
+        commands: []
+      tier-5:
+        slots: 270
+        cost: 300000
+        name: "&dMassive Warehouse"
+        commands: []
+      tier-6:
+        slots: 324
+        cost: 500000
+        name: "&5Colossal Warehouse"
+        commands: []
+      tier-7:
+        slots: 378
+        cost: 750000
+        name: "&cEnormous Warehouse"
+        commands: []
+      tier-8:
+        slots: 432
+        cost: 1000000
+        name: "&4Immense Warehouse"
+        commands: []
+      tier-9:
+        slots: 486
+        cost: 1500000
+        name: "&c&lUltimate Warehouse"
+        commands: []
+      tier-10:
+        slots: 540
+        cost: 2000000
+        name: "&4&lMaximum Warehouse"
+        commands: []
+
+# General Settings
+settings:
+  # Enable auto-save for storage data
+  auto-save: true
+  # Auto-save interval in ticks (20 ticks = 1 second)
+  auto-save-interval: 600
+  # Enable storage locking feature
+  allow-locking: true
+  # Enable custom naming of storage
+  allow-naming: true
+  # Maximum storage usage percentage before warning (0-100)
+  usage-warning-threshold: 90
+  # Enable storage leaderboard
+  enable-leaderboard: true
+  # Enable storage upgrade notifications
+  enable-upgrade-notifications: true

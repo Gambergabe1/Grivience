@@ -142,7 +142,7 @@ public enum YokaiType {
             case ONI_BRUTE -> living.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, Integer.MAX_VALUE, 0, false, false));
             case TENGU_SKIRMISHER -> living.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 1, false, false));
             case KAPPA_RAIDER -> living.addPotionEffect(new PotionEffect(PotionEffectType.WATER_BREATHING, Integer.MAX_VALUE, 0, false, false));
-            case ONRYO_WRAITH -> living.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 200 + (damageTier * 40), 0, false, false));
+            case ONRYO_WRAITH -> living.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
             case JOROGUMO_WEAVER -> living.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 2, false, false));
             case KITSUNE_TRICKSTER -> {
                 living.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, Integer.MAX_VALUE, 1, false, false));

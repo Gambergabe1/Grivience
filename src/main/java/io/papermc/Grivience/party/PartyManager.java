@@ -284,7 +284,7 @@ public final class PartyManager {
             return "Island system is not available.";
         }
 
-        Island island = islandManager.getIsland(leader.getUniqueId());
+        Island island = islandManager.getIsland(leader);
         if (island == null) {
             return "You do not have an island. Use /island create to create one.";
         }

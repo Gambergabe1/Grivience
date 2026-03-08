@@ -1,0 +1,101 @@
+pets:
+  griffin:
+    name: "Griffin"
+    icon: PLAYER_HEAD
+    head-texture: "http://textures.minecraft.net/texture/91c5e326245bd1c7075e84f7491437132d0b1328c972061c158e9a1e2432286c"
+    rarity: LEGENDARY
+    skill-type: COMBAT
+    max-level: 100
+    stats:
+      health: 20
+      strength: 25
+      intelligence: 10
+      magic-find: 5
+    abilities:
+      legendary_bond:
+        name: "Legendary Bond"
+        description:
+          - "&7Grants &c+{value} Strength &7and &c+20 Health"
+          - "&7at max level."
+        start-value: 5.0
+        end-value: 25.0
+        min-rarity: LEGENDARY
+
+  wolf:
+    name: "Wolf"
+    icon: PLAYER_HEAD
+    head-texture: "http://textures.minecraft.net/texture/9dd850f5111840e53955ca7483215bf4c5215c0f0481c4ad8edb9dcaab1ed68f"
+    rarity: RARE
+    skill-type: COMBAT
+    max-level: 100
+    stats:
+      health: 10
+      crit-damage: 20
+      speed: 5
+    abilities:
+      pack_leader:
+        name: "Pack Leader"
+        description:
+          - "&7Gain &9+{value}% Crit Damage &7for"
+          - "&7each wolf nearby."
+        start-value: 5.0
+        end-value: 20.0
+        min-rarity: RARE
+
+  rabbit:
+    name: "Rabbit"
+    icon: PLAYER_HEAD
+    head-texture: "http://textures.minecraft.net/texture/e087f28f68a799beb7f94f4d0723c1c5d19c73cd3a63675b8622c2c58eea8b2"
+    rarity: UNCOMMON
+    skill-type: FARMING
+    max-level: 100
+    stats:
+      health: 10
+      speed: 10
+    abilities:
+      happy_feet:
+        name: "Happy Feet"
+        description:
+          - "&7Increases farming speed by &a+{value}%."
+        start-value: 1.0
+        end-value: 10.0
+        min-rarity: UNCOMMON
+
+  turtle:
+    name: "Turtle"
+    icon: PLAYER_HEAD
+    head-texture: "http://textures.minecraft.net/texture/5f2c517e3d1bc4e8e9b35bd50a6481d948e57808b4374c1c1ff717a8ba4a898"
+    rarity: EPIC
+    skill-type: COMBAT
+    max-level: 100
+    stats:
+      health: 20
+      defense: 40
+    abilities:
+      shell_shield:
+        name: "Shell Shield"
+        description:
+          - "&7Reduces damage taken by &9{value}%."
+        start-value: 5.0
+        end-value: 20.0
+        min-rarity: EPIC
+
+  bee:
+    name: "Bee"
+    icon: PLAYER_HEAD
+    head-texture: "http://textures.minecraft.net/texture/7c4c2e3d8f3a6b1d6c1f5e3acda6af7d2a2c87a1b7109a2c8b3f4d7c9a5e3b"
+    rarity: UNCOMMON
+    skill-type: FARMING
+    max-level: 100
+    stats:
+      intelligence: 10
+      health: 5
+    abilities:
+      hive_mind:
+        name: "Hive Mind"
+        description:
+          - "&7Gain &b+{value} Intelligence &7for each"
+          - "&7nearby bee."
+        start-value: 1.0
+        end-value: 10.0
+        min-rarity: UNCOMMON

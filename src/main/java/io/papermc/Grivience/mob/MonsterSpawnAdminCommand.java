@@ -19,10 +19,12 @@ import java.util.UUID;
 public final class MonsterSpawnAdminCommand implements CommandExecutor, TabCompleter {
     private final GriviencePlugin plugin;
     private final CustomMonsterManager monsterManager;
+    private final MonsterGui monsterGui;
 
     public MonsterSpawnAdminCommand(GriviencePlugin plugin, CustomMonsterManager monsterManager) {
         this.plugin = plugin;
         this.monsterManager = monsterManager;
+        this.monsterGui = new MonsterGui(monsterManager);
     }
 
     @Override
@@ -44,6 +46,8 @@ public final class MonsterSpawnAdminCommand implements CommandExecutor, TabCompl
             case "list" -> handleList(sender);
             case "info" -> handleInfo(sender, args);
             case "toggle" -> handleToggle(sender, args);
+            case "spawn" -> handleSpawn(sender, args);
+            case "gui", "view" -> handleGui(sender);
             case "monsters" -> handleMonsters(sender);
             case "help" -> sendHelp(sender);
             default -> {
@@ -196,6 +200,51 @@ public final class MonsterSpawnAdminCommand implements CommandExecutor, TabCompl
                     ChatColor.YELLOW + monster.getDisplayName() + 
                     ChatColor.GRAY + " (" + monster.getEntityType().name() + ")");
         }
+        sender.sendMessage(ChatColor.GRAY + "Use /mobspawn gui to see them in a menu.");
+    }
+
+    private void handleSpawn(CommandSender sender, String[] args) {
+        Player player = requirePlayer(sender);
+        if (player == null) return;
+
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Usage: /mobspawn spawn <monster_id> [amount]");
+            return;
+        }
+
+        String monsterId = args[1];
+        CustomMonster monster = monsterManager.getMonster(monsterId);
+        if (monster == null) {
+            sender.sendMessage(ChatColor.RED + "Unknown monster: " + monsterId);
+            return;
+        }
+
+        int amount = 1;
+        if (args.length > 2) {
+            try {
+                amount = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                sender.sendMessage(ChatColor.RED + "Invalid amount.");
+                return;
+            }
+        }
+
+        for (int i = 0; i < amount; i++) {
+            monsterManager.spawnMonster(monsterId, player.getLocation());
+        }
+
+        sender.sendMessage(ChatColor.GREEN + "Spawned " + ChatColor.YELLOW + amount + "x " + monster.getDisplayName() + ChatColor.GREEN + "!");
+    }
+
+    private void handleGui(CommandSender sender) {
+        Player player = requirePlayer(sender);
+        if (player == null) return;
+
+        monsterGui.open(player);
+    }
+
+    public MonsterGui getMonsterGui() {
+        return monsterGui;
     }
 
     private void sendHelp(CommandSender sender) {
@@ -206,6 +255,8 @@ public final class MonsterSpawnAdminCommand implements CommandExecutor, TabCompl
         sender.sendMessage(ChatColor.YELLOW + "/mobspawn info <id>" + ChatColor.GRAY + " - View spawn point details");
         sender.sendMessage(ChatColor.YELLOW + "/mobspawn toggle <id>" + ChatColor.GRAY + " - Activate/deactivate spawn");
         sender.sendMessage(ChatColor.YELLOW + "/mobspawn monsters" + ChatColor.GRAY + " - List available monsters");
+        sender.sendMessage(ChatColor.YELLOW + "/mobspawn spawn <id> [amt]" + ChatColor.GRAY + " - Manual spawn");
+        sender.sendMessage(ChatColor.YELLOW + "/mobspawn gui" + ChatColor.GRAY + " - View monsters in GUI");
     }
 
     private Player requirePlayer(CommandSender sender) {
@@ -219,11 +270,11 @@ public final class MonsterSpawnAdminCommand implements CommandExecutor, TabCompl
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            List<String> commands = new ArrayList<>(List.of("create", "remove", "list", "info", "toggle", "monsters", "help"));
+            List<String> commands = new ArrayList<>(List.of("create", "remove", "list", "info", "toggle", "monsters", "spawn", "gui", "help"));
             return filterPrefix(commands, args[0]);
         }
 
-        if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
+        if (args.length == 2 && (args[0].equalsIgnoreCase("create") || args[0].equalsIgnoreCase("spawn"))) {
             return filterPrefix(new ArrayList<>(monsterManager.getMonsters().keySet()), args[1]);
         }
 

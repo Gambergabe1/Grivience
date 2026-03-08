@@ -12,6 +12,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
+import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -39,6 +40,8 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
+import org.bukkit.NamespacedKey;
+import io.papermc.Grivience.util.MobHealthDisplay;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,6 +76,12 @@ public final class DungeonSession {
     private final Map<Integer, ArenaLayout.Gate> gatesByIndex = new HashMap<>();
     private final Map<String, Integer> gateIndexByBlock = new HashMap<>();
     private final Set<Integer> openedGates = new HashSet<>();
+    private final Set<String> rewardChestKeys = new HashSet<>();
+    private final Map<String, String> rewardChestGradeByKey = new HashMap<>();
+    private final Map<String, Set<UUID>> rewardChestClaimsByKey = new HashMap<>();
+    private String combatTriggerKey;
+    private Location combatTriggerLocation;
+    private boolean combatTriggerArmed;
 
     private BukkitTask countdownTask;
     private BukkitTask actionBarTask;
@@ -96,6 +105,7 @@ public final class DungeonSession {
     private int bossAbilityCooldownSeconds;
     private int bossReinforcementCooldownSeconds;
     private int bossAbilityCycle;
+    private final Set<Integer> bossPhaseTriggers = new HashSet<>();
 
     private final Map<String, Integer> sequencePadIndexByKey = new HashMap<>();
     private final Map<Integer, Location> sequencePadLocationByIndex = new HashMap<>();
@@ -123,6 +133,7 @@ public final class DungeonSession {
 
     private String relicChestKey;
     private final double floorHealthScale;
+    private final NamespacedKey healthBaseNameKey;
 
     public DungeonSession(
             GriviencePlugin plugin,
@@ -149,6 +160,7 @@ public final class DungeonSession {
         this.encounterPlan = List.copyOf(encounterPlan);
         this.currentRoomCenter = rooms.getFirst();
         this.floorHealthScale = 1.0D + (Math.max(1, floorNumber(floor.id())) - 1) * 0.45D;
+        this.healthBaseNameKey = new NamespacedKey(plugin, "health_base_name");
 
         for (ArenaLayout.Gate gate : layout.gates()) {
             gatesByIndex.put(gate.index(), gate);
@@ -189,9 +201,70 @@ public final class DungeonSession {
         return cleanupVolumes;
     }
 
+    public long getElapsedSeconds() {
+        if (startedAtMillis <= 0L) {
+            return 0L;
+        }
+        return Math.max(0L, (System.currentTimeMillis() - startedAtMillis) / 1000L);
+    }
+
+    public int getDeaths() {
+        return Math.max(0, deaths);
+    }
+
+    public int getCompletedRooms() {
+        return Math.max(0, clearedCombatRooms + clearedPuzzleRooms + clearedTreasureRooms);
+    }
+
+    public int getTotalRooms() {
+        return Math.max(1, encounterPlan.size());
+    }
+
+    public int getCompletionPercent() {
+        if (bossActive) {
+            return 100;
+        }
+        int percent = (int) Math.round((getCompletedRooms() * 100.0D) / getTotalRooms());
+        return Math.max(0, Math.min(100, percent));
+    }
+
+    public int getEstimatedScore() {
+        return calculateScore(getElapsedSeconds());
+    }
+
+    public String getEstimatedGrade() {
+        return gradeForScore(getEstimatedScore());
+    }
+
+    public String getStageLabel() {
+        if (bossActive) {
+            LivingEntity boss = resolveActiveBoss();
+            if (boss != null) {
+                String bossState = bossHealthStatus(boss);
+                return bossState.isBlank() ? "Shogun" : "Shogun " + bossState;
+            }
+            return "Shogun";
+        }
+        if (currentEncounterIndex >= 0 && currentEncounterIndex < encounterPlan.size()) {
+            RoomType type = encounterPlan.get(currentEncounterIndex);
+            return "Room " + (currentEncounterIndex + 1) + "/" + encounterPlan.size() + " " + type.displayName();
+        }
+        return startedAtMillis <= 0L ? "Preparing" : "Exploring";
+    }
+
+    public boolean isBossActive() {
+        return bossActive;
+    }
+
+    @SuppressWarnings("removal")
     public void start(int countdownSeconds) {
         teleportMembers(currentRoomCenter);
         broadcast("Entering " + floor.id() + " - " + floor.displayName() + ".");
+        World world = arenaWorld();
+        if (world != null) {
+            world.setGameRuleValue("doDaylightCycle", "false");
+            world.setTime(14000L);
+        }
 
         countdownTask = new BukkitRunnable() {
             private int remaining = countdownSeconds;
@@ -293,7 +366,10 @@ public final class DungeonSession {
 
         if (bossActive && mobInfo.boss()) {
             stopBossController();
-            finish(true, "Shogun defeated.");
+            bossActive = false;
+            spawnRewardChests(3, "BOSS");
+            broadcast(ChatColor.GOLD + "[Dungeon] " + ChatColor.YELLOW + "Boss defeated! Loot chests have appeared.");
+            Bukkit.getScheduler().runTaskLater(plugin, () -> finish(true, "Shogun defeated."), 20L * 30L);
             return;
         }
 
@@ -312,13 +388,26 @@ public final class DungeonSession {
     }
 
     public void handlePlayerMove(Player player, Location from, Location to) {
-        if (ended || transitioning || bossActive || currentRoomType != RoomType.PUZZLE_SEQUENCE) {
+        if (ended || transitioning || bossActive) {
             return;
         }
         if (from == null || to == null || from.getWorld() == null || to.getWorld() == null) {
             return;
         }
         if (!Objects.equals(from.getWorld().getUID(), to.getWorld().getUID())) {
+            return;
+        }
+
+        // Combat trigger plate
+        if (currentRoomType == RoomType.COMBAT && combatTriggerArmed && combatTriggerKey != null) {
+            // The trigger plate is placed on the floor block (y - 1).
+            String currentKey = blockKey(to.getWorld(), to.getBlockX(), to.getBlockY() - 1, to.getBlockZ());
+            if (Objects.equals(currentKey, combatTriggerKey)) {
+                triggerCombatWave();
+            }
+        }
+
+        if (currentRoomType != RoomType.PUZZLE_SEQUENCE) {
             return;
         }
 
@@ -354,54 +443,100 @@ public final class DungeonSession {
         highlightSequencePad(firstPad, Particle.CRIT);
     }
 
-    public void handlePlayerInteract(Player player, Action action, Block clickedBlock) {
-        if (ended || clickedBlock == null) {
-            return;
+    public boolean handlePlayerInteract(Player player, Action action, Block clickedBlock) {
+        if (ended || player == null || clickedBlock == null) {
+            return false;
         }
         if (action != Action.RIGHT_CLICK_BLOCK) {
-            return;
+            return false;
         }
 
-        Integer gateIndex = gateIndexByBlock.get(blockKey(clickedBlock.getLocation()));
+        String clickedKey = blockKey(clickedBlock.getLocation());
+        if (rewardChestKeys.contains(clickedKey)) {
+            UUID playerId = player.getUniqueId();
+            if (hasClaimedRewardChest(clickedKey, playerId)) {
+                player.sendMessage(ChatColor.RED + "You already claimed this chest.");
+                return true;
+            }
+
+            String grade = rewardChestGradeByKey.getOrDefault(clickedKey, "ROOM");
+            boolean opened = manager.openRewardChest(
+                    player,
+                    floor.id(),
+                    grade,
+                    0,
+                    () -> recordRewardChestClaim(clickedKey, playerId)
+            );
+            if (!opened) {
+                player.sendMessage(ChatColor.RED + "No rewards available.");
+            }
+            return true;
+        }
+
+        Integer gateIndex = gateIndexByBlock.get(clickedKey);
         if (gateIndex != null && !openedGates.contains(gateIndex)) {
             handleGateUnlockAttempt(player, gateIndex);
-            return;
+            return true;
         }
 
         Material type = clickedBlock.getType();
         if (!bossActive && !transitioning && currentRoomType == RoomType.PUZZLE_CHIME && type == Material.BELL) {
             handleChimeInteract(player, clickedBlock);
-            return;
+            return false;
         }
 
         if (!bossActive && !transitioning && currentRoomType == RoomType.PUZZLE_SEAL && type == Material.LEVER) {
-            if (!sealLeverKeys.contains(blockKey(clickedBlock.getLocation()))) {
-                return;
+            if (!sealLeverKeys.contains(clickedKey)) {
+                return false;
             }
             int matched = countMatchedSealLevers();
             int total = Math.max(1, sealLeverKeys.size());
             player.sendMessage(ChatColor.GOLD + "[Dungeon] " + ChatColor.YELLOW + "Seal alignment: " + matched + "/" + total + ".");
-            return;
+            return false;
         }
 
         if (bossActive || transitioning || currentRoomType != RoomType.TREASURE) {
-            return;
+            return false;
         }
 
         if (type != Material.CHEST && type != Material.TRAPPED_CHEST) {
-            return;
+            return false;
         }
 
-        String key = blockKey(clickedBlock.getLocation());
-        if (relicChestKey != null && relicChestKey.equals(key)) {
-            player.getInventory().addItem(new ItemStack(Material.EMERALD, 8));
-            player.getInventory().addItem(new ItemStack(Material.GOLD_INGOT, 3));
+        if (relicChestKey != null && relicChestKey.equals(clickedKey)) {
+            giveOrDrop(player, new ItemStack(Material.EMERALD, 8));
+            giveOrDrop(player, new ItemStack(Material.GOLD_INGOT, 3));
             clearCurrentRoom("Sacred relic chest found.");
-            return;
+            return true;
         }
 
         broadcast(player.getName() + " opened a decoy chest. Yokai ambush!");
         spawnDungeonMob(floor.mobHealthMultiplier() * floorHealthScale * 1.2D, floor.mobDamageTier() + 1);
+        return true;
+    }
+
+    private boolean hasClaimedRewardChest(String chestKey, UUID playerId) {
+        Set<UUID> claimed = rewardChestClaimsByKey.get(chestKey);
+        return claimed != null && claimed.contains(playerId);
+    }
+
+    private void recordRewardChestClaim(String chestKey, UUID playerId) {
+        rewardChestClaimsByKey.computeIfAbsent(chestKey, ignored -> new HashSet<>()).add(playerId);
+    }
+
+    private void giveOrDrop(Player player, ItemStack stack) {
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(stack);
+        if (leftovers.isEmpty()) {
+            return;
+        }
+
+        for (ItemStack remaining : leftovers.values()) {
+            if (remaining == null || remaining.getType() == Material.AIR) {
+                continue;
+            }
+            player.getWorld().dropItemNaturally(player.getLocation(), remaining);
+        }
+        player.sendMessage(ChatColor.RED + "Inventory full. Rewards dropped at your feet.");
     }
 
     private void handleGateUnlockAttempt(Player player, int gateIndex) {
@@ -445,12 +580,13 @@ public final class DungeonSession {
         currentEncounterIndex = index;
         currentRoomType = encounterPlan.get(index);
         currentRoomCenter = rooms.get(index + 1);
+        clearCombatTrigger();
 
         switch (currentRoomType) {
             case COMBAT -> {
                 int roomNumber = index + 1;
                 broadcast("Dojo clash room " + roomNumber + "/" + encounterPlan.size() + " started.");
-                spawnCombatWave(roomNumber);
+                armCombatTrigger(roomNumber);
             }
             case PUZZLE_SEQUENCE -> {
                 broadcast("Ofuda sequence trial started.");
@@ -500,6 +636,7 @@ public final class DungeonSession {
         transitioning = false;
         bossActive = true;
         bossEnraged = false;
+        bossPhaseTriggers.clear();
         currentRoomType = null;
         currentRoomCenter = rooms.getLast();
         broadcast("Shogun encounter started: " + floor.bossName());
@@ -541,6 +678,80 @@ public final class DungeonSession {
         if (trackedMobs.isEmpty()) {
             clearCurrentRoom("Dojo clash cleared.");
         }
+    }
+
+    private void spawnRewardChests(int maxCount, String grade) {
+        if (!manager.hasRewardPool()) {
+            return;
+        }
+        if (currentRoomCenter == null || currentRoomCenter.getWorld() == null) {
+            return;
+        }
+        World world = currentRoomCenter.getWorld();
+        int floorY = currentRoomCenter.getBlockY() - 1;
+        int centerX = currentRoomCenter.getBlockX();
+        int centerZ = currentRoomCenter.getBlockZ();
+        int[][] offsets = {
+                {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {2, 0}, {-2, 0}, {0, 2}, {0, -2}
+        };
+        int placed = 0;
+        for (int[] off : offsets) {
+            if (placed >= Math.max(1, Math.min(3, maxCount))) {
+                break;
+            }
+            int x = centerX + off[0];
+            int z = centerZ + off[1];
+            Location blockLoc = new Location(world, x, floorY, z);
+            Location chestLoc = new Location(world, x, floorY + 1, z);
+            if (!world.getBlockAt(chestLoc).isEmpty()) {
+                continue;
+            }
+            world.getBlockAt(chestLoc).setType(Material.CHEST, false);
+            rewardChestKeys.add(blockKey(chestLoc));
+            rewardChestGradeByKey.put(blockKey(chestLoc), grade);
+            placed++;
+        }
+    }
+
+    private void armCombatTrigger(int roomNumber) {
+        if (currentRoomCenter == null || currentRoomCenter.getWorld() == null) {
+            spawnCombatWave(roomNumber);
+            return;
+        }
+        World world = currentRoomCenter.getWorld();
+        int x = currentRoomCenter.getBlockX();
+        int y = currentRoomCenter.getBlockY() - 1;
+        int z = currentRoomCenter.getBlockZ();
+        combatTriggerLocation = new Location(world, x + 0.5D, y + 1.0D, z + 0.5D);
+        combatTriggerKey = blockKey(world, x, y, z);
+        combatTriggerArmed = true;
+        world.getBlockAt(x, y, z).setType(Material.LIGHT_WEIGHTED_PRESSURE_PLATE, false);
+        broadcast(ChatColor.GOLD + "[Dungeon] " + ChatColor.YELLOW + "Step on the pressure plate to start the clash. Gate will seal behind you.");
+    }
+
+    private void triggerCombatWave() {
+        if (!combatTriggerArmed || currentRoomType != RoomType.COMBAT) {
+            return;
+        }
+        int roomNumber = currentEncounterIndex + 1;
+        combatTriggerArmed = false;
+        restoreCombatTriggerBlock();
+        closeGate(currentEncounterIndex);
+        spawnCombatWave(roomNumber);
+    }
+
+    private void clearCombatTrigger() {
+        combatTriggerArmed = false;
+        combatTriggerKey = null;
+        restoreCombatTriggerBlock();
+    }
+
+    private void restoreCombatTriggerBlock() {
+        if (combatTriggerLocation == null || combatTriggerLocation.getWorld() == null) {
+            return;
+        }
+        Location blockLoc = combatTriggerLocation.clone().subtract(0.5D, 1.0D, 0.5D);
+        blockLoc.getBlock().setType(floor.floorMaterial(), false);
     }
 
     private void spawnDungeonMob(double healthScale, int damageTier) {
@@ -1032,6 +1243,7 @@ public final class DungeonSession {
 
         if (currentRoomType == RoomType.COMBAT) {
             clearedCombatRooms++;
+            spawnRewardChests(3, "ROOM");
         } else if (currentRoomType != null && currentRoomType.isPuzzle()) {
             clearedPuzzleRooms++;
         } else if (currentRoomType == RoomType.TREASURE) {
@@ -1081,13 +1293,10 @@ public final class DungeonSession {
         }
 
         applyStats(living, healthScale, damageTier, boss);
-        if (boss) {
-            living.customName(Component.text(floor.bossName(), NamedTextColor.DARK_RED));
-            living.setCustomNameVisible(true);
-        } else {
-            living.customName(Component.text("Temple Yokai", NamedTextColor.GRAY));
-            living.setCustomNameVisible(true);
-        }
+        String baseName = boss
+                ? ChatColor.DARK_RED + "" + ChatColor.BOLD + floor.bossName()
+                : ChatColor.GOLD + "Yokai";
+        MobHealthDisplay.setBaseName(living, healthBaseNameKey, baseName);
 
         if (living instanceof Mob mob) {
             Player randomTarget = randomOnlineMember();
@@ -1123,8 +1332,7 @@ public final class DungeonSession {
 
         int scaledTier = Math.max(0, damageTier);
         applyStats(living, healthScale * yokai.healthScale(), Math.max(0, (int) Math.round(scaledTier * yokai.damageScale())), false);
-        living.customName(Component.text(yokai.displayName(), yokai.nameColor()));
-        living.setCustomNameVisible(true);
+        MobHealthDisplay.setBaseName(living, healthBaseNameKey, yokai.nameColor() + "" + ChatColor.BOLD + yokai.displayName());
         yokai.applyLoadout(living, scaledTier);
         yokai.applySpecialEffects(living, scaledTier);
 
@@ -1165,6 +1373,7 @@ public final class DungeonSession {
 
                 maintainBossAggression(boss);
                 updateBossEnrageState(boss);
+                handleBossPhases(boss);
 
                 bossAbilityCooldownSeconds = Math.max(0, bossAbilityCooldownSeconds - 1);
                 if (bossAbilityCooldownSeconds <= 0) {
@@ -1188,6 +1397,7 @@ public final class DungeonSession {
         bossAbilityCycle = 0;
         bossAbilityCooldownSeconds = 0;
         bossReinforcementCooldownSeconds = 0;
+        bossPhaseTriggers.clear();
     }
 
     private void stopBossControllerTask() {
@@ -1247,6 +1457,43 @@ public final class DungeonSession {
         broadcast(ChatColor.DARK_RED + floor.bossName() + " is ENRAGED!");
         bossAbilityCooldownSeconds = Math.min(bossAbilityCooldownSeconds, 3);
         bossReinforcementCooldownSeconds = Math.min(bossReinforcementCooldownSeconds, 5);
+    }
+
+    private void handleBossPhases(LivingEntity boss) {
+        if (!"F4".equalsIgnoreCase(floor.id())) {
+            return;
+        }
+        AttributeInstance maxHealth = boss.getAttribute(Attribute.MAX_HEALTH);
+        if (maxHealth == null || maxHealth.getValue() <= 0) {
+            return;
+        }
+        int healthPercent = (int) Math.round((boss.getHealth() / maxHealth.getValue()) * 100.0D);
+
+        if (healthPercent <= 75 && bossPhaseTriggers.add(75)) {
+            broadcast(ChatColor.YELLOW + floor.bossName() + " shifts tactics! (Phase 2)");
+            World world = boss.getWorld();
+            world.strikeLightningEffect(boss.getLocation());
+            for (Player player : bossTargets()) {
+                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1, false, true));
+            }
+            bossAbilityCooldownSeconds = Math.min(bossAbilityCooldownSeconds, 6);
+        }
+        if (healthPercent <= 50 && bossPhaseTriggers.add(50)) {
+            broadcast(ChatColor.GOLD + floor.bossName() + " calls an honor guard!");
+            castRaijinGravityWell(boss);
+            summonBossReinforcements(boss);
+            bossAbilityCooldownSeconds = Math.min(bossAbilityCooldownSeconds, 4);
+            bossReinforcementCooldownSeconds = Math.min(bossReinforcementCooldownSeconds, 5);
+        }
+        if (healthPercent <= 25 && bossPhaseTriggers.add(25)) {
+            broadcast(ChatColor.DARK_RED + floor.bossName() + " enters a final stand!");
+            castRaijinCataclysm(boss);
+            summonBossReinforcements(boss);
+            boss.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 15, 1, false, false));
+            boss.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 20 * 15, 1, false, false));
+            bossAbilityCooldownSeconds = Math.min(bossAbilityCooldownSeconds, 3);
+            bossReinforcementCooldownSeconds = Math.min(bossReinforcementCooldownSeconds, 4);
+        }
     }
 
     private void triggerBossAbility(LivingEntity boss) {
@@ -1935,9 +2182,10 @@ public final class DungeonSession {
     private void applyStats(LivingEntity living, double healthScale, int damageTier, boolean boss) {
         AttributeInstance maxHealth = living.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealth != null) {
+            double extraMobHealthScale = boss ? 1.15D : 1.35D;
             double scaledHealth = Math.max(
                     8.0D,
-                    maxHealth.getBaseValue() * healthScale * (1.0D + ((members.size() - 1) * 0.12D))
+                    maxHealth.getBaseValue() * healthScale * extraMobHealthScale * (1.0D + ((members.size() - 1) * 0.12D))
             );
             maxHealth.setBaseValue(scaledHealth);
             living.setHealth(scaledHealth);
@@ -1950,7 +2198,13 @@ public final class DungeonSession {
             double tierScale = 1.0D + (Math.max(0, damageTier) * 0.28D);
             double floorScale = 1.0D + ((floorLevel - 1) * 0.10D);
             double bossScale = boss ? 1.55D : 1.0D;
-            double scaledDamage = Math.max(1.0D, attack.getBaseValue() * tierScale * floorScale * partyScale * bossScale);
+            double extraDamageScale = boss ? 1.35D : 1.20D;
+            double scaledDamage = Math.max(
+                    1.0D,
+                    attack.getBaseValue() * tierScale * floorScale * partyScale * bossScale * extraDamageScale
+            );
+            double damageMultiplier = Math.max(0.0D, plugin.getConfig().getDouble("dungeons.mob-damage-multiplier", 1.0D));
+            scaledDamage = Math.max(1.0D, scaledDamage * damageMultiplier);
             attack.setBaseValue(scaledDamage);
         }
 
@@ -1976,6 +2230,20 @@ public final class DungeonSession {
                 continue;
             }
             location.getWorld().getBlockAt(location).setType(Material.AIR, false);
+        }
+    }
+
+    private void closeGate(int gateIndex) {
+        ArenaLayout.Gate gate = gatesByIndex.get(gateIndex);
+        if (gate == null) {
+            return;
+        }
+        Material barrierMaterial = gate.barrierMaterial() == null ? Material.BARRIER : gate.barrierMaterial();
+        for (Location location : gate.barrierBlocks()) {
+            if (location.getWorld() == null) {
+                continue;
+            }
+            location.getWorld().getBlockAt(location).setType(barrierMaterial, false);
         }
     }
 
@@ -2102,6 +2370,7 @@ public final class DungeonSession {
         cancelTasks();
         despawnTrackedMobs();
         removeSessionRunKeysFromMembers();
+        removePuzzleGuidesFromMembers();
 
         long elapsedSeconds = startedAtMillis == 0L ? 0L : (System.currentTimeMillis() - startedAtMillis) / 1000L;
         int score = success ? calculateScore(elapsedSeconds) : 0;
@@ -2138,6 +2407,25 @@ public final class DungeonSession {
             Entity entity = Bukkit.getEntity(mobId);
             if (entity != null && !entity.isDead()) {
                 entity.remove();
+            }
+        }
+    }
+
+    private void removePuzzleGuidesFromMembers() {
+        forEachOnlineMember(this::removePuzzleGuides);
+    }
+
+    private void removePuzzleGuides(Player player) {
+        PlayerInventory inv = player.getInventory();
+        for (int slot = 0; slot < inv.getSize(); slot++) {
+            ItemStack stack = inv.getItem(slot);
+            if (stack == null || stack.getType() != Material.WRITTEN_BOOK || !stack.hasItemMeta()) {
+                continue;
+            }
+            ItemMeta meta = stack.getItemMeta();
+            Byte marker = meta.getPersistentDataContainer().get(puzzleGuideTag, PersistentDataType.BYTE);
+            if (marker != null && marker == (byte) 1) {
+                inv.clear(slot);
             }
         }
     }
@@ -2433,24 +2721,24 @@ public final class DungeonSession {
 
     private ReforgeStoneType randomReforgeStone(YokaiType yokaiType, boolean boss) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
+        ReforgeStoneType[] types = ReforgeStoneType.values();
+        if (types.length == 0) {
+            return null;
+        }
         if (boss) {
-            if (random.nextDouble() < 0.25D) {
-                return ReforgeStoneType.TEMPEST_STONE;
+            return types[random.nextInt(types.length)];
+        }
+        // favour lower-cost stones for regular mobs
+        List<ReforgeStoneType> basicPool = new ArrayList<>();
+        for (ReforgeStoneType type : types) {
+            if (type.levelCost() <= 8) {
+                basicPool.add(type);
             }
-            return switch (random.nextInt(3)) {
-                case 0 -> ReforgeStoneType.JAGGED_STONE;
-                case 1 -> ReforgeStoneType.TITAN_STONE;
-                default -> ReforgeStoneType.ARCANE_STONE;
-            };
         }
-        if (yokaiType == YokaiType.GASHADOKURO_SENTINEL && random.nextDouble() < 0.10D) {
-            return ReforgeStoneType.TEMPEST_STONE;
+        if (basicPool.isEmpty()) {
+            return types[random.nextInt(types.length)];
         }
-        return switch (random.nextInt(3)) {
-            case 0 -> ReforgeStoneType.JAGGED_STONE;
-            case 1 -> ReforgeStoneType.TITAN_STONE;
-            default -> ReforgeStoneType.ARCANE_STONE;
-        };
+        return basicPool.get(random.nextInt(basicPool.size()));
     }
 
     private CustomWeaponType randomDungeonWeapon() {

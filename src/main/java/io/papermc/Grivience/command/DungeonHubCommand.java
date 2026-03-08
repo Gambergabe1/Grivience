@@ -71,6 +71,9 @@ public final class DungeonHubCommand implements CommandExecutor, TabCompleter {
         plugin.getConfig().set("dungeons.hub.yaw", yaw);
         plugin.getConfig().set("dungeons.hub.pitch", pitch);
         plugin.saveConfig();
+        if (plugin.getFastTravelManager() != null) {
+            plugin.getFastTravelManager().syncHubWarpsFromConfig();
+        }
 
         sender.sendMessage(ChatColor.GREEN + "Dungeon Hub set to " + worldName + " (" + x + ", " + y + ", " + z + ") yaw " + yaw + " pitch " + pitch + ".");
         return true;

@@ -1,0 +1,15 @@
+# Fast Travel Configuration
+# Destinations are automatically unlocked when players visit them.
+# Use player heads by specifying a 'head-owner' with a Minecraft username.
+#
+# Built-in Hub Warps (automatically loaded from main config):
+#   - hub (Main Hub)
+#   - dungeonhub (Dungeon Hub)
+#   - minehub (Mining Hub)
+#   - farmhub (Farm Hub)
+#   - endmine (End Mines)
+#
+# Add custom destinations below using the same format.
+
+# Player unlocks are stored automatically and should not be edited manually.
+unlocks: {}

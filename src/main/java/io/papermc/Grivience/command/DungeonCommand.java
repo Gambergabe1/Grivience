@@ -32,19 +32,25 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
     private final DungeonManager dungeonManager;
     private final DungeonGuiManager guiManager;
     private final CustomItemService customItemService;
+    private final io.papermc.Grivience.item.CustomArmorManager customArmorManager;
+    private final io.papermc.Grivience.pet.PetManager petManager;
 
     public DungeonCommand(
             GriviencePlugin plugin,
             PartyManager partyManager,
             DungeonManager dungeonManager,
             DungeonGuiManager guiManager,
-            CustomItemService customItemService
+            CustomItemService customItemService,
+            io.papermc.Grivience.item.CustomArmorManager customArmorManager,
+            io.papermc.Grivience.pet.PetManager petManager
     ) {
         this.plugin = plugin;
         this.partyManager = partyManager;
         this.dungeonManager = dungeonManager;
         this.guiManager = guiManager;
         this.customItemService = customItemService;
+        this.customArmorManager = customArmorManager;
+        this.petManager = petManager;
     }
 
     @Override
@@ -92,7 +98,7 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 plugin.reloadSystems();
-                sender.sendMessage(ChatColor.GREEN + "Grivience dungeon config reloaded.");
+                sender.sendMessage(ChatColor.GREEN + "Config reloaded.");
                 return true;
             }
             case "give" -> {
@@ -227,6 +233,12 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                     }
                 }
 
+                Party leaderParty = partyManager.getParty(leaderId);
+                if (leaderParty != null && dungeonManager.isPartyInDungeon(leaderParty.id())) {
+                    player.sendMessage(ChatColor.RED + "That party is currently in a dungeon run.");
+                    return;
+                }
+
                 String error = partyManager.acceptInvite(player, leaderId);
                 if (error != null) {
                     player.sendMessage(ChatColor.RED + error);
@@ -327,11 +339,18 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean ensurePartyUnlocked(Player player) {
-        if (!dungeonManager.isInDungeon(player.getUniqueId())) {
-            return false;
+        if (dungeonManager.isInDungeon(player.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "Party edits are locked while in a dungeon run.");
+            return true;
         }
-        player.sendMessage(ChatColor.RED + "Party edits are locked while in a dungeon run.");
-        return true;
+
+        Party party = partyManager.getParty(player.getUniqueId());
+        if (party != null && dungeonManager.isPartyInDungeon(party.id())) {
+            player.sendMessage(ChatColor.RED + "Party edits are locked while your party is in a dungeon run.");
+            return true;
+        }
+
+        return false;
     }
 
     private UUID resolveLeaderInvite(Player player, String leaderInput) {
@@ -390,7 +409,14 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                 return filterPrefix(players, args[1]);
             }
             if (args.length == 3) {
-                return filterPrefix(customItemService.allItemKeys(), args[2].toLowerCase(Locale.ROOT));
+                List<String> keys = new ArrayList<>(customItemService.allItemKeys());
+                if (customArmorManager != null) {
+                    keys.addAll(armorIds());
+                }
+                if (petManager != null) {
+                    petManager.allPets().forEach(p -> keys.add(p.id()));
+                }
+                return filterPrefix(keys, args[2].toLowerCase(Locale.ROOT));
             }
             if (args.length == 4) {
                 return filterPrefix(List.of("1", "2", "4", "8", "16", "32", "64"), args[3]);
@@ -466,10 +492,31 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        ItemStack template = customItemService.createItemByKey(args[2]);
+        String key = args[2].toLowerCase(Locale.ROOT);
+        ItemStack template = customItemService.createItemByKey(key);
+        if (template == null && customArmorManager != null) {
+            String[] parts = key.split("_");
+            if (parts.length == 2) {
+                var set = customArmorManager.getArmorSet(parts[0]);
+                io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType type = parseArmorPiece(parts[1]);
+                if (set != null && type != null) {
+                    template = customArmorManager.createArmorPiece(set.getId(), type);
+                }
+            }
+        }
+        if (template == null && petManager != null && petManager.allPets().stream().anyMatch(p -> p.id().equals(key))) {
+            template = petManager.createPetItem(key, target);
+        }
         if (template == null) {
-            sender.sendMessage(ChatColor.RED + "Unknown custom item id: " + args[2]);
-            sender.sendMessage(ChatColor.GRAY + "Try one of: " + String.join(", ", customItemService.allItemKeys()));
+            List<String> all = new ArrayList<>(customItemService.allItemKeys());
+            if (customArmorManager != null) {
+                all.addAll(armorIds());
+            }
+            if (petManager != null) {
+                petManager.allPets().forEach(p -> all.add(p.id()));
+            }
+            sender.sendMessage(ChatColor.RED + "Unknown item id: " + key);
+            sender.sendMessage(ChatColor.GRAY + "Try one of: " + String.join(", ", all));
             return;
         }
 
@@ -504,5 +551,25 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                 : template.getType().name();
         sender.sendMessage(ChatColor.GREEN + "Gave " + amount + "x " + ChatColor.YELLOW + displayName + ChatColor.GREEN + " to " + target.getName() + ".");
         target.sendMessage(ChatColor.GOLD + "[Items] " + ChatColor.YELLOW + "You received " + amount + "x " + displayName + ChatColor.YELLOW + ".");
+    }
+
+    private io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType parseArmorPiece(String piece) {
+        try {
+            return io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType.valueOf(piece.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private List<String> armorIds() {
+        List<String> ids = new ArrayList<>();
+        if (customArmorManager == null) return ids;
+        for (var entry : customArmorManager.getArmorSets().entrySet()) {
+            String set = entry.getKey();
+            for (io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType type : io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType.values()) {
+                ids.add(set + "_" + type.name().toLowerCase(Locale.ROOT));
+            }
+        }
+        return ids;
     }
 }

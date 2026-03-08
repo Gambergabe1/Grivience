@@ -1,0 +1,33 @@
+# Conversation quest configuration for Grivience.
+#
+# ZNPCs integration:
+# - If ZNPCsPlus is installed, NPC clicks are detected automatically.
+# - You can also attach this command as a ZNPCS action:
+#     /quest talk <npc_id>
+#
+# Placeholders available in reward commands:
+# - {player}
+# - {uuid}
+# - {quest_id}
+# - {quest_name}
+
+quests:
+  village_greeting:
+    display-name: "&aVillage Greeting"
+    description: "Talk to the village elder."
+    starter-npc: "elder_start"
+    target-npc: "elder_finish"
+    rewards:
+      - "eco give {player} 1000"
+    repeatable: false
+    enabled: true
+
+  blacksmith_intro:
+    display-name: "&6Meet the Blacksmith"
+    description: "Ask the blacksmith about reforging."
+    starter-npc: "blacksmith"
+    target-npc: "blacksmith"
+    rewards:
+      - "xp add {player} 5 levels"
+    repeatable: true
+    enabled: true

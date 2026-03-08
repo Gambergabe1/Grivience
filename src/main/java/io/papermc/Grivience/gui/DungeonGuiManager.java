@@ -35,10 +35,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class DungeonGuiManager implements Listener {
-    private static final String TITLE_MAIN = ChatColor.DARK_GREEN + "Dungeon Nexus";
-    private static final String TITLE_FLOORS = ChatColor.DARK_GREEN + "Available Dungeons";
-    private static final String TITLE_PARTY_FINDER = ChatColor.DARK_GREEN + "Party Finder";
-    private static final String TITLE_PARTY_INVITES = ChatColor.DARK_GREEN + "Invite Players";
+    private static final String TITLE_MAIN = SkyblockGui.title("Dungeon Hub");
+    private static final String TITLE_FLOORS = SkyblockGui.title("Dungeon Floors");
+    private static final String TITLE_PARTY_FINDER = SkyblockGui.title("Party Finder");
+    private static final String TITLE_PARTY_INVITES = SkyblockGui.title("Invite Players");
     private static final long REQUEST_COOLDOWN_MILLIS = 15000L;
 
     private final GriviencePlugin plugin;
@@ -63,9 +63,15 @@ public final class DungeonGuiManager implements Listener {
         holder.inventory = inventory;
 
         fillInventory(inventory, decorativePane(Material.BLACK_STAINED_GLASS_PANE));
-        for (int slot : List.of(1, 3, 5, 7, 19, 21, 23, 25)) {
-            inventory.setItem(slot, decorativePane(Material.GREEN_STAINED_GLASS_PANE));
+        ItemStack border = decorativePane(Material.GRAY_STAINED_GLASS_PANE);
+        for (int slot = 0; slot < 9; slot++) {
+            inventory.setItem(slot, border);
         }
+        for (int slot = 18; slot < 27; slot++) {
+            inventory.setItem(slot, border);
+        }
+        inventory.setItem(9, border);
+        inventory.setItem(17, border);
 
         inventory.setItem(4, taggedItem(
                 Material.NETHER_STAR,
@@ -349,83 +355,83 @@ public final class DungeonGuiManager implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        Inventory top = event.getView().getTopInventory();
-        if (!(top.getHolder() instanceof MenuHolder)) {
-            return;
-        }
-        event.setCancelled(true);
-        if (event.getClickedInventory() == null || event.getClickedInventory().getType() == InventoryType.PLAYER) {
-            return;
-        }
-
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR || !clicked.hasItemMeta()) {
-            return;
-        }
-        ItemMeta meta = clicked.getItemMeta();
-        String action = meta.getPersistentDataContainer().get(actionKey, PersistentDataType.STRING);
-        if (action == null) {
-            return;
-        }
-        String value = meta.getPersistentDataContainer().getOrDefault(valueKey, PersistentDataType.STRING, "");
-
-        switch (action) {
-            case "open_main" -> {
-                playUiClick(player);
-                openMainMenu(player);
-            }
-            case "open_floors" -> {
-                playUiClick(player);
-                openFloorsMenu(player);
-            }
-            case "refresh_floors" -> {
-                playUiClick(player);
-                openFloorsMenu(player);
-            }
-            case "open_party_finder" -> {
-                playUiClick(player);
-                openPartyFinder(player);
-            }
-            case "open_party_invites" -> {
-                playUiClick(player);
-                openPartyInvitesMenu(player);
-            }
-            case "create_party" -> {
-                String error = partyManager.createParty(player);
-                if (error != null) {
-                    playUiError(player);
-                    player.sendMessage(ChatColor.RED + error);
-                } else {
-                    playUiSuccess(player);
-                    player.sendMessage(ChatColor.GREEN + "Party created.");
-                    openPartyFinder(player);
+        
+        // If the top inventory is a Dungeon menu, cancel ALL clicks
+        if (event.getInventory().getHolder() instanceof MenuHolder) {
+            event.setCancelled(true);
+            
+            // Only process actions for clicks in the top inventory
+            if (event.getClickedInventory() != null && event.getClickedInventory().equals(event.getInventory())) {
+                ItemStack clicked = event.getCurrentItem();
+                if (clicked == null || clicked.getType() == Material.AIR || !clicked.hasItemMeta()) {
+                    return;
                 }
-            }
-            case "start_floor" -> {
-                String error = dungeonManager.startDungeon(player, value);
-                if (error != null) {
-                    playUiError(player);
-                    player.sendMessage(ChatColor.RED + error);
-                } else {
-                    playUiSuccess(player);
-                    player.closeInventory();
-                    player.sendMessage(ChatColor.GREEN + "Dungeon run started.");
+                ItemMeta meta = clicked.getItemMeta();
+                String action = meta.getPersistentDataContainer().get(actionKey, PersistentDataType.STRING);
+                if (action == null) {
+                    return;
                 }
-            }
-            case "request_party" -> {
-                requestPartyInvite(player, value);
-                openPartyFinder(player);
-            }
-            case "invite_player" -> {
-                invitePlayerFromGui(player, value);
-                openPartyInvitesMenu(player);
-            }
-            case "close_menu" -> {
-                playUiClick(player);
-                player.closeInventory();
-            }
-            case "noop" -> player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5F, 0.8F);
-            default -> {
+                String value = meta.getPersistentDataContainer().getOrDefault(valueKey, PersistentDataType.STRING, "");
+
+                switch (action) {
+                    case "open_main" -> {
+                        playUiClick(player);
+                        openMainMenu(player);
+                    }
+                    case "open_floors" -> {
+                        playUiClick(player);
+                        openFloorsMenu(player);
+                    }
+                    case "refresh_floors" -> {
+                        playUiClick(player);
+                        openFloorsMenu(player);
+                    }
+                    case "open_party_finder" -> {
+                        playUiClick(player);
+                        openPartyFinder(player);
+                    }
+                    case "open_party_invites" -> {
+                        playUiClick(player);
+                        openPartyInvitesMenu(player);
+                    }
+                    case "create_party" -> {
+                        String error = partyManager.createParty(player);
+                        if (error != null) {
+                            playUiError(player);
+                            player.sendMessage(ChatColor.RED + error);
+                        } else {
+                            playUiSuccess(player);
+                            player.sendMessage(ChatColor.GREEN + "Party created.");
+                            openPartyFinder(player);
+                        }
+                    }
+                    case "start_floor" -> {
+                        String error = dungeonManager.startDungeon(player, value);
+                        if (error != null) {
+                            playUiError(player);
+                            player.sendMessage(ChatColor.RED + error);
+                        } else {
+                            playUiSuccess(player);
+                            player.closeInventory();
+                            player.sendMessage(ChatColor.GREEN + "Dungeon run started.");
+                        }
+                    }
+                    case "request_party" -> {
+                        requestPartyInvite(player, value);
+                        openPartyFinder(player);
+                    }
+                    case "invite_player" -> {
+                        invitePlayerFromGui(player, value);
+                        openPartyInvitesMenu(player);
+                    }
+                    case "close_menu" -> {
+                        playUiClick(player);
+                        player.closeInventory();
+                    }
+                    case "noop" -> player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5F, 0.8F);
+                    default -> {
+                    }
+                }
             }
         }
     }

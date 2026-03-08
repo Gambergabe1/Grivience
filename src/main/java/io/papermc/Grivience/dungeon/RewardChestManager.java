@@ -1,6 +1,8 @@
 package io.papermc.Grivience.dungeon;
 
 import io.papermc.Grivience.GriviencePlugin;
+import io.papermc.Grivience.gui.SkyblockGui;
+import io.papermc.Grivience.skyblock.economy.ProfileEconomyService;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -12,7 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
@@ -31,6 +33,7 @@ import java.io.File;
 public final class RewardChestManager implements Listener {
     private static final int INVENTORY_SIZE = 27;
     private final GriviencePlugin plugin;
+    private final ProfileEconomyService profileEconomy;
     private final NamespacedKey optionKey;
     private final Random random = new Random();
     private int optionsPerRun = 5;
@@ -39,6 +42,7 @@ public final class RewardChestManager implements Listener {
 
     public RewardChestManager(GriviencePlugin plugin) {
         this.plugin = plugin;
+        this.profileEconomy = new ProfileEconomyService(plugin);
         this.optionKey = new NamespacedKey(plugin, "reward-option");
         this.lootFile = new File(plugin.getDataFolder(), "loot.yml");
         reloadFromConfig();
@@ -93,13 +97,22 @@ public final class RewardChestManager implements Listener {
     public void openRewardChest(Player player, String floorId, String grade, int score, Runnable afterClaim) {
         List<RewardEntry> options = rollOptions();
         RewardHolder holder = new RewardHolder(afterClaim, floorId, grade, score);
-        Inventory inv = Bukkit.createInventory(holder, INVENTORY_SIZE, ChatColor.GOLD + "Dungeon Rewards");
+        Inventory inv = Bukkit.createInventory(holder, INVENTORY_SIZE, SkyblockGui.title("Dungeon Rewards"));
         holder.inventory = inv;
 
-        ItemStack filler = decorativePane(Material.GRAY_STAINED_GLASS_PANE);
+        ItemStack fill = decorativePane(Material.BLACK_STAINED_GLASS_PANE);
         for (int i = 0; i < INVENTORY_SIZE; i++) {
-            inv.setItem(i, filler);
+            inv.setItem(i, fill);
         }
+        ItemStack border = decorativePane(Material.GRAY_STAINED_GLASS_PANE);
+        for (int slot = 0; slot < 9; slot++) {
+            inv.setItem(slot, border);
+        }
+        for (int slot = INVENTORY_SIZE - 9; slot < INVENTORY_SIZE; slot++) {
+            inv.setItem(slot, border);
+        }
+        inv.setItem(9, border);
+        inv.setItem(17, border);
         int[] slots = {10, 11, 12, 14, 15, 16};
         Map<Integer, RewardEntry> bySlot = new HashMap<>();
         for (int i = 0; i < options.size() && i < slots.length; i++) {
@@ -119,28 +132,54 @@ public final class RewardChestManager implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        if (!(event.getInventory().getHolder() instanceof RewardHolder holder)) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof RewardHolder holder)) {
             return;
         }
-        event.setCancelled(true);
+
+        int topSize = event.getView().getTopInventory().getSize();
         int slot = event.getRawSlot();
-        if (!holder.bySlot.containsKey(slot)) {
+        if (slot < 0) {
+            return;
+        }
+
+        if (slot >= topSize) {
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        event.setCancelled(true);
+        if (holder.claimed) {
             return;
         }
         RewardEntry entry = holder.bySlot.get(slot);
+        if (entry == null) {
+            return;
+        }
+
+        holder.claimed = true;
         executeCommands(player, entry, holder.floorId, holder.grade, holder.score);
+        if (holder.afterClaim != null) {
+            holder.afterClaim.run();
+        }
         player.closeInventory();
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0F, 1.2F);
-        holder.claimed = true;
     }
 
     @EventHandler
-    public void onClose(InventoryCloseEvent event) {
-        if (!(event.getInventory().getHolder() instanceof RewardHolder holder)) {
+    public void onDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) {
             return;
         }
-        if (holder.afterClaim != null) {
-            Bukkit.getScheduler().runTask(plugin, holder.afterClaim);
+        if (!(event.getView().getTopInventory().getHolder() instanceof RewardHolder)) {
+            return;
+        }
+
+        int topSize = event.getView().getTopInventory().getSize();
+        boolean draggingIntoTop = event.getRawSlots().stream().anyMatch(slot -> slot < topSize);
+        if (draggingIntoTop) {
+            event.setCancelled(true);
         }
     }
 
@@ -151,6 +190,9 @@ public final class RewardChestManager implements Listener {
                     .replace("{floor}", floorId)
                     .replace("{grade}", grade)
                     .replace("{score}", Integer.toString(score));
+            if (profileEconomy.executeEcoLikeCommand(player, parsed)) {
+                continue;
+            }
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed);
         }
     }

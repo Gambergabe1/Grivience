@@ -60,21 +60,13 @@ public final class CustomArmorEffectListener {
             pieceCounts.merge(armorType.setType(), 1, Integer::sum);
         }
 
-        if (defense > 0) {
-            int amp = Math.min(2, Math.max(0, defense / 55));
-            applyIfStronger(player, PotionEffectType.RESISTANCE, amp);
-        }
-        if (health > 0) {
-            int amp = Math.min(4, Math.max(0, health / 50));
-            applyIfStronger(player, PotionEffectType.HEALTH_BOOST, amp);
-        }
+        // Defense/Health are handled by the Skyblock combat engine (defense formula + max HP mapping).
         if (healSpeed > 0) {
             int amp = Math.min(2, Math.max(0, healSpeed / 8));
             applyIfStronger(player, PotionEffectType.REGENERATION, amp);
         }
 
         if (pieceCounts.getOrDefault(ArmorSetType.SHOGUN, 0) >= 4) {
-            applyIfStronger(player, PotionEffectType.RESISTANCE, 2);
             applyIfStronger(player, PotionEffectType.STRENGTH, 0);
         }
         if (pieceCounts.getOrDefault(ArmorSetType.SHINOBI, 0) >= 4) {
@@ -100,3 +92,4 @@ public final class CustomArmorEffectListener {
         return CustomArmorType.parse(itemId);
     }
 }
+

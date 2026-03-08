@@ -1,5 +1,5 @@
 dungeons:
-  world: world
+  world: dungeons
   exit-world: world
   exit-command: spawn
   origin:
@@ -10,6 +10,8 @@ dungeons:
   countdown-seconds: 5
   max-party-size: 5
   invite-timeout-seconds: 60
+  # Multiplies all dungeon mob melee damage (after internal scaling).
+  mob-damage-multiplier: 1.25
   reward-chest:
     options-per-run: 5
     pools:
@@ -60,9 +62,15 @@ dungeons:
 navigation-item:
   enabled: true
 
+crafting:
+  # If true, right-clicking a crafting table opens the /craft GUI instead of the vanilla crafting UI.
+  override-crafting-table: false
+
 skyblock:
   world-name: skyblock_world
   hub-world: world
+  minehub-world: Minehub
+  farmhub-world: world
   island-spacing: 100
   starting-size: 32
   island-spawn-y: 80
@@ -87,8 +95,381 @@ skyblock:
     z: 0
     yaw: 0
     pitch: 0
+  minehub-spawn:
+    x: 0.5
+    y: 100.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  farmhub-spawn:
+    x: 0.5
+    y: 70.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  farmhub-crop-area:
+    enabled: false
+    world: world
+    pos1:
+      x: 0
+      y: 64
+      z: 0
+    pos2:
+      x: 0
+      y: 64
+      z: 0
+  farmhub-crop-regen:
+    enabled: true
+    delay-ticks: 60
+  farmhub-crop-growth:
+    enabled: true
+    multiplier: 4.0
+    force-growth: true
+    force-interval-ticks: 20
+    max-scan-blocks: 300000
+  farmhub-farmland:
+    force-hydrated: true
+    hydrate-interval-ticks: 40
+    max-scan-blocks: 350000
+  farmhub-maintenance:
+    scan-blocks-per-run: 50000
   nether-portal-to-hub:
     enabled: true
+
+end-mines:
+  # THE END - MINES EXPANSION (v0.2)
+  # A late-game mining zone hosted in a separate void End world.
+  enabled: true
+  world-name: "skyblock_end_mines"
+  required-level: 25
+
+  access:
+    # If true, only server operators can enter End Mines (via /endmine or Fast Travel).
+    operator-only: false
+
+  # Spawn point for /endmine and fast travel.
+  spawn:
+    x: 0.5
+    y: 80.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+
+  # Automatically generate the End Mines layout the first time the world loads.
+  auto-generate: true
+  generated: false
+
+  generation:
+    blocks-per-tick: 2500
+    radius: 48
+    min-y: 60
+    max-y: 78
+    seed: 0
+
+  mining:
+    regen:
+      enabled: true
+      delay-ticks: 60
+
+  mobs:
+    enabled: true
+    # Spawn behavior:
+    # - around_players: dynamic spawns near players (default)
+    # - spawn_points: only spawn from configured /endmine mobs spawn points
+    # - mixed: both around_players + spawn_points
+    spawn-mode: "around_players"
+    spawn-interval-ticks: 40
+    spawn-radius: 28
+    max-near-player: 12
+    despawn-distance: 72
+    safe-radius-from-spawn: 12
+    spawn-attempts: 10
+    # Multiplies End Mines mob melee damage.
+    damage-multiplier: 1.25
+
+  protection:
+    # Blocks allowed to be mined in End Mines (all other blocks are protected).
+    mineable-blocks:
+      - END_STONE
+      - END_STONE_BRICKS
+      - PURPUR_BLOCK
+      - PURPUR_PILLAR
+      - OBSIDIAN
+      - CRYING_OBSIDIAN
+      - AMETHYST_BLOCK
+      - BUDDING_AMETHYST
+      - CHORUS_PLANT
+      - CHORUS_FLOWER
+
+scoreboard:
+  custom:
+    enabled: true
+    title: "&e&lSkyblock"
+    update-ticks: 20
+    show-time-line: false
+    use-skyblock-calendar: true
+    profile-label: "Profile"
+    bits-default: 0
+    default-objective: "Reach Skyblock Level 5"
+    footer: "&eSkyblock"
+
+skyblock-leveling:
+  # Skyblock accurate leveling system
+  # Total finite Skyblock XP in this config: ~48,416 XP (about level 484)
+  max-level: 521
+  notify-xp-gain: true
+  
+  # Skill Leveling XP Requirements (Skyblock-accurate)
+  # Total XP to reach level 60: 111,672,425 XP
+  skill-leveling:
+    enabled: true
+    max-level: 60
+    xp-requirements:
+      1: 50
+      2: 125
+      3: 200
+      4: 300
+      5: 500
+      6: 750
+      7: 1000
+      8: 1500
+      9: 2000
+      10: 3500
+      11: 5000
+      12: 7500
+      13: 10000
+      14: 15000
+      15: 20000
+      16: 30000
+      17: 50000
+      18: 75000
+      19: 100000
+      20: 200000
+      21: 300000
+      22: 400000
+      23: 500000
+      24: 600000
+      25: 700000
+      26: 800000
+      27: 900000
+      28: 1000000
+      29: 1100000
+      30: 1200000
+      31: 1300000
+      32: 1400000
+      33: 1500000
+      34: 1600000
+      35: 1700000
+      36: 1800000
+      37: 1900000
+      38: 2000000
+      39: 2100000
+      40: 2200000
+      41: 2300000
+      42: 2400000
+      43: 2500000
+      44: 2600000
+      45: 2750000
+      46: 2900000
+      47: 3100000
+      48: 3400000
+      49: 3700000
+      50: 4000000
+      51: 4300000
+      52: 4600000
+      53: 4900000
+      54: 5200000
+      55: 5500000
+      56: 5800000
+      57: 6100000
+      58: 6400000
+      59: 6700000
+      60: 7000000
+  
+  # Skyblock XP rewards for leveling up skills (Skyblock-accurate)
+  # Level 1-10: +5 XP, Level 11-25: +10 XP, Level 26-50: +20 XP, Level 51-60: +30 XP
+  skill-level-xp-rewards:
+    level-1-to-10: 5
+    level-11-to-25: 10
+    level-26-to-50: 20
+    level-51-to-60: 30
+  
+  # Catacombs leveling (Skyblock-accurate)
+  # Level 1-39: +20 XP per level, Level 40-50: +40 XP per level
+  dungeons:
+    catacombs-level-xp-rewards:
+      level-1-to-39: 20
+      level-40-to-50: 40
+    class-level-xp-reward: 4  # +4 XP per class level (all 5 classes)
+    catacombs-level-cap: 50
+    class-level-cap: 50
+    # Pseudo leveling based on completed runs (not Catacombs XP)
+    catacombs-runs-per-level: 3
+    class-runs-per-level: 4
+    # Floor completion XP
+    floor-completion-xp:
+      entrance: 10
+      floor-1: 10
+      floor-2: 20
+      floor-3: 20
+      floor-4: 20
+      floor-5: 30
+      floor-6: 30
+      floor-7: 30
+      master-1: 50
+      master-2: 50
+      master-3: 50
+      master-4: 50
+      master-5: 50
+      master-6: 50
+      master-7: 50
+    # One-time dungeon objective XP (Skyblock guide style)
+    objective-xp:
+      first-s-rank: 20
+      first-a-rank: 10
+      score-200: 5
+      score-250: 10
+      score-300: 15
+  
+  # Bestiary (Skyblock-accurate)
+  # +1 XP per Family Tier, +10 XP every 10 Milestones
+  bestiary:
+    family-tier-xp: 1
+    milestone-xp: 10
+    milestone-every-kills: 10
+  
+  # Slayer XP rewards (Skyblock-accurate)
+  # Each slayer level grants Skyblock XP when reached
+  slayer:
+    level-rewards:
+      1: 15
+      2: 25
+      3: 35
+      4: 50
+      5: 75
+      6: 100
+      7: 125
+      8: 150
+      9: 150
+  
+  # Base XP per Skyblock level (Skyblock-accurate)
+  # Each Skyblock Level requires exactly 100 XP on Skyblock
+  # Total available XP: ~48,416 XP (allows reaching approximately level 484)
+  # Note: Level 521 requires additional XP from unlimited sources (Magical Power, Pet Score updates)
+  xp-per-level: 100
+  
+  # Action-based XP (disabled by default, enable for faster progression)
+  action-xp:
+    combat-kill: 0
+    mining-ore: 0
+    foraging-log: 0
+    farming-harvest: 0
+    fishing-catch: 0
+    quest-complete: 0
+    dungeon-complete: 0
+    island-create: 0
+    island-upgrade: 0
+  
+  # Actions required per skill level (for pseudo-skill progression)
+  skill-actions-per-level:
+    combat: 40
+    mining: 140
+    foraging: 140
+    farming: 120
+    fishing: 20
+  
+  # Level rewards (Skyblock-style stat bonuses)
+  level-rewards:
+    health-per-level: 5
+    strength-per-5-levels: 1
+    feature-unlocks:
+      3: ["Community Shop"]
+      5: ["Auction House"]
+      7: ["Bazaar"]
+      9: ["Museum"]
+      10: ["Depth Strider Enchantment"]
+      15: ["Garden"]
+      20: ["Hex"]
+      25: ["Skill Average 15"]
+      50: ["Skill Average 20"]
+      70: ["Garden Level 5"]
+      100: ["Skill Average 25"]
+      120: ["Garden Level 10"]
+      150: ["Skill Average 30"]
+      200: ["Skill Average 35"]
+      240: ["Garden Level 15"]
+      250: ["Skill Average 40"]
+      280: ["Garden Level 20"]
+      300: ["Skill Average 45"]
+      350: ["Skill Average 50"]
+      400: ["Skill Average 55"]
+      450: ["Skill Average 60"]
+      500: ["Skill Average 65"]
+  tracks:
+    core:
+      display-name: "&6Core"
+      icon: NETHER_STAR
+      counter-key: category_xp.core
+      milestones: [1000, 5000, 10000, 15000, 17089]
+      rewards: [0, 0, 0, 0, 0]
+      lore:
+        - "&7Profile and account progression."
+    event:
+      display-name: "&dEvent"
+      icon: FIREWORK_STAR
+      counter-key: category_xp.event
+      milestones: [250, 1000, 2000, 3000, 3391]
+      rewards: [0, 0, 0, 0, 0]
+      lore:
+        - "&7Seasonal event progression."
+    dungeon:
+      display-name: "&5Dungeon"
+      icon: WITHER_SKELETON_SKULL
+      counter-key: category_xp.dungeon
+      milestones: [250, 1000, 2000, 3200, 3905]
+      rewards: [0, 0, 0, 0, 0]
+      lore:
+        - "&7Catacombs and class progression."
+    essence:
+      display-name: "&bEssence"
+      icon: AMETHYST_SHARD
+      counter-key: category_xp.essence
+      milestones: [100, 300, 600, 900, 1085]
+      rewards: [0, 0, 0, 0, 0]
+      lore:
+        - "&7Essence-related progression."
+    slaying:
+      display-name: "&cSlaying"
+      icon: IRON_SWORD
+      counter-key: category_xp.slaying
+      milestones: [500, 2000, 4000, 6000, 7410]
+      rewards: [0, 0, 0, 0, 0]
+      lore:
+        - "&7Bestiary and boss progression."
+    skill:
+      display-name: "&aSkill Related"
+      icon: ENCHANTED_BOOK
+      counter-key: category_xp.skill
+      milestones: [500, 2500, 5000, 9000, 10818]
+      rewards: [0, 0, 0, 0, 0]
+      lore:
+        - "&7Skill-level progression."
+    misc:
+      display-name: "&eMisc"
+      icon: COMPASS
+      counter-key: category_xp.misc
+      milestones: [250, 1000, 2500, 4500, 5782]
+      rewards: [0, 0, 0, 0, 0]
+      lore:
+        - "&7Misc progression."
+    story:
+      display-name: "&9Story"
+      icon: WRITABLE_BOOK
+      counter-key: category_xp.story
+      milestones: [100, 400, 900, 1300, 1590]
+      rewards: [0, 0, 0, 0, 0]
+      lore:
+        - "&7Story progression."
 
 enchant-table:
   enabled: true
@@ -165,7 +546,7 @@ enchant-table:
         - "&8Requires EcoEnchants."
 
 custom-items:
-  style: JAPANESE
+  style: SKYBLOCK
   reforge:
     use-vault-economy: true
     basic-level-cost: 5
@@ -191,8 +572,8 @@ custom-items:
       cooldown-ticks: 4
     mana-abilities:
       enabled: true
-      require-auraskills: true
-      allow-right-click-block: false
+      require-auraskills: false
+      allow-right-click-block: true
       notify-cooldown: true
       damage-scale: 0.06
       mana-scale: 1.0
@@ -277,27 +658,376 @@ custom-items:
       reforge-stone: 0.50
 
 bazaar:
+  # ==================== MAIN SETTINGS ====================
   enabled: true
   use-vault-economy: true
   allow-level-fallback: true
+  
+  # ==================== ORDER LIMITS (Skyblock-accurate) ====================
+  # Maximum orders per player
+  max-orders-per-player: 50
+  
+  # Order expiry time in hours (standard: 36 hours)
+  order-expiry-hours: 36
+  
+  # 6-second cancellation window for instant full refund
+  cancellation-window-seconds: 6
+  
+  # ==================== PRICE CONSTRAINTS ====================
+  # Minimum order value in coins (standard: 7 coins)
+  min-order-value: 7.0
+  
+  # Maximum price spread percentage (standard: 5%)
+  # Orders cannot be placed more than this % away from market price
+  max-price-spread-percent: 5.0
+  
+  # ==================== INSTANT TRADE SETTINGS ====================
+  # Default sell multiplier (0.6 = 60% of buy price for instant sell)
   default-sell-multiplier: 0.60
+  
+  # Instant buy premium (1.05 = 5% above highest buy order)
+  instant-buy-premium: 1.05
+  
+  # Instant sell discount (0.95 = 5% below lowest sell order)
+  instant-sell-discount: 0.95
+
+  # ==================== NPC COMMODITY BUYBACK ====================
+  # Dedicated NPC shop for selling Bazaar commodities only.
+  npc-shop:
+    enabled: true
+    # Multiplier applied to Bazaar-capped unit sell price (always capped at <= Bazaar value).
+    sell-multiplier: 0.90
+    # If true, apply the same Bazaar sell tax to NPC buyback payouts.
+    apply-bazaar-sell-tax: true
+  
+  # ==================== FEES AND TAXES (Optional) ====================
+  # Transaction fee percentage (0 = disabled, standard: 2%)
+  transaction-fee-percent: 0.0
+  
+  # Instant sell tax percentage (0 = disabled, standard: 1.5%)
+  instant-sell-tax-percent: 0.0
+  
+  # ==================== STACK SIZE LIMITS ====================
+  # Maximum amount per order (standard: 1792 = 28 stacks)
+  max-order-amount: 1792
+  
+  # Skyblock-style stack size tiers
+  # Players can only order in these quantities
+  stack-size-tiers:
+    - 64
+    - 160
+    - 256
+    - 512
+    - 1024
+    - 1792
+  
+  # ==================== DEFAULT PRICES ====================
+  # Fallback prices when no orders exist
   default-prices:
     vanilla-buy: 32.0
+    vanilla-sell: 19.2  # 60% of buy
     custom-buy: 5000.0
+    custom-sell: 3000.0
+  
+  # ==================== PRICE OVERRIDES ====================
+  # Override prices for specific materials
   material-price-overrides:
     DIAMOND: 120.0
     EMERALD: 96.0
     NETHERITE_INGOT: 900.0
     NETHER_STAR: 1600.0
+    DRAGON_EGG: 8000.0
+    ELYTRA: 5000.0
+    TOTEM_OF_UNDYING: 2500.0
+  
   material-sell-overrides: {}
+  
+  # Override prices for custom items
   custom-price-overrides:
     flying_raijin: 250000.0
     armor_shogun_helmet: 45000.0
     armor_shogun_chestplate: 60000.0
+  
   custom-sell-overrides: {}
+  
+  # ==================== GUI SETTINGS ====================
+  gui:
+    # Main menu rows (54 = 6 rows)
+    main-menu-rows: 6
+    
+    # Category menu rows
+    category-menu-rows: 6
+    
+    # Product menu rows
+    product-menu-rows: 6
+    
+    # Orders menu rows
+    orders-menu-rows: 6
+    
+    # Shopping bag menu rows
+    bag-menu-rows: 6
+    
+    # Use custom heads for category icons
+    use-custom-heads: true
+    
+    # Show price history graph in product menu
+    show-price-history: true
+    
+    # Price history duration in hours
+    price-history-hours: 24
+  
+  # ==================== NOTIFICATION SETTINGS ====================
+  notifications:
+    # Notify when order is fully/partially filled
+    notify-on-fill: true
+    
+    # Notify when order is about to expire (in minutes)
+    notify-expiry-warning: 60
+    
+    # Notify when shopping bag has items to claim
+    notify-bag-claim: true
+    
+    # Sound played on notifications
+    notification-sound: ENTITY_PLAYER_LEVELUP
+    notification-volume: 0.5
+    notification-pitch: 1.0
+  
+  # ==================== DATABASE SETTINGS ====================
+  # Database type: SQLITE or MYSQL
+  database-type: SQLITE
+  
+  # MySQL settings (only used if database-type is MYSQL)
+  mysql:
+    host: localhost
+    port: 3306
+    database: bazaar
+    username: root
+    password: ''
+    ssl: false
+    auto-reconnect: true
+  
+  # ==================== ADVANCED SETTINGS ====================
+  advanced:
+    # Update market prices every X seconds
+    market-update-interval: 5
+    
+    # Cleanup expired orders every X minutes
+    cleanup-interval-minutes: 10
+    
+    # Maximum price history entries per product
+    max-price-history-entries: 500
+    
+    # Enable cross-server sync (requires Redis/BungeeCord)
+    cross-server-sync: false
+    
+    # Enable 2FA confirmation for expensive trades (over X coins)
+    expensive-trade-confirmation: 100000.0
+    
+    # Enable order matching engine logging
+    debug-matching: false
+
+# ==================== ZONE EDITOR ====================
+# Zone system for defining areas that display on scoreboard
+zones:
+  # Enable/disable zone system
+  enabled: true
+  
+  # Default zone name when player is not in any defined zone
+  default-zone-name: "Overworld"
+  
+  # Show zone name in scoreboard
+  show-in-scoreboard: true
+  
+  # Show zone change message when player enters/leaves a zone
+  show-on-join: true
+  
+  # Update zone display when player moves between zones
+  update-on-change: true
+  
+  # Scoreboard update interval in ticks (20 ticks = 1 second)
+  scoreboard-update-interval: 20
+  
+  # Zone priority order for scoreboard display
+  # Higher priority zones override lower ones
+  # Dungeon sessions always have highest priority
+  priority-order:
+    - dungeon
+    - zone
+    - island
+    - world
+
+# ==================== GRAPPLING HOOK ====================
+# Grappling hook system - Skyblock-accurate
+grappling-hook:
+  # Enable/disable grappling hook
+  enabled: true
+  
+  # Launch velocity (standard: 2.0)
+  launch-velocity: 2.0
+  
+  # Maximum distance in blocks (standard: ~50)
+  max-distance: 50.0
+  
+  # Cooldown in milliseconds (standard: 2000ms = 2s)
+  cooldown-ms: 2000
+  
+  # Pull force multiplier (standard: 0.8)
+  pull-force: 0.8
+  
+  # Cancel hook when sneaking
+  cancel-on-sneak: true
+  
+  # Cancel hook when right-clicking again
+  cancel-on-right-click: true
+  
+  # Show particle effects (standard: CRIT + CLOUD)
+  particle-effects: true
+  
+  # Play sound effects
+  sound-effects: true
+  
+  # Item settings
+  item:
+    # Custom model data for texture pack
+    custom-model-data: 1001
+    # Make item unbreakable (accurate)
+    unbreakable: true
+    # No durability consumption
+    consume-durability: false
+
+# ==================== STAFFS ====================
+# Staff system with protections
+staffs:
+  # Enable/disable staff system
+  enabled: true
+  
+  # Global cooldown between staff ability uses (milliseconds)
+  global-cooldown-ms: 500
+  
+  # Require mana for staff abilities
+  require-mana: true
+  
+  # Show cooldown messages to players
+  show-cooldown-messages: true
+  
+  # Staff ability damage multiplier (scales with intelligence)
+  intelligence-scaling: 1.5
+  
+  # Staff-specific settings
+  types:
+    arcane:
+      name: "&5Arcane Staff"
+      mana-cost: 50
+      damage: 100
+      cooldown-ms: 1000
+    frostbite:
+      name: "&bFrostbite Staff"
+      mana-cost: 75
+      damage: 120
+      cooldown-ms: 2000
+      effect: "FREEZE"
+    inferno:
+      name: "&cInferno Staff"
+      mana-cost: 100
+      damage: 150
+      cooldown-ms: 3000
+      effect: "FIRE"
+    stormcaller:
+      name: "&eStormcaller Staff"
+      mana-cost: 80
+      damage: 110
+      cooldown-ms: 2500
+      effect: "LIGHTNING"
+    voidwalker:
+      name: "&5Voidwalker Staff"
+      mana-cost: 60
+      damage: 90
+      cooldown-ms: 1500
+      effect: "TELEPORT"
+    celestial:
+      name: "&fCelestial Staff"
+      mana-cost: 90
+      damage: 130
+      cooldown-ms: 2000
+      effect: "HEAL"
+
+# ==================== SKYBLOCK PROFILES ====================
+# Skyblock-accurate profile system
+skyblock-profiles:
+  # Enable profile system
+  enabled: true
+
+  # Maximum profiles per player (standard: 5)
+  max-profiles: 5
+
+  # Allow profile deletion
+  allow-deletion: true
+
+  # Auto-save interval in seconds
+  auto-save-interval-seconds: 300
+  
+# ==================== MINING EVENTS ====================
+mining-events:
+  kings-inspection:
+    # ZNPCs configuration for King's Inspection
+    npc:
+      name: "&6&lKing Ironcrest"
+      # Spawn location at the Surface of Mines
+      location:
+        world: "Minehub"
+        x: 10.5
+        y: 100.0
+        z: 10.5
+        yaw: 180.0
+        pitch: 0.0
+      # NPC Skin (optional, standard is King)
+      skin: "King"
+
+  # Profile-specific settings
+  settings:
+    # Share cosmetics across profiles
+    share-cosmetics: false
+    # Share achievements across profiles
+    share-achievements: true
+    # Share collection unlocks across profiles
+    share-collections: false
+
+# ==================== WELCOME EVENT ====================
+# Hard Hat Harry - Starter Guide & Rewards
+welcome-event:
+  # Enable welcome event system
+  enabled: true
+
+  # Starter money (balanced for economy)
+  starter-money: 500.0
+
+  # Mining XP boost percentage
+  mining-boost-percent: 15.0
+
+  # Farming XP boost percentage
+  farming-boost-percent: 15.0
+
+  # Boost duration in minutes
+  boost-duration-minutes: 45
+
+  # NPC spawn location (near island creation portal)
+  spawn-world: world
+  spawn-x: 0.5
+  spawn-y: 100.0
+  spawn-z: 0.5
+  spawn-yaw: 0.0
+  spawn-pitch: 0.0
+
+  # Starter armor (optional - set to false to disable)
+  give-starter-armor: true
+
+  # Starter tools (optional - set to false to disable)
+  give-starter-tools: true
 
 custom-monsters:
   enabled: true
+  # Multiplies all custom monster damage values in custom-monsters.monsters.*.damage.
+  damage-multiplier: 1.25
   monsters:
     # Drops Netherite Ingots for Crimson Armor
     blaze_knight:
@@ -317,8 +1047,21 @@ custom-monsters:
         blaze_rod:
           material: BLAZE_ROD
           chance: 0.5
+    # Guardian's Goon - Drops Guardian Fragments
+    guardians_goon:
+      display-name: "&bGuardian's Goon"
+      entity-type: GUARDIAN
+      health: 200.0
+      damage: 8.0
+      speed: 0.28
+      exp-reward: 35
+      glowing: false
+      drops:
+        fragment:
+          custom-item: GUARDIAN_FRAGMENT
+          chance: 0.01
           min-amount: 1
-          max-amount: 3
+          max-amount: 1
 
     # Drops Prismarine Crystals for Azure Armor
     sea_guardian:
@@ -409,324 +1152,1101 @@ custom-monsters:
           min-amount: 1
           max-amount: 2
 
+    arcane_magus:
+      display-name: "&5Arcane Magus"
+      entity-type: EVOKER
+      health: 90.0
+      damage: 9.0
+      speed: 0.25
+      exp-reward: 65
+      glowing: true
+      drops:
+        arcane_cloth:
+          custom-item: ARCANE_CLOTH
+          chance: 0.35
+          min-amount: 1
+          max-amount: 3
+        glowstone:
+          material: GLOWSTONE_DUST
+          chance: 0.4
+          min-amount: 2
+          max-amount: 5
+
+    void_wraith:
+      display-name: "&9Void Wraith"
+      entity-type: WITHER_SKELETON
+      health: 110.0
+      damage: 11.0
+      speed: 0.28
+      exp-reward: 80
+      glowing: false
+      drops:
+        soulthread:
+          custom-item: SOULTHREAD
+          chance: 0.4
+          min-amount: 1
+          max-amount: 2
+        bone:
+          material: BONE
+          chance: 0.5
+          min-amount: 2
+          max-amount: 4
+
+    astral_guardian:
+      display-name: "&dAstral Guardian"
+      entity-type: SHULKER
+      health: 130.0
+      damage: 8.0
+      speed: 0.20
+      exp-reward: 90
+      glowing: true
+      drops:
+        star_pearl:
+          custom-item: STAR_PEARL
+          chance: 0.28
+          min-amount: 1
+          max-amount: 2
+        chorus:
+          material: CHORUS_FRUIT
+          chance: 0.5
+          min-amount: 1
+          max-amount: 3
+
 custom-armor:
   enabled: true
   sets:
     crimson:
-      display-name: "&cCrimson Warrior"
-      description: "A fierce armor forged in volcanic flames."
+      display-name: '&cCrimson Warrior'
+      description: '&7A fierce set forged in volcanic flames.'
       pieces-required: 2
       crafting-material: NETHERITE_INGOT
       bonuses:
-        - "&72 Pieces: &fSpeed I"
-        - "&74 Pieces: &fStrength I"
+        - '&72 Pieces: &fSpeed I'
+        - '&74 Pieces: &fStrength I'
       pieces:
         helmet:
           material: NETHERITE_HELMET
-          display-name: "&cCrimson Helm"
-          lore:
-            - "&7Part of the Crimson Warrior set."
-            - "&8Forged in lava."
+          display-name: '&cCrimson Helm'
           armor: 3
           toughness: 2.0
           glowing: true
+          lore:
+            - '&7Part of the &cCrimson Warrior &7set.'
+            - '&8Forged in lava.'
+            - ''
+            - '&7Defense: &a+3'
+            - '&7Toughness: &a+2.0'
+            - ''
+            - '&6Set Bonus: &cCrimson Fury'
+            - '&7Wear 2 pieces: &fSpeed I'
+            - '&7Wear 4 pieces: &fStrength I'
+            - ''
+            - '&cLEGENDARY &8HELMET'
         chestplate:
           material: NETHERITE_CHESTPLATE
-          display-name: "&cCrimson Plate"
-          lore:
-            - "&7Part of the Crimson Warrior set."
-            - "&8Radiates heat."
+          display-name: '&cCrimson Plate'
           armor: 8
           toughness: 2.0
           glowing: true
+          lore:
+            - '&7Part of the &cCrimson Warrior &7set.'
+            - '&8Radiates heat.'
+            - ''
+            - '&7Defense: &a+8'
+            - '&7Toughness: &a+2.0'
+            - ''
+            - '&6Set Bonus: &cCrimson Fury'
+            - '&7Wear 2 pieces: &fSpeed I'
+            - '&7Wear 4 pieces: &fStrength I'
+            - ''
+            - '&cLEGENDARY &8CHESTPLATE'
         leggings:
           material: NETHERITE_LEGGINGS
-          display-name: "&cCrimson Greaves"
-          lore:
-            - "&7Part of the Crimson Warrior set."
-            - "&8Burns enemies."
+          display-name: '&cCrimson Greaves'
           armor: 6
           toughness: 2.0
           glowing: true
+          lore:
+            - '&7Part of the &cCrimson Warrior &7set.'
+            - '&8Burns enemies.'
+            - ''
+            - '&7Defense: &a+6'
+            - '&7Toughness: &a+2.0'
+            - ''
+            - '&6Set Bonus: &cCrimson Fury'
+            - '&7Wear 2 pieces: &fSpeed I'
+            - '&7Wear 4 pieces: &fStrength I'
+            - ''
+            - '&cLEGENDARY &8LEGGINGS'
         boots:
           material: NETHERITE_BOOTS
-          display-name: "&cCrimson Boots"
-          lore:
-            - "&7Part of the Crimson Warrior set."
-            - "&8Leave fiery footprints."
+          display-name: '&cCrimson Boots'
           armor: 3
           toughness: 2.0
           glowing: true
+          lore:
+            - '&7Part of the &cCrimson Warrior &7set.'
+            - '&8Leave fiery footprints.'
+            - ''
+            - '&7Defense: &a+3'
+            - '&7Toughness: &a+2.0'
+            - ''
+            - '&6Set Bonus: &cCrimson Fury'
+            - '&7Wear 2 pieces: &fSpeed I'
+            - '&7Wear 4 pieces: &fStrength I'
+            - ''
+            - '&cLEGENDARY &8BOOTS'
 
-    azure:
-      display-name: "&bAzure Guardian"
-      description: "Mystical armor blessed by ocean spirits."
+    void_miner:
+      display-name: '&5Void Miner'
+      description: '&7Mining gear infused with rift energy.'
       pieces-required: 2
-      crafting-material: PRISMARINE_CRYSTALS
+      crafting-material: custom:obsidian_core
       bonuses:
-        - "&72 Pieces: &fRegeneration I"
-        - "&74 Pieces: &fWater Breathing"
+        - '&72 Pieces: &fHaste I &8(End Mines)'
+        - '&74 Pieces: &fRare Drops +35% &8(End Mines)'
+        - '&74 Pieces: &fNight Vision &8(End Mines)'
       pieces:
         helmet:
           material: DIAMOND_HELMET
-          display-name: "&bAzure Visor"
+          display-name: '&5Void Miner Helmet'
+          armor: 2
+          health: 10.0
+          glowing: true
           lore:
-            - "&7Part of the Azure Guardian set."
-            - "&8Glowing with sea energy."
+            - '&7Part of the &5Void Miner &7set.'
+            - '&8Forged in the End Mines.'
+            - ''
+            - '&7Defense: &a+2'
+            - '&7Health: &a+10'
+            - ''
+            - '&6Set Bonus: &5Void Fortune'
+            - '&7Wear 2 pieces: &fHaste I &8(End Mines)'
+            - '&7Wear 4 pieces: &fRare Drops +35% &8(End Mines)'
+            - '&7Wear 4 pieces: &fNight Vision &8(End Mines)'
+            - ''
+            - '&5EPIC &8HELMET'
+        chestplate:
+          material: DIAMOND_CHESTPLATE
+          display-name: '&5Void Miner Chestplate'
+          armor: 6
+          health: 20.0
+          glowing: true
+          lore:
+            - '&7Part of the &5Void Miner &7set.'
+            - '&8Hums with void resonance.'
+            - ''
+            - '&7Defense: &a+6'
+            - '&7Health: &a+20'
+            - ''
+            - '&6Set Bonus: &5Void Fortune'
+            - '&7Wear 2 pieces: &fHaste I &8(End Mines)'
+            - '&7Wear 4 pieces: &fRare Drops +35% &8(End Mines)'
+            - '&7Wear 4 pieces: &fNight Vision &8(End Mines)'
+            - ''
+            - '&5EPIC &8CHESTPLATE'
+        leggings:
+          material: DIAMOND_LEGGINGS
+          display-name: '&5Void Miner Leggings'
+          armor: 5
+          health: 15.0
+          glowing: true
+          lore:
+            - '&7Part of the &5Void Miner &7set.'
+            - '&8Stitched with chorus weave.'
+            - ''
+            - '&7Defense: &a+5'
+            - '&7Health: &a+15'
+            - ''
+            - '&6Set Bonus: &5Void Fortune'
+            - '&7Wear 2 pieces: &fHaste I &8(End Mines)'
+            - '&7Wear 4 pieces: &fRare Drops +35% &8(End Mines)'
+            - '&7Wear 4 pieces: &fNight Vision &8(End Mines)'
+            - ''
+            - '&5EPIC &8LEGGINGS'
+        boots:
+          material: DIAMOND_BOOTS
+          display-name: '&5Void Miner Boots'
+          armor: 2
+          health: 10.0
+          glowing: true
+          lore:
+            - '&7Part of the &5Void Miner &7set.'
+            - '&8Lightweight and unstable.'
+            - ''
+            - '&7Defense: &a+2'
+            - '&7Health: &a+10'
+            - ''
+            - '&6Set Bonus: &5Void Fortune'
+            - '&7Wear 2 pieces: &fHaste I &8(End Mines)'
+            - '&7Wear 4 pieces: &fRare Drops +35% &8(End Mines)'
+            - '&7Wear 4 pieces: &fNight Vision &8(End Mines)'
+            - ''
+            - '&5EPIC &8BOOTS'
+
+    azure:
+      display-name: '&bAzure Guardian'
+      description: '&7Mystical armor blessed by ocean spirits.'
+      pieces-required: 2
+      crafting-material: PRISMARINE_CRYSTALS
+      bonuses:
+        - '&72 Pieces: &fRegeneration I'
+        - '&74 Pieces: &fWater Breathing'
+      pieces:
+        helmet:
+          material: DIAMOND_HELMET
+          display-name: '&bAzure Visor'
           armor: 3
           toughness: 1.5
           glowing: true
+          lore:
+            - '&7Part of the &bAzure Guardian &7set.'
+            - '&8Charged with sea energy.'
+            - ''
+            - '&7Defense: &a+3'
+            - '&7Toughness: &a+1.5'
+            - ''
+            - '&6Set Bonus: &bTideguard'
+            - '&7Wear 2 pieces: &fRegeneration I'
+            - '&7Wear 4 pieces: &fWater Breathing'
+            - ''
+            - '&5EPIC &8HELMET'
         chestplate:
           material: DIAMOND_CHESTPLATE
-          display-name: "&bAzure Cuirass"
-          lore:
-            - "&7Part of the Azure Guardian set."
-            - "&8Protected by tides."
+          display-name: '&bAzure Cuirass'
           armor: 8
           toughness: 1.5
           glowing: true
+          lore:
+            - '&7Part of the &bAzure Guardian &7set.'
+            - '&8Protected by tides.'
+            - ''
+            - '&7Defense: &a+8'
+            - '&7Toughness: &a+1.5'
+            - ''
+            - '&6Set Bonus: &bTideguard'
+            - '&7Wear 2 pieces: &fRegeneration I'
+            - '&7Wear 4 pieces: &fWater Breathing'
+            - ''
+            - '&5EPIC &8CHESTPLATE'
         leggings:
           material: DIAMOND_LEGGINGS
-          display-name: "&bAzure Legguards"
-          lore:
-            - "&7Part of the Azure Guardian set."
-            - "&8Flow like water."
+          display-name: '&bAzure Legguards'
           armor: 6
           toughness: 1.5
           glowing: true
+          lore:
+            - '&7Part of the &bAzure Guardian &7set.'
+            - '&8Flow like water.'
+            - ''
+            - '&7Defense: &a+6'
+            - '&7Toughness: &a+1.5'
+            - ''
+            - '&6Set Bonus: &bTideguard'
+            - '&7Wear 2 pieces: &fRegeneration I'
+            - '&7Wear 4 pieces: &fWater Breathing'
+            - ''
+            - '&5EPIC &8LEGGINGS'
         boots:
           material: DIAMOND_BOOTS
-          display-name: "&bAzure Treads"
-          lore:
-            - "&7Part of the Azure Guardian set."
-            - "&8Walk on waves."
+          display-name: '&bAzure Treads'
           armor: 3
           toughness: 1.5
           glowing: true
+          lore:
+            - '&7Part of the &bAzure Guardian &7set.'
+            - '&8Walk on waves.'
+            - ''
+            - '&7Defense: &a+3'
+            - '&7Toughness: &a+1.5'
+            - ''
+            - '&6Set Bonus: &bTideguard'
+            - '&7Wear 2 pieces: &fRegeneration I'
+            - '&7Wear 4 pieces: &fWater Breathing'
+            - ''
+            - '&5EPIC &8BOOTS'
 
     onyx:
-      display-name: "&8Onyx Shadow"
-      description: "Dark armor worn by master assassins."
+      display-name: '&8Onyx Shadow'
+      description: '&7Dark gear worn by master assassins.'
       pieces-required: 2
       crafting-material: COAL
       bonuses:
-        - "&72 Pieces: &f10% Damage Reflection"
-        - "&74 Pieces: &fInvisibility (when not moving)"
+        - '&72 Pieces: &f10% Damage Reflection'
+        - '&74 Pieces: &fInvisibility while standing still'
       pieces:
         helmet:
-          material: BLACKSTONE
-          display-name: "&8Onyx Mask"
-          lore:
-            - "&7Part of the Onyx Shadow set."
-            - "&8Hides your identity."
+          material: NETHERITE_HELMET
+          display-name: '&8Onyx Mask'
           armor: 3
           toughness: 1.0
           glowing: false
-        chestplate:
-          material: BLACKSTONE
-          display-name: "&8Onyx Vest"
           lore:
-            - "&7Part of the Onyx Shadow set."
-            - "&8Absorbs light."
+            - '&7Part of the &8Onyx Shadow &7set.'
+            - '&8Hides your identity.'
+            - ''
+            - '&7Defense: &a+3'
+            - '&7Toughness: &a+1.0'
+            - ''
+            - '&6Set Bonus: &8Living Shadow'
+            - '&7Wear 2 pieces: &f10% &7Reflection'
+            - '&7Wear 4 pieces: &fInvisibility &7when idle'
+            - ''
+            - '&9RARE &8HELMET'
+        chestplate:
+          material: NETHERITE_CHESTPLATE
+          display-name: '&8Onyx Vest'
           armor: 8
           toughness: 1.0
           glowing: false
-        leggings:
-          material: BLACKSTONE
-          display-name: "&8Onyx Leggings"
           lore:
-            - "&7Part of the Onyx Shadow set."
-            - "&8Silent as night."
+            - '&7Part of the &8Onyx Shadow &7set.'
+            - '&8Absorbs light.'
+            - ''
+            - '&7Defense: &a+8'
+            - '&7Toughness: &a+1.0'
+            - ''
+            - '&6Set Bonus: &8Living Shadow'
+            - '&7Wear 2 pieces: &f10% &7Reflection'
+            - '&7Wear 4 pieces: &fInvisibility &7when idle'
+            - ''
+            - '&9RARE &8CHESTPLATE'
+        leggings:
+          material: NETHERITE_LEGGINGS
+          display-name: '&8Onyx Leggings'
           armor: 6
           toughness: 1.0
           glowing: false
-        boots:
-          material: BLACKSTONE
-          display-name: "&8Onyx Boots"
           lore:
-            - "&7Part of the Onyx Shadow set."
-            - "&8Step without sound."
+            - '&7Part of the &8Onyx Shadow &7set.'
+            - '&8Silent as night.'
+            - ''
+            - '&7Defense: &a+6'
+            - '&7Toughness: &a+1.0'
+            - ''
+            - '&6Set Bonus: &8Living Shadow'
+            - '&7Wear 2 pieces: &f10% &7Reflection'
+            - '&7Wear 4 pieces: &fInvisibility &7when idle'
+            - ''
+            - '&9RARE &8LEGGINGS'
+        boots:
+          material: NETHERITE_BOOTS
+          display-name: '&8Onyx Boots'
           armor: 3
           toughness: 1.0
           glowing: false
+          lore:
+            - '&7Part of the &8Onyx Shadow &7set.'
+            - '&8Step without sound.'
+            - ''
+            - '&7Defense: &a+3'
+            - '&7Toughness: &a+1.0'
+            - ''
+            - '&6Set Bonus: &8Living Shadow'
+            - '&7Wear 2 pieces: &f10% &7Reflection'
+            - '&7Wear 4 pieces: &fInvisibility &7when idle'
+            - ''
+            - '&9RARE &8BOOTS'
 
     storm:
-      display-name: "&eStorm Caller"
-      description: "Armor crackling with electrical energy."
+      display-name: '&eStorm Caller'
+      description: '&7Armor crackling with electrical energy.'
       pieces-required: 2
       crafting-material: LIGHTNING_ROD
       bonuses:
-        - "&72 Pieces: &fSpeed II"
-        - "&74 Pieces: &fJump Boost II"
+        - '&72 Pieces: &fSpeed II'
+        - '&74 Pieces: &fJump Boost II'
       pieces:
         helmet:
           material: GOLDEN_HELMET
-          display-name: "&eStorm Crown"
-          lore:
-            - "&7Part of the Storm Caller set."
-            - "&8Attracts lightning."
-          armor: 3
+          display-name: '&eStorm Crown'
+          armor: 2
           toughness: 1.5
           glowing: true
+          lore:
+            - '&7Part of the &eStorm Caller &7set.'
+            - '&8Attracts lightning.'
+            - ''
+            - '&7Defense: &a+2'
+            - '&7Toughness: &a+1.5'
+            - ''
+            - '&6Set Bonus: &eThunderstep'
+            - '&7Wear 2 pieces: &fSpeed II'
+            - '&7Wear 4 pieces: &fJump Boost II'
+            - ''
+            - '&5EPIC &8HELMET'
         chestplate:
           material: GOLDEN_CHESTPLATE
-          display-name: "&eStorm Guard"
-          lore:
-            - "&7Part of the Storm Caller set."
-            - "&8Channels thunder."
-          armor: 8
+          display-name: '&eStorm Guard'
+          armor: 5
           toughness: 1.5
           glowing: true
+          lore:
+            - '&7Part of the &eStorm Caller &7set.'
+            - '&8Channels thunder.'
+            - ''
+            - '&7Defense: &a+5'
+            - '&7Toughness: &a+1.5'
+            - ''
+            - '&6Set Bonus: &eThunderstep'
+            - '&7Wear 2 pieces: &fSpeed II'
+            - '&7Wear 4 pieces: &fJump Boost II'
+            - ''
+            - '&5EPIC &8CHESTPLATE'
         leggings:
           material: GOLDEN_LEGGINGS
-          display-name: "&eStorm Leggings"
-          lore:
-            - "&7Part of the Storm Caller set."
-            - "&8Swift as wind."
-          armor: 6
+          display-name: '&eStorm Leggings'
+          armor: 4
           toughness: 1.5
           glowing: true
+          lore:
+            - '&7Part of the &eStorm Caller &7set.'
+            - '&8Swift as wind.'
+            - ''
+            - '&7Defense: &a+4'
+            - '&7Toughness: &a+1.5'
+            - ''
+            - '&6Set Bonus: &eThunderstep'
+            - '&7Wear 2 pieces: &fSpeed II'
+            - '&7Wear 4 pieces: &fJump Boost II'
+            - ''
+            - '&5EPIC &8LEGGINGS'
         boots:
           material: GOLDEN_BOOTS
-          display-name: "&eStorm Boots"
-          lore:
-            - "&7Part of the Storm Caller set."
-            - "&8Leap like lightning."
-          armor: 3
+          display-name: '&eStorm Boots'
+          armor: 2
           toughness: 1.5
           glowing: true
+          lore:
+            - '&7Part of the &eStorm Caller &7set.'
+            - '&8Leap like lightning.'
+            - ''
+            - '&7Defense: &a+2'
+            - '&7Toughness: &a+1.5'
+            - ''
+            - '&6Set Bonus: &eThunderstep'
+            - '&7Wear 2 pieces: &fSpeed II'
+            - '&7Wear 4 pieces: &fJump Boost II'
+            - ''
+            - '&5EPIC &8BOOTS'
 
     shogun:
-      display-name: "&6Shogun Warlord"
-      description: "Legendary armor of ancient warlords."
+      display-name: '&6Shogun Warlord'
+      description: '&7Legendary armor of ancient warlords.'
       pieces-required: 4
       crafting-material: NETHER_STAR
       bonuses:
-        - "&74 Pieces: &f15% Damage Reduction"
-        - "&74 Pieces: &fIncreased Armor Toughness"
+        - '&74 Pieces: &f15% Damage Reduction'
+        - '&74 Pieces: &f+1.0 Armor Toughness'
       pieces:
         helmet:
           material: NETHERITE_HELMET
-          display-name: "&6Shogun Kabuto"
-          lore:
-            - "&7Part of the Shogun Warlord set."
-            - "&8Worn by legendary generals."
+          display-name: '&6Shogun Kabuto'
           armor: 4
           toughness: 3.0
           glowing: true
-
-    stormborne:
-      display-name: "&3Stormborne Vanguard"
-      description: "Armor tempered in dragon storms."
-      pieces-required: 2
-      crafting-material: custom:dragon_scale
-      bonuses:
-        - "&72 Pieces: &fSpeed I"
-        - "&74 Pieces: &fResistance I"
-      pieces:
-        helmet:
-          material: NETHERITE_HELMET
-          display-name: "&3Stormborne Helm"
           lore:
-            - "&7Storm-hardened protection."
-            - "&8Crackles with static."
-          armor: 4
-          toughness: 3.0
-          glowing: true
+            - '&7Part of the &6Shogun Warlord &7set.'
+            - '&8Worn by legendary generals.'
+            - ''
+            - '&7Defense: &a+4'
+            - '&7Toughness: &a+3.0'
+            - ''
+            - '&6Full Set Bonus: &6Warlord''s Resolve'
+            - '&7Wear 4 pieces:'
+            - '&8➜ &f15% &7Damage Reduction'
+            - '&8➜ &f+1.0 &7Toughness'
+            - ''
+            - '&cLEGENDARY &8HELMET'
         chestplate:
           material: NETHERITE_CHESTPLATE
-          display-name: "&3Stormborne Plate"
-          lore:
-            - "&7Plate infused with dragon lightning."
-            - "&8Hums with energy."
-          armor: 9
-          toughness: 3.0
-          glowing: true
-        leggings:
-          material: NETHERITE_LEGGINGS
-          display-name: "&3Stormborne Greaves"
-          lore:
-            - "&7Reinforced for shock impacts."
-          armor: 7
-          toughness: 3.0
-          glowing: true
-        boots:
-          material: NETHERITE_BOOTS
-          display-name: "&3Stormborne Boots"
-          lore:
-            - "&7Grounded against lightning."
-          armor: 4
-          toughness: 3.0
-          glowing: true
-
-    blossom:
-      display-name: "&dBlossom Attendant"
-      description: "Light robes woven from sacred petals."
-      pieces-required: 2
-      crafting-material: custom:blossom_fiber
-      bonuses:
-        - "&72 Pieces: &fHaste I"
-        - "&74 Pieces: &fRegeneration I"
-      pieces:
-        helmet:
-          material: LEATHER_HELMET
-          display-name: "&dBlossom Hood"
-          lore:
-            - "&7Gentle petal veil."
-          armor: 2
-          toughness: 0.5
-          glowing: true
-        chestplate:
-          material: LEATHER_CHESTPLATE
-          display-name: "&dBlossom Wraps"
-          lore:
-            - "&7Silken guardian weave."
-          armor: 5
-          toughness: 0.5
-          glowing: true
-        leggings:
-          material: LEATHER_LEGGINGS
-          display-name: "&dBlossom Trousers"
-          lore:
-            - "&7Light and flexible."
-          armor: 4
-          toughness: 0.5
-          glowing: true
-        boots:
-          material: LEATHER_BOOTS
-          display-name: "&dBlossom Sandals"
-          lore:
-            - "&7Soft petals underfoot."
-          armor: 2
-          toughness: 0.5
-          glowing: true
-        chestplate:
-          material: NETHERITE_CHESTPLATE
-          display-name: "&6Shogun O-Yoroi"
-          lore:
-            - "&7Part of the Shogun Warlord set."
-            - "&8Impenetrable defense."
+          display-name: '&6Shogun O-Yoroi'
           armor: 10
           toughness: 3.0
           glowing: true
+          lore:
+            - '&7Part of the &6Shogun Warlord &7set.'
+            - '&8Impenetrable defense.'
+            - ''
+            - '&7Defense: &a+10'
+            - '&7Toughness: &a+3.0'
+            - ''
+            - '&6Full Set Bonus: &6Warlord''s Resolve'
+            - '&7Wear 4 pieces:'
+            - '&8➜ &f15% &7Damage Reduction'
+            - '&8➜ &f+1.0 &7Toughness'
+            - ''
+            - '&cLEGENDARY &8CHESTPLATE'
         leggings:
           material: NETHERITE_LEGGINGS
-          display-name: "&6Shogun Haidate"
-          lore:
-            - "&7Part of the Shogun Warlord set."
-            - "&8Protects the legs."
+          display-name: '&6Shogun Haidate'
           armor: 7
           toughness: 3.0
           glowing: true
+          lore:
+            - '&7Part of the &6Shogun Warlord &7set.'
+            - '&8Protects the legs.'
+            - ''
+            - '&7Defense: &a+7'
+            - '&7Toughness: &a+3.0'
+            - ''
+            - '&6Full Set Bonus: &6Warlord''s Resolve'
+            - '&7Wear 4 pieces:'
+            - '&8➜ &f15% &7Damage Reduction'
+            - '&8➜ &f+1.0 &7Toughness'
+            - ''
+            - '&cLEGENDARY &8LEGGINGS'
         boots:
           material: NETHERITE_BOOTS
-          display-name: "&6Shogun Sune-Ate"
-          lore:
-            - "&7Part of the Shogun Warlord set."
-            - "&8Stands firm in battle."
+          display-name: '&6Shogun Sune-Ate'
           armor: 4
           toughness: 3.0
           glowing: true
+          lore:
+            - '&7Part of the &6Shogun Warlord &7set.'
+            - '&8Stands firm in battle.'
+            - ''
+            - '&7Defense: &a+4'
+            - '&7Toughness: &a+3.0'
+            - ''
+            - '&6Full Set Bonus: &6Warlord''s Resolve'
+            - '&7Wear 4 pieces:'
+            - '&8➜ &f15% &7Damage Reduction'
+            - '&8➜ &f+1.0 &7Toughness'
+            - ''
+            - '&cLEGENDARY &8BOOTS'
+
+    stormborne:
+      display-name: '&3Stormborne Vanguard'
+      description: '&7Armor tempered in dragon storms.'
+      pieces-required: 2
+      crafting-material: custom:dragon_scale
+      bonuses:
+        - '&72 Pieces: &fSpeed I'
+        - '&72 Pieces: &fResistance I'
+        - '&74 Pieces: &fLightning Ward'
+      pieces:
+        helmet:
+          material: NETHERITE_HELMET
+          display-name: '&3Stormborne Helm'
+          armor: 4
+          toughness: 3.0
+          glowing: true
+          lore:
+            - '&7Storm-hardened protection.'
+            - '&8Crackles with static.'
+            - ''
+            - '&7Defense: &a+4'
+            - '&7Toughness: &a+3.0'
+            - ''
+            - '&6Set Bonus: &3Dragonstorm'
+            - '&7Wear 2 pieces: &fSpeed I &7and &fResistance I'
+            - '&7Wear 4 pieces: &fLightning Ward'
+            - ''
+            - '&dMYTHIC &8HELMET'
+        chestplate:
+          material: NETHERITE_CHESTPLATE
+          display-name: '&3Stormborne Plate'
+          armor: 9
+          toughness: 3.0
+          glowing: true
+          lore:
+            - '&7Plate infused with dragon lightning.'
+            - '&8Hums with energy.'
+            - ''
+            - '&7Defense: &a+9'
+            - '&7Toughness: &a+3.0'
+            - ''
+            - '&6Set Bonus: &3Dragonstorm'
+            - '&7Wear 2 pieces: &fSpeed I &7and &fResistance I'
+            - '&7Wear 4 pieces: &fLightning Ward'
+            - ''
+            - '&dMYTHIC &8CHESTPLATE'
+        leggings:
+          material: NETHERITE_LEGGINGS
+          display-name: '&3Stormborne Greaves'
+          armor: 7
+          toughness: 3.0
+          glowing: true
+          lore:
+            - '&7Reinforced for shock impacts.'
+            - ''
+            - '&7Defense: &a+7'
+            - '&7Toughness: &a+3.0'
+            - ''
+            - '&6Set Bonus: &3Dragonstorm'
+            - '&7Wear 2 pieces: &fSpeed I &7and &fResistance I'
+            - '&7Wear 4 pieces: &fLightning Ward'
+            - ''
+            - '&dMYTHIC &8LEGGINGS'
+        boots:
+          material: NETHERITE_BOOTS
+          display-name: '&3Stormborne Boots'
+          armor: 4
+          toughness: 3.0
+          glowing: true
+          lore:
+            - '&7Grounded against lightning.'
+            - ''
+            - '&7Defense: &a+4'
+            - '&7Toughness: &a+3.0'
+            - ''
+            - '&6Set Bonus: &3Dragonstorm'
+            - '&7Wear 2 pieces: &fSpeed I &7and &fResistance I'
+            - '&7Wear 4 pieces: &fLightning Ward'
+            - ''
+            - '&dMYTHIC &8BOOTS'
+
+    blossom:
+      display-name: '&dBlossom Attendant'
+      description: '&7Light robes woven from sacred petals.'
+      pieces-required: 2
+      crafting-material: custom:blossom_fiber
+      bonuses:
+        - '&72 Pieces: &fHaste I'
+        - '&74 Pieces: &fRegeneration I'
+      pieces:
+        helmet:
+          material: LEATHER_HELMET
+          display-name: '&dBlossom Hood'
+          armor: 2
+          toughness: 0.5
+          glowing: true
+          lore:
+            - '&7Gentle petal veil.'
+            - '&8Soft as spring air.'
+            - ''
+            - '&7Defense: &a+2'
+            - '&7Toughness: &a+0.5'
+            - ''
+            - '&6Set Bonus: &dSpring''s Grace'
+            - '&7Wear 2 pieces: &fHaste I'
+            - '&7Wear 4 pieces: &fRegeneration I'
+            - ''
+            - '&9RARE &8HELMET'
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: '&dBlossom Robe'
+          armor: 3
+          toughness: 0.5
+          glowing: true
+          lore:
+            - '&7Woven from sacred petals.'
+            - '&8Lightweight and serene.'
+            - ''
+            - '&7Defense: &a+3'
+            - '&7Toughness: &a+0.5'
+            - ''
+            - '&6Set Bonus: &dSpring''s Grace'
+            - '&7Wear 2 pieces: &fHaste I'
+            - '&7Wear 4 pieces: &fRegeneration I'
+            - ''
+            - '&9RARE &8CHESTPLATE'
+        leggings:
+          material: LEATHER_LEGGINGS
+          display-name: '&dBlossom Wraps'
+          armor: 2
+          toughness: 0.5
+          glowing: true
+          lore:
+            - '&7Petal-bound leggings.'
+            - '&8Bloom with every step.'
+            - ''
+            - '&7Defense: &a+2'
+            - '&7Toughness: &a+0.5'
+            - ''
+            - '&6Set Bonus: &dSpring''s Grace'
+            - '&7Wear 2 pieces: &fHaste I'
+            - '&7Wear 4 pieces: &fRegeneration I'
+            - ''
+            - '&9RARE &8LEGGINGS'
+        boots:
+          material: LEATHER_BOOTS
+          display-name: '&dBlossom Sandals'
+          armor: 1
+          toughness: 0.5
+          glowing: true
+          lore:
+            - '&7Silent and gentle.'
+            - '&8Leave petals behind.'
+            - ''
+            - '&7Defense: &a+1'
+            - '&7Toughness: &a+0.5'
+            - ''
+            - '&6Set Bonus: &dSpring''s Grace'
+            - '&7Wear 2 pieces: &fHaste I'
+            - '&7Wear 4 pieces: &fRegeneration I'
+            - ''
+            - '&9RARE &8BOOTS'
+
+    arcanist:
+      display-name: '&5Arcanist Raiment'
+      description: '&7Robes that channel raw arcane power.'
+      rarity: EPIC
+      pieces-required: 2
+      crafting-material: custom:arcane_cloth
+      bonuses:
+        - '&72 Pieces: &b+50 Mana'
+        - '&74 Pieces: &b+120 Mana &7and &f+10%&7 ability damage'
+      pieces:
+        helmet:
+          material: LEATHER_HELMET
+          display-name: '&5Arcanist Hood'
+          armor: 2
+          toughness: 0.8
+          glowing: true
+          mana: 50
+          health: 10
+          crit-chance: 3
+          crit-damage: 6
+          lore:
+            - '&7Hood etched with violet runes.'
+            - '&7Mana: &b+50'
+            - ''
+            - '&5EPIC &8HELMET'
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: '&5Arcanist Vestments'
+          armor: 4
+          toughness: 1.0
+          glowing: true
+          mana: 60
+          health: 14
+          crit-chance: 4
+          crit-damage: 8
+          lore:
+            - '&7Robes threaded with silver channels.'
+            - '&7Mana: &b+60'
+            - ''
+            - '&5EPIC &8CHESTPLATE'
+        leggings:
+          material: LEATHER_LEGGINGS
+          display-name: '&5Arcanist Leggings'
+          armor: 3
+          toughness: 0.9
+          glowing: true
+          mana: 55
+          health: 12
+          crit-chance: 3
+          crit-damage: 6
+          lore:
+            - '&7Glyph-lined inner seams.'
+            - '&7Mana: &b+55'
+            - ''
+            - '&5EPIC &8LEGGINGS'
+        boots:
+          material: LEATHER_BOOTS
+          display-name: '&5Arcanist Boots'
+          armor: 2
+          toughness: 0.8
+          glowing: true
+          mana: 45
+          health: 8
+          crit-chance: 2
+          crit-damage: 4
+          lore:
+            - '&7Featherlight soles for quick casting.'
+            - '&7Mana: &b+45'
+            - ''
+            - '&5EPIC &8BOOTS'
+
+    soulweaver:
+      display-name: '&9Soulweaver Shroud'
+      description: '&7Wraithsilk attire that feeds on lingering souls.'
+      rarity: LEGENDARY
+      pieces-required: 2
+      crafting-material: custom:soulthread
+      bonuses:
+        - '&72 Pieces: &b+80 Mana &7and &f+5% &7damage reduction'
+        - '&74 Pieces: &b+180 Mana &7and &f+15% &7ability damage'
+      pieces:
+        helmet:
+          material: CHAINMAIL_HELMET
+          display-name: '&9Soulweaver Cowl'
+          armor: 3
+          toughness: 1.2
+          glowing: true
+          mana: 80
+          health: 14
+          crit-chance: 4
+          crit-damage: 8
+          lore:
+            - '&7Woven from void-touched silk.'
+            - '&7Mana: &b+80'
+            - ''
+            - '&6LEGENDARY &8HELMET'
+        chestplate:
+          material: CHAINMAIL_CHESTPLATE
+          display-name: '&9Soulweaver Wrap'
+          armor: 6
+          toughness: 1.4
+          glowing: true
+          mana: 90
+          health: 18
+          crit-chance: 6
+          crit-damage: 10
+          lore:
+            - '&7Soul wards stitched within.'
+            - '&7Mana: &b+90'
+            - ''
+            - '&6LEGENDARY &8CHESTPLATE'
+        leggings:
+          material: CHAINMAIL_LEGGINGS
+          display-name: '&9Soulweaver Trousers'
+          armor: 5
+          toughness: 1.3
+          glowing: true
+          mana: 70
+          health: 15
+          crit-chance: 5
+          crit-damage: 8
+          lore:
+            - '&7Silent folds drift like smoke.'
+            - '&7Mana: &b+70'
+            - ''
+            - '&6LEGENDARY &8LEGGINGS'
+        boots:
+          material: CHAINMAIL_BOOTS
+          display-name: '&9Soulweaver Slippers'
+          armor: 2
+          toughness: 1.1
+          glowing: true
+          mana: 60
+          health: 10
+          crit-chance: 3
+          crit-damage: 6
+          lore:
+            - '&7Whisper across the floor.'
+            - '&7Mana: &b+60'
+            - ''
+            - '&6LEGENDARY &8BOOTS'
+
+    starseer:
+      display-name: '&dStarseer Regalia'
+      description: '&7Celestial armor that channels astral wells of mana.'
+      rarity: MYTHIC
+      pieces-required: 4
+      crafting-material: custom:star_pearl
+      bonuses:
+        - '&74 Pieces: &b+260 Mana &7and &f+20% &7ability damage'
+      pieces:
+        helmet:
+          material: GOLDEN_HELMET
+          display-name: '&dStarseer Crown'
+          armor: 3
+          toughness: 1.6
+          glowing: true
+          mana: 90
+          health: 16
+          crit-chance: 5
+          crit-damage: 10
+          lore:
+            - '&7Inlaid with meteorite shards.'
+            - '&7Mana: &b+90'
+            - ''
+            - '&dMYTHIC &8HELMET'
+        chestplate:
+          material: GOLDEN_CHESTPLATE
+          display-name: '&dStarseer Vest'
+          armor: 7
+          toughness: 1.8
+          glowing: true
+          mana: 110
+          health: 22
+          crit-chance: 7
+          crit-damage: 14
+          lore:
+            - '&7Constellations stitched in starlight.'
+            - '&7Mana: &b+110'
+            - ''
+            - '&dMYTHIC &8CHESTPLATE'
+        leggings:
+          material: GOLDEN_LEGGINGS
+          display-name: '&dStarseer Leggings'
+          armor: 5
+          toughness: 1.7
+          glowing: true
+          mana: 80
+          health: 18
+          crit-chance: 6
+          crit-damage: 12
+          lore:
+            - '&7Fabric shimmers with cosmic dust.'
+            - '&7Mana: &b+80'
+            - ''
+            - '&dMYTHIC &8LEGGINGS'
+        boots:
+          material: GOLDEN_BOOTS
+          display-name: '&dStarseer Boots'
+          armor: 2
+          toughness: 1.5
+          glowing: true
+          mana: 70
+          health: 12
+          crit-chance: 4
+          crit-damage: 8
+          lore:
+            - '&7Leave trails of falling stars.'
+            - '&7Mana: &b+70'
+            - ''
+            - '&dMYTHIC &8BOOTS'
+
+    gilded_harvester:
+      display-name: '&6Gilded Harvester'
+      description: '&7Finely crafted attire for the master farmer.'
+      rarity: EPIC
+      pieces-required: 4
+      crafting-material: custom:enchanted_gold_block
+      bonuses:
+        - '&74 Pieces: &6+100 Farming Fortune'
+        - '&74 Pieces: &a+50 Health'
+      pieces:
+        helmet:
+          material: GOLDEN_HELMET
+          display-name: '&6Gilded Straw Hat'
+          armor: 2
+          health: 15
+          farming-fortune: 25
+          lore:
+            - '&7Woven with golden threads.'
+            - '&6Farming Fortune: &f+25'
+            - ''
+            - '&5EPIC &8HELMET'
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: '&6Gilded Overalls'
+          armor: 5
+          health: 20
+          farming-fortune: 30
+          lore:
+            - '&7Reinforced for long days in the field.'
+            - '&6Farming Fortune: &f+30'
+            - ''
+            - '&5EPIC &8CHESTPLATE'
+        leggings:
+          material: LEATHER_LEGGINGS
+          display-name: '&6Gilded Chaps'
+          armor: 4
+          health: 15
+          farming-fortune: 25
+          lore:
+            - '&7Lightweight and durable.'
+            - '&6Farming Fortune: &f+25'
+            - ''
+            - '&5EPIC &8LEGGINGS'
+        boots:
+          material: GOLDEN_BOOTS
+          display-name: '&6Gilded Wellies'
+          armor: 2
+          health: 10
+          farming-fortune: 20
+          lore:
+            - '&7Waterproof and stylish.'
+            - '&6Farming Fortune: &f+20'
+            - ''
+            - '&5EPIC &8BOOTS'
+
+    dreadlord:
+      display-name: '&8Dreadlord Armor'
+      description: '&7Armor of a fallen dungeon commander.'
+      rarity: RARE
+      pieces-required: 2
+      crafting-material: custom:dread_shard
+      bonuses:
+        - '&72 Pieces: &8+5% Dungeon Damage'
+        - '&74 Pieces: &8+15% Dungeon Damage'
+      pieces:
+        helmet:
+          material: IRON_HELMET
+          display-name: '&8Dreadlord Helm'
+          armor: 4
+          health: 20
+          mana: 20
+          lore:
+            - '&7Hollow eyes stare back.'
+            - ''
+            - '&9RARE &8HELMET'
+        chestplate:
+          material: IRON_CHESTPLATE
+          display-name: '&8Dreadlord Plate'
+          armor: 8
+          health: 35
+          mana: 30
+          lore:
+            - '&7Cold to the touch.'
+            - ''
+            - '&9RARE &8CHESTPLATE'
+        leggings:
+          material: IRON_LEGGINGS
+          display-name: '&8Dreadlord Leggings'
+          armor: 6
+          health: 25
+          mana: 25
+          lore:
+            - '&7Echoes with distant screams.'
+            - ''
+            - '&9RARE &8LEGGINGS'
+        boots:
+          material: IRON_BOOTS
+          display-name: '&8Dreadlord Boots'
+          armor: 3
+          health: 15
+          mana: 15
+          lore:
+            - '&7Step into the darkness.'
+            - ''
+            - '&9RARE &8BOOTS'
+
+    necromancer:
+      display-name: '&2Necromancer Lord'
+      description: '&7Command the dead with this ancient set.'
+      rarity: LEGENDARY
+      pieces-required: 2
+      crafting-material: custom:necromancer_brooch
+      bonuses:
+        - '&72 Pieces: &2+100 Health &7per summoned soul'
+        - '&74 Pieces: &2+200 Mana &7and &f+20% &7Defense'
+      pieces:
+        helmet:
+          material: DIAMOND_HELMET
+          display-name: '&2Necromancer Mask'
+          armor: 5
+          health: 60
+          mana: 100
+          lore:
+            - '&7A mask of pure obsidian.'
+            - ''
+            - '&6LEGENDARY &8HELMET'
+        chestplate:
+          material: DIAMOND_CHESTPLATE
+          display-name: '&2Necromancer Chestplate'
+          armor: 12
+          health: 120
+          mana: 150
+          lore:
+            - '&7Reinforced with dragon bone.'
+            - ''
+            - '&6LEGENDARY &8CHESTPLATE'
+        leggings:
+          material: DIAMOND_LEGGINGS
+          display-name: '&2Necromancer Leggings'
+          armor: 9
+          health: 90
+          mana: 120
+          lore:
+            - '&7Inscribed with forbidden runes.'
+            - ''
+            - '&6LEGENDARY &8LEGGINGS'
+        boots:
+          material: DIAMOND_BOOTS
+          display-name: '&2Necromancer Boots'
+          armor: 5
+          health: 50
+          mana: 80
+          lore:
+            - '&7Silent as the grave.'
+            - ''
+            - '&6LEGENDARY &8BOOTS'
 
 floors:
   F1:
@@ -962,3 +2482,167 @@ floors:
       D:
         - "give {player} bamboo 14"
         - "give {player} emerald 14"
+
+  F5:
+    display-name: "Shadow Dojo V (Livid)"
+    min-party-size: 4
+    max-party-size: 5
+    combat-rooms: 8
+    puzzle-rooms: 3
+    treasure-rooms: 2
+    puzzle-types:
+      - SEQUENCE
+      - SYNC
+      - CHIME
+      - SEAL
+    room-size: 33
+    base-mob-count: 14
+    mob-health-multiplier: 3.4
+    mob-damage-tier: 5
+    folklore-mobs:
+      enabled: true
+      pool:
+        - ONI_BRUTE
+        - TENGU_SKIRMISHER
+        - KAPPA_RAIDER
+        - ONRYO_WRAITH
+        - JOROGUMO_WEAVER
+        - KITSUNE_TRICKSTER
+        - GASHADOKURO_SENTINEL
+    mob-pool:
+      - WITHER_SKELETON
+      - EVOKER
+      - VINDICATOR
+      - ENDERMAN
+      - PILLAGER
+    boss-type: ENDERMAN
+    boss-name: "Shadow Shogun Livid"
+    boss-health-multiplier: 22.0
+    floor-material: CHISELED_DEEPSLATE
+    wall-material: BLACKSTONE
+    rewards:
+      S:
+        - "give {player} netherite_scrap 4"
+        - "give {player} emerald 120"
+        - "give {player} diamond 28"
+        - "give {player} totem_of_undying 1"
+        - "give {player} nether_star 2"
+      A:
+        - "give {player} netherite_scrap 2"
+        - "give {player} emerald 86"
+        - "give {player} diamond 20"
+        - "give {player} totem_of_undying 1"
+      B:
+        - "give {player} emerald 60"
+        - "give {player} diamond 14"
+        - "give {player} blaze_rod 12"
+      C:
+        - "give {player} emerald 40"
+        - "give {player} diamond 10"
+      D:
+        - "give {player} emerald 26"
+        - "give {player} diamond 6"
+
+resource-pack:
+  enabled: true
+  required: true
+  url: ""             # If empty, the built-in local server will host the zip below.
+  hash: ""            # Optional SHA-1 of the zip; auto-computed when local hosting.
+  prompt: "&eThis pack enables custom item textures. Accept?"
+  local:
+    enabled: true
+    file: "resource-pack.zip"   # Place your pack zip in plugins/Grivience/resource-pack.zip
+    host: "localhost"
+    port: 8765
+  models:
+    oni_cleaver: 1001
+    tengu_galeblade: 1002
+    tengu_stormbow: 1003
+    tengu_shortbow: 1004
+    kappa_tidebreaker: 1005
+    onryo_spiritblade: 1006
+    onryo_shortbow: 1007
+    jorogumo_stinger: 1008
+    jorogumo_shortbow: 1009
+    kitsune_fang: 1010
+    kitsune_dawnbow: 1011
+    kitsune_shortbow: 1012
+    gashadokuro_nodachi: 1013
+    flying_raijin: 1014
+    ironcrest_drill: 1015
+    mithril_drill: 1016
+    titanium_drill: 1017
+    gemstone_drill: 1018
+  name-map:
+    oni_cleaver: "Demon Lord's Sword"
+    tengu_galeblade: "Chrono Blade"
+    tengu_stormbow: "Crescent Rose"
+    tengu_shortbow: "Amethyst Shuriken"
+    kappa_tidebreaker: "Ocean's Rage"
+    onryo_spiritblade: "Ashura's Blade"
+    onryo_shortbow: "Cyber Katana"
+    jorogumo_stinger: "Demonic Blade"
+    jorogumo_shortbow: "Demonic Cleaver"
+    kitsune_fang: "Divine Justice"
+    kitsune_dawnbow: "Edge Of The Astral Plane"
+    kitsune_shortbow: "Ancient Royal Great Sword"
+    gashadokuro_nodachi: "Demon Lord's Great Axe"
+    flying_raijin: "Creation Splitter"
+    ironcrest_drill: "Ironcrest Drill"
+    mithril_drill: "Mithril Drill"
+    titanium_drill: "Titanium Drill"
+    gemstone_drill: "Gemstone Drill"
+    gemstone_engine: "Gemstone Engine"
+    divan_engine: "Divan Engine"
+
+jump-pads:
+  # Hypixel-like baseline: snappy horizontal carry with a clear upward pop.
+  horizontal-velocity: 2.20
+  vertical-boost: 1.04
+  arrival-teleport-delay-ticks: 15
+  cooldown-ms: 450
+  fall-cancel-window-ms: 3000
+  hypixel-effects: true
+  min-vertical-speed: 0.58
+  max-vertical-speed: 1.42
+  max-horizontal-speed: 3.85
+
+# Storage System Configuration
+# Skyblock-style storage with multiple types and upgrades
+storage:
+  # Enable the storage system
+  enabled: true
+  
+  # Auto-save settings
+  auto-save:
+    enabled: true
+    interval-ticks: 600  # 30 seconds
+  
+  # Storage locking feature
+  allow-locking: true
+  
+  # Custom naming of storage
+  allow-naming: true
+  
+  # Usage warning threshold (percentage)
+  usage-warning-threshold: 90
+  
+  # Enable storage leaderboard
+  enable-leaderboard: true
+  
+  # Enable upgrade notifications
+  enable-upgrade-notifications: true
+  
+  # Permission settings
+  permissions:
+    # Default permissions for all players
+    default:
+      - storage.personal
+      - storage.ender
+    # VIP permissions
+    vip:
+      - storage.vault
+      - storage.backpack
+    # MVP permissions
+    mvp:
+      - storage.warehouse

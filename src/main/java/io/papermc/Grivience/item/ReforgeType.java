@@ -8,49 +8,104 @@ import java.util.List;
 import java.util.Locale;
 
 public enum ReforgeType {
-    JAGGED(
-            "Jagged",
+    GENTLE(
+            "Gentle",
+            ChatColor.GREEN,
+            true,
+            stats(0, 3, 0, 0, 8, 0),
+            stats(0, 5, 0, 0, 10, 0),
+            stats(0, 7, 0, 0, 15, 0),
+            stats(0, 10, 0, 0, 20, 0),
+            stats(0, 15, 0, 0, 25, 0),
+            stats(0, 20, 0, 0, 30, 0)
+    ),
+    ODD(
+            "Odd",
+            ChatColor.YELLOW,
+            true,
+            stats(0, 0, 12, 10, 0, -5),
+            stats(0, 0, 15, 15, 0, -10),
+            stats(0, 0, 15, 15, 0, -18),
+            stats(0, 0, 20, 22, 0, -32),
+            stats(0, 0, 25, 30, 0, -50),
+            stats(0, 0, 30, 40, 0, -75)
+    ),
+    FAST(
+            "Fast",
+            ChatColor.AQUA,
+            true,
+            stats(0, 0, 0, 0, 10, 0),
+            stats(0, 0, 0, 0, 20, 0),
+            stats(0, 0, 0, 0, 30, 0),
+            stats(0, 0, 0, 0, 40, 0),
+            stats(0, 0, 0, 0, 50, 0),
+            stats(0, 0, 0, 0, 60, 0)
+    ),
+    FAIR(
+            "Fair",
+            ChatColor.LIGHT_PURPLE,
+            true,
+            stats(0, 2, 2, 2, 2, 2),
+            stats(0, 3, 3, 3, 3, 3),
+            stats(0, 4, 4, 4, 4, 4),
+            stats(0, 7, 7, 7, 7, 7),
+            stats(0, 10, 10, 10, 10, 10),
+            stats(0, 12, 12, 12, 12, 12)
+    ),
+    EPIC(
+            "Epic",
+            ChatColor.DARK_PURPLE,
+            true,
+            stats(0, 15, 0, 10, 1, 0),
+            stats(0, 20, 0, 15, 2, 0),
+            stats(0, 25, 0, 20, 4, 0),
+            stats(0, 32, 0, 27, 7, 0),
+            stats(0, 40, 0, 35, 10, 0),
+            stats(0, 50, 0, 45, 15, 0)
+    ),
+    SHARP(
+            "Sharp",
+            ChatColor.BLUE,
+            true,
+            stats(0, 0, 10, 20, 0, 0),
+            stats(0, 0, 12, 30, 0, 0),
+            stats(0, 0, 14, 40, 0, 0),
+            stats(0, 0, 17, 55, 0, 0),
+            stats(0, 0, 20, 75, 0, 0),
+            stats(0, 0, 25, 90, 0, 0)
+    ),
+    HEROIC(
+            "Heroic",
+            ChatColor.DARK_AQUA,
+            true,
+            stats(0, 15, 0, 0, 1, 40),
+            stats(0, 20, 0, 0, 2, 50),
+            stats(0, 25, 0, 0, 2, 65),
+            stats(0, 32, 0, 0, 3, 80),
+            stats(0, 40, 0, 0, 5, 100),
+            stats(0, 50, 0, 0, 7, 125)
+    ),
+    SPICY(
+            "Spicy",
             ChatColor.RED,
             true,
-            stats(12.0D, 8.0D, 4.0D, 10.0D),
-            stats(14.0D, 10.0D, 5.0D, 13.0D),
-            stats(17.0D, 13.0D, 6.0D, 17.0D),
-            stats(21.0D, 17.0D, 8.0D, 23.0D),
-            stats(25.0D, 22.0D, 10.0D, 30.0D),
-            stats(30.0D, 28.0D, 12.0D, 38.0D)
+            stats(0, 2, 1, 25, 1, 0),
+            stats(0, 3, 1, 35, 2, 0),
+            stats(0, 4, 1, 45, 4, 0),
+            stats(0, 7, 1, 60, 7, 0),
+            stats(0, 10, 1, 80, 10, 0),
+            stats(0, 12, 1, 100, 15, 0)
     ),
-    TITANIC(
-            "Titanic",
+    LEGENDARY(
+            "Legendary",
             ChatColor.GOLD,
             true,
-            stats(6.0D, 28.0D, 0.0D, 10.0D),
-            stats(7.0D, 32.0D, 0.0D, 12.0D),
-            stats(9.0D, 38.0D, 0.0D, 16.0D),
-            stats(12.0D, 46.0D, 1.0D, 22.0D),
-            stats(15.0D, 55.0D, 2.0D, 29.0D),
-            stats(19.0D, 68.0D, 3.0D, 37.0D)
-    ),
-    ARCANE(
-            "Arcane",
-            ChatColor.LIGHT_PURPLE,
-            false,
-            stats(0.0D, 7.0D, 7.0D, 20.0D),
-            stats(0.0D, 9.0D, 8.0D, 24.0D),
-            stats(2.0D, 12.0D, 10.0D, 30.0D),
-            stats(4.0D, 16.0D, 12.0D, 38.0D),
-            stats(6.0D, 21.0D, 14.0D, 48.0D),
-            stats(8.0D, 28.0D, 17.0D, 60.0D)
-    ),
-    TEMPEST(
-            "Tempest",
-            ChatColor.AQUA,
-            false,
-            stats(8.0D, 14.0D, 5.0D, 12.0D),
-            stats(10.0D, 17.0D, 6.0D, 15.0D),
-            stats(12.0D, 22.0D, 8.0D, 20.0D),
-            stats(16.0D, 28.0D, 10.0D, 26.0D),
-            stats(21.0D, 35.0D, 12.0D, 33.0D),
-            stats(27.0D, 44.0D, 15.0D, 42.0D)
+            stats(0, 3, 5, 5, 2, 5),
+            stats(0, 7, 7, 10, 3, 8),
+            stats(0, 12, 9, 15, 5, 12),
+            stats(0, 18, 12, 22, 7, 18),
+            stats(0, 25, 15, 28, 10, 25),
+            stats(0, 32, 18, 36, 15, 35)
     );
 
     private final String displayName;
@@ -125,16 +180,27 @@ public enum ReforgeType {
             double damageBonus,
             double strengthBonus,
             double critChanceBonus,
-            double critDamageBonus
+            double critDamageBonus,
+            double attackSpeedBonus,
+            double intelligenceBonus
     ) {
-        return new ReforgeStatProfile(damageBonus, strengthBonus, critChanceBonus, critDamageBonus);
+        return new ReforgeStatProfile(
+                damageBonus,
+                strengthBonus,
+                critChanceBonus,
+                critDamageBonus,
+                attackSpeedBonus,
+                intelligenceBonus
+        );
     }
 
     public record ReforgeStatProfile(
             double damageBonus,
             double strengthBonus,
             double critChanceBonus,
-            double critDamageBonus
+            double critDamageBonus,
+            double attackSpeedBonus,
+            double intelligenceBonus
     ) {
     }
 }

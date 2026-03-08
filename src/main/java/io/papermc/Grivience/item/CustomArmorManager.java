@@ -9,10 +9,12 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -54,8 +56,15 @@ public final class CustomArmorManager {
         ItemStack item = new ItemStack(pieceConfig.getMaterial());
         ItemMeta meta = item.getItemMeta();
 
-        meta.setDisplayName(pieceConfig.getDisplayName());
-        meta.setLore(pieceConfig.getLore());
+        List<String> rawLore = pieceConfig.getLore() == null ? List.of() : pieceConfig.getLore();
+        ItemRarity rarity = rarityFromLore(rawLore, ItemRarity.RARE);
+
+        String baseName = ChatColor.stripColor(pieceConfig.getDisplayName());
+        if (baseName == null || baseName.isBlank()) {
+            baseName = pieceType.name();
+        }
+        meta.setDisplayName(rarity.color() + baseName);
+        meta.setLore(normalizeLore(rawLore, rarity, pieceType));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
 
         if (pieceConfig.isGlowing()) {
@@ -76,20 +85,131 @@ public final class CustomArmorManager {
         // Apply custom stats
         if (pieceConfig.getArmorValue() > 0) {
             meta.addAttributeModifier(org.bukkit.attribute.Attribute.ARMOR,
-                    new org.bukkit.attribute.AttributeModifier(UUID.randomUUID(), "generic.armor",
-                            pieceConfig.getArmorValue(), org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
+                    new org.bukkit.attribute.AttributeModifier(
+                            new NamespacedKey(plugin, "armor_" + pieceType.name().toLowerCase()),
+                            pieceConfig.getArmorValue(),
+                            org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
                             slotGroup));
         }
 
         if (pieceConfig.getToughness() > 0) {
             meta.addAttributeModifier(org.bukkit.attribute.Attribute.ARMOR_TOUGHNESS,
-                    new org.bukkit.attribute.AttributeModifier(UUID.randomUUID(), "generic.armor_toughness",
-                            pieceConfig.getToughness(), org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
+                    new org.bukkit.attribute.AttributeModifier(
+                            new NamespacedKey(plugin, "armor_toughness_" + pieceType.name().toLowerCase()),
+                            pieceConfig.getToughness(),
+                            org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
+                            slotGroup));
+        }
+
+        if (pieceConfig.getHealthBonus() > 0) {
+            meta.addAttributeModifier(org.bukkit.attribute.Attribute.MAX_HEALTH,
+                    new org.bukkit.attribute.AttributeModifier(
+                            new NamespacedKey(plugin, "armor_health_" + pieceType.name().toLowerCase()),
+                            pieceConfig.getHealthBonus(),
+                            org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
                             slotGroup));
         }
 
         item.setItemMeta(meta);
         return item;
+    }
+
+    private List<String> normalizeLore(List<String> lore, ItemRarity rarity, ArmorPieceType pieceType) {
+        List<String> normalized = new ArrayList<>();
+        if (lore != null) {
+            for (String line : lore) {
+                if (line != null) {
+                    normalized.add(line);
+                }
+            }
+        }
+
+        // Remove any existing rarity/type line and re-append it Hypixel-style.
+        int rarityIndex = findRarityLineIndex(normalized, pieceType);
+        if (rarityIndex != -1) {
+            normalized.remove(rarityIndex);
+        }
+
+        // Trim trailing blanks.
+        while (!normalized.isEmpty()) {
+            String last = normalized.get(normalized.size() - 1);
+            if (last == null || last.isBlank()) {
+                normalized.remove(normalized.size() - 1);
+                continue;
+            }
+            break;
+        }
+
+        if (!normalized.isEmpty()) {
+            normalized.add("");
+        }
+        String rarityName = rarity == null ? "RARE" : rarity.name();
+        String typeName = pieceType == null ? "HELMET" : pieceType.name();
+        normalized.add((rarity == null ? ChatColor.BLUE : rarity.color()) + "" + ChatColor.BOLD + rarityName + " " + typeName);
+        return normalized;
+    }
+
+    private int findRarityLineIndex(List<String> lore, ArmorPieceType pieceType) {
+        if (lore == null || lore.isEmpty()) {
+            return -1;
+        }
+
+        String requiredType = pieceType == null ? null : pieceType.name();
+        for (int i = lore.size() - 1; i >= 0; i--) {
+            String line = lore.get(i);
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+            String plain = ChatColor.stripColor(line);
+            if (plain == null) {
+                continue;
+            }
+            String upper = plain.trim().toUpperCase(Locale.ROOT);
+            if (upper.contains("MYTHIC") || upper.contains("LEGENDARY") || upper.contains("EPIC")
+                    || upper.contains("RARE") || upper.contains("UNCOMMON") || upper.contains("COMMON")) {
+                if (requiredType != null && !upper.contains(requiredType) && !upper.contains("ARMOR")) {
+                    continue;
+                }
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private ItemRarity rarityFromLore(List<String> lore, ItemRarity fallback) {
+        if (lore == null) {
+            return fallback;
+        }
+        for (int i = lore.size() - 1; i >= 0; i--) {
+            String line = lore.get(i);
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+            String plain = ChatColor.stripColor(line);
+            if (plain == null) {
+                continue;
+            }
+            String upper = plain.toUpperCase(Locale.ROOT);
+            if (upper.contains("MYTHIC")) {
+                return ItemRarity.MYTHIC;
+            }
+            if (upper.contains("LEGENDARY")) {
+                return ItemRarity.LEGENDARY;
+            }
+            if (upper.contains("EPIC")) {
+                return ItemRarity.EPIC;
+            }
+            if (upper.contains("RARE")) {
+                return ItemRarity.RARE;
+            }
+            if (upper.contains("UNCOMMON")) {
+                return ItemRarity.UNCOMMON;
+            }
+            if (upper.contains("COMMON")) {
+                return ItemRarity.COMMON;
+            }
+        }
+        return fallback;
     }
 
     public String getArmorSetId(ItemStack item) {
@@ -114,6 +234,89 @@ public final class CustomArmorManager {
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    public double manaBonus(ItemStack item) {
+        String setId = getArmorSetId(item);
+        ArmorPieceType type = getArmorPieceType(item);
+        if (setId == null || type == null) {
+            return 0.0D;
+        }
+        CustomArmorSet set = armorSets.get(setId);
+        if (set == null) {
+            return 0.0D;
+        }
+        ArmorPieceConfig cfg = set.getPiece(type);
+        return cfg == null ? 0.0D : cfg.getManaBonus();
+    }
+
+    public double critChanceBonus(ItemStack item) {
+        String setId = getArmorSetId(item);
+        ArmorPieceType type = getArmorPieceType(item);
+        if (setId == null || type == null) {
+            return 0.0D;
+        }
+        CustomArmorSet set = armorSets.get(setId);
+        if (set == null) {
+            return 0.0D;
+        }
+        ArmorPieceConfig cfg = set.getPiece(type);
+        return cfg == null ? 0.0D : cfg.getCritChanceBonus();
+    }
+
+    public double critDamageBonus(ItemStack item) {
+        String setId = getArmorSetId(item);
+        ArmorPieceType type = getArmorPieceType(item);
+        if (setId == null || type == null) {
+            return 0.0D;
+        }
+        CustomArmorSet set = armorSets.get(setId);
+        if (set == null) {
+            return 0.0D;
+        }
+        ArmorPieceConfig cfg = set.getPiece(type);
+        return cfg == null ? 0.0D : cfg.getCritDamageBonus();
+    }
+
+    public double farmingFortuneBonus(ItemStack item) {
+        String setId = getArmorSetId(item);
+        ArmorPieceType type = getArmorPieceType(item);
+        if (setId == null || type == null) {
+            return 0.0D;
+        }
+        CustomArmorSet set = armorSets.get(setId);
+        if (set == null) {
+            return 0.0D;
+        }
+        ArmorPieceConfig cfg = set.getPiece(type);
+        return cfg == null ? 0.0D : cfg.getFarmingFortuneBonus();
+    }
+
+    public double totalCritChanceBonus(Player player) {
+        double total = 0.0D;
+        if (player == null) return total;
+        for (ItemStack piece : player.getInventory().getArmorContents()) {
+            total += critChanceBonus(piece);
+        }
+        return total;
+    }
+
+    public double totalCritDamageBonus(Player player) {
+        double total = 0.0D;
+        if (player == null) return total;
+        for (ItemStack piece : player.getInventory().getArmorContents()) {
+            total += critDamageBonus(piece);
+        }
+        return total;
+    }
+
+    public double totalFarmingFortuneBonus(Player player) {
+        double total = 0.0D;
+        if (player == null) return total;
+        for (ItemStack piece : player.getInventory().getArmorContents()) {
+            total += farmingFortuneBonus(piece);
+        }
+        return total;
     }
 
     public boolean isCustomArmor(ItemStack item) {
@@ -157,8 +360,13 @@ public final class CustomArmorManager {
                 int armorValue = plugin.getConfig().getInt(piecePath + ".armor", 0);
                 double toughness = plugin.getConfig().getDouble(piecePath + ".toughness", 0);
                 boolean glowing = plugin.getConfig().getBoolean(piecePath + ".glowing", false);
+                double manaBonus = plugin.getConfig().getDouble(piecePath + ".mana", 0.0D);
+                double healthBonus = plugin.getConfig().getDouble(piecePath + ".health", 0.0D);
+                double critChance = plugin.getConfig().getDouble(piecePath + ".crit-chance", 0.0D);
+                double critDamage = plugin.getConfig().getDouble(piecePath + ".crit-damage", 0.0D);
+                double farmingFortune = plugin.getConfig().getDouble(piecePath + ".farming-fortune", 0.0D);
 
-                pieces.put(pieceType, new ArmorPieceConfig(material, pieceName, lore, armorValue, toughness, glowing));
+                pieces.put(pieceType, new ArmorPieceConfig(material, pieceName, lore, armorValue, toughness, glowing, manaBonus, healthBonus, critChance, critDamage, farmingFortune));
             }
         }
 
@@ -237,15 +445,27 @@ public final class CustomArmorManager {
         private final int armorValue;
         private final double toughness;
         private final boolean glowing;
+        private final double manaBonus;
+        private final double healthBonus;
+        private final double critChanceBonus;
+        private final double critDamageBonus;
+        private final double farmingFortuneBonus;
 
         public ArmorPieceConfig(Material material, String displayName, List<String> lore,
-                                int armorValue, double toughness, boolean glowing) {
+                                int armorValue, double toughness, boolean glowing, double manaBonus,
+                                double healthBonus, double critChanceBonus, double critDamageBonus,
+                                double farmingFortuneBonus) {
             this.material = material;
             this.displayName = displayName;
             this.lore = lore;
             this.armorValue = armorValue;
             this.toughness = toughness;
             this.glowing = glowing;
+            this.manaBonus = manaBonus;
+            this.healthBonus = healthBonus;
+            this.critChanceBonus = critChanceBonus;
+            this.critDamageBonus = critDamageBonus;
+            this.farmingFortuneBonus = farmingFortuneBonus;
         }
 
         public Material getMaterial() {
@@ -270,6 +490,26 @@ public final class CustomArmorManager {
 
         public boolean isGlowing() {
             return glowing;
+        }
+
+        public double getManaBonus() {
+            return manaBonus;
+        }
+
+        public double getHealthBonus() {
+            return healthBonus;
+        }
+
+        public double getCritChanceBonus() {
+            return critChanceBonus;
+        }
+
+        public double getCritDamageBonus() {
+            return critDamageBonus;
+        }
+
+        public double getFarmingFortuneBonus() {
+            return farmingFortuneBonus;
         }
     }
 }

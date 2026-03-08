@@ -103,6 +103,7 @@ public final class SanityCheckCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GRAY + "Custom item keys tracked: " + customItemService.allItemKeys().size());
     }
 
+    @SuppressWarnings("removal")
     private void reportMobs(CommandSender sender) {
         World world = islandManager.getIslandWorld();
         sender.sendMessage(ChatColor.YELLOW + "=== Mob Spawn Sanity ===");
@@ -111,12 +112,12 @@ public final class SanityCheckCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        Boolean gamerule = world.getGameRuleValue(GameRule.DO_MOB_SPAWNING);
+        String gamerule = world.getGameRuleValue("doMobSpawning");
         boolean allowMonsters = world.getAllowMonsters();
         boolean generatorMobs = world.getGenerator() != null && world.getGenerator().shouldGenerateMobs();
 
         sender.sendMessage(statLine("World", world.getName()));
-        sender.sendMessage(statLine("GameRule DO_MOB_SPAWNING", gamerule == null ? "null" : gamerule.toString()));
+        sender.sendMessage(statLine("GameRule DO_MOB_SPAWNING", gamerule == null ? "null" : gamerule));
         sender.sendMessage(statLine("World allowMonsters", allowMonsters));
         sender.sendMessage(statLine("Generator shouldGenerateMobs", generatorMobs));
     }
@@ -141,3 +142,4 @@ public final class SanityCheckCommand implements CommandExecutor, TabCompleter {
         return List.of();
     }
 }
+

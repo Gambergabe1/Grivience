@@ -57,6 +57,9 @@ public final class ArmorCraftingListener implements Listener {
         }
 
         player.sendMessage(ChatColor.GREEN + "Crafted custom armor piece!");
+        
+        // Award Carpentry XP
+        plugin.getSkyblockLevelManager().recordCarpentry(player, 10);
     }
 
     private boolean hasRequiredMaterials(Player player) {

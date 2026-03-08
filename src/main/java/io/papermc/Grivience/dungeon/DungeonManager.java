@@ -61,7 +61,7 @@ public final class DungeonManager {
     }
 
     public void reloadFromConfig() {
-        dungeonWorldName = plugin.getConfig().getString("dungeons.world", "world");
+        dungeonWorldName = plugin.getConfig().getString("dungeons.world", "dungeons");
         exitWorldName = plugin.getConfig().getString("dungeons.exit-world", dungeonWorldName);
 
         double x = plugin.getConfig().getDouble("dungeons.origin.x", 0.0D);
@@ -168,6 +168,10 @@ public final class DungeonManager {
         return sessionsByPlayer.containsKey(playerId);
     }
 
+    public boolean isPartyInDungeon(UUID partyId) {
+        return partyId != null && sessionsByParty.containsKey(partyId);
+    }
+
     public boolean areInSameSession(UUID first, UUID second) {
         if (first == null || second == null) {
             return false;
@@ -189,6 +193,18 @@ public final class DungeonManager {
 
     public void untrackMob(UUID mobId) {
         sessionsByMob.remove(mobId);
+    }
+
+    public boolean hasRewardPool() {
+        return rewardChestManager != null && rewardChestManager.hasPool();
+    }
+
+    public boolean openRewardChest(Player player, String floorId, String grade, int score, Runnable afterClaim) {
+        if (rewardChestManager == null || !rewardChestManager.hasPool()) {
+            return false;
+        }
+        rewardChestManager.openRewardChest(player, floorId, grade, score, afterClaim);
+        return true;
     }
 
     public void handleMobDeath(EntityDeathEvent event) {
@@ -229,11 +245,15 @@ public final class DungeonManager {
         }
     }
 
-    public void handlePlayerInteract(Player player, Action action, Block clickedBlock) {
-        DungeonSession session = sessionsByPlayer.get(player.getUniqueId());
-        if (session != null) {
-            session.handlePlayerInteract(player, action, clickedBlock);
+    public boolean handlePlayerInteract(Player player, Action action, Block clickedBlock) {
+        if (player == null) {
+            return false;
         }
+        DungeonSession session = sessionsByPlayer.get(player.getUniqueId());
+        if (session == null) {
+            return false;
+        }
+        return session.handlePlayerInteract(player, action, clickedBlock);
     }
 
     public void handlePlayerMove(Player player, Location from, Location to) {
@@ -258,8 +278,7 @@ public final class DungeonManager {
         sessionsByMob.entrySet().removeIf(entry -> entry.getValue() == session);
         freeArenaSlots.offer(session.arenaSlot());
 
-        boolean useRewardChest = success && rewardChestManager != null && rewardChestManager.hasPool();
-        if (success && !useRewardChest) {
+        if (success) {
             executeRewards(session, grade, score);
         }
 
@@ -273,9 +292,8 @@ public final class DungeonManager {
             if (success) {
                 player.sendMessage(ChatColor.GOLD + "[Dungeon] " + ChatColor.GREEN + "Grade: " + grade + ChatColor.GRAY
                         + " | Score: " + score + ChatColor.GRAY + " | Time: " + formatTime(elapsedSeconds));
-                if (useRewardChest) {
-                    rewardChestManager.openRewardChest(player, session.floor().id(), grade, score, () -> sendPlayerToExit(player));
-                    continue;
+                if (plugin.getSkyblockLevelManager() != null) {
+                    plugin.getSkyblockLevelManager().recordDungeonCompletion(player, session.floor().id(), grade, score);
                 }
             } else {
                 player.sendMessage(ChatColor.GOLD + "[Dungeon] " + ChatColor.RED + "Run failed.");

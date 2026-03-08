@@ -1,12 +1,20 @@
 package io.papermc.Grivience.listener;
 
 import io.papermc.Grivience.dungeon.DungeonManager;
-import io.papermc.Grivience.hook.AuraSkillsHook;
+import io.papermc.Grivience.stats.SkyblockCombatEngine;
+import io.papermc.Grivience.stats.SkyblockManaManager;
+import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.item.CustomItemService;
+import io.papermc.Grivience.item.CustomWeaponProfiles;
 import io.papermc.Grivience.item.CustomWeaponType;
 import io.papermc.Grivience.item.ReforgeType;
 import io.papermc.Grivience.party.PartyManager;
+import io.papermc.Grivience.dungeon.DungeonSession;
+import io.papermc.Grivience.stats.SkyblockPlayerStats;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import io.papermc.Grivience.util.DamageIndicatorUtil;
+import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -38,21 +46,31 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import io.papermc.Grivience.enchantment.EnchantmentRegistry;
+import io.papermc.Grivience.enchantment.SkyblockEnchantStorage;
+import io.papermc.Grivience.skills.SkyblockSkill;
+import io.papermc.Grivience.skills.SkyblockSkillManager;
+import org.bukkit.Bukkit;
 
 public final class CustomWeaponCombatListener implements Listener {
     private final JavaPlugin plugin;
     private final CustomItemService customItemService;
-    private final AuraSkillsHook auraSkillsHook;
+    private final SkyblockCombatEngine combatEngine;
+    private final SkyblockManaManager manaManager;
     private final DungeonManager dungeonManager;
     private final PartyManager partyManager;
+    private final SkyblockEnchantStorage enchantStorage;
+    private SkyblockSkillManager skillManager;
     private final Map<UUID, EnumMap<CustomWeaponType, Long>> abilityCooldowns = new HashMap<>();
     private final Map<UUID, ItemStack> trackedProjectileWeapons = new HashMap<>();
     private final Set<UUID> abilityDamageContext = new HashSet<>();
@@ -61,13 +79,10 @@ public final class CustomWeaponCombatListener implements Listener {
     private boolean abilitiesEnabled;
     private boolean abilityRightClickBlocks;
     private boolean notifyCooldown;
-    private boolean requireAuraForAbilities;
     private boolean instantBowShotsEnabled;
 
     private double baseDamageScale;
     private double strengthScaling;
-    private double baseCritChance;
-    private double baseCritDamagePercent;
 
     private double abilityDamageScale;
     private double abilityManaScale;
@@ -78,31 +93,36 @@ public final class CustomWeaponCombatListener implements Listener {
     public CustomWeaponCombatListener(
             JavaPlugin plugin,
             CustomItemService customItemService,
-            AuraSkillsHook auraSkillsHook,
+            SkyblockCombatEngine combatEngine,
+            SkyblockManaManager manaManager,
             DungeonManager dungeonManager,
             PartyManager partyManager
     ) {
         this.plugin = plugin;
         this.customItemService = customItemService;
-        this.auraSkillsHook = auraSkillsHook;
+        this.combatEngine = combatEngine;
+        this.manaManager = manaManager;
         this.dungeonManager = dungeonManager;
         this.partyManager = partyManager;
+        this.enchantStorage = new SkyblockEnchantStorage(plugin);
+    }
+
+    public void setSkillManager(SkyblockSkillManager skillManager) {
+        this.skillManager = skillManager;
     }
 
     public void reloadFromConfig() {
         combatEnabled = plugin.getConfig().getBoolean("custom-items.combat.enabled", true);
         abilitiesEnabled = plugin.getConfig().getBoolean("custom-items.combat.mana-abilities.enabled", true);
-        abilityRightClickBlocks = plugin.getConfig().getBoolean("custom-items.combat.mana-abilities.allow-right-click-block", false);
+        abilityRightClickBlocks = plugin.getConfig().getBoolean("custom-items.combat.mana-abilities.allow-right-click-block", true);
         notifyCooldown = plugin.getConfig().getBoolean("custom-items.combat.mana-abilities.notify-cooldown", true);
-        requireAuraForAbilities = plugin.getConfig().getBoolean("custom-items.combat.mana-abilities.require-auraskills", true);
         instantBowShotsEnabled = plugin.getConfig().getBoolean("custom-items.combat.instant-bow-shots.enabled", true);
         instantBowVelocity = sanitizePositive(plugin.getConfig().getDouble("custom-items.combat.instant-bow-shots.arrow-velocity", 3.0D), 3.0D);
         instantBowCooldownTicks = Math.max(0, plugin.getConfig().getInt("custom-items.combat.instant-bow-shots.cooldown-ticks", 4));
 
         baseDamageScale = sanitizePositive(plugin.getConfig().getDouble("custom-items.combat.damage.base-scale", 0.04D), 0.04D);
-        strengthScaling = sanitizePositive(plugin.getConfig().getDouble("custom-items.combat.damage.strength-scaling", 0.0045D), 0.0045D);
-        baseCritChance = clamp(plugin.getConfig().getDouble("custom-items.combat.damage.base-crit-chance", 0.05D), 0.0D, 0.95D);
-        baseCritDamagePercent = sanitizePositive(plugin.getConfig().getDouble("custom-items.combat.damage.base-crit-damage-percent", 50.0D), 50.0D);
+        // Skyblock melee scaling: 1% damage per Strength.
+        strengthScaling = sanitizePositive(plugin.getConfig().getDouble("custom-items.combat.damage.strength-scaling", 0.01D), 0.01D);
 
         abilityDamageScale = sanitizePositive(plugin.getConfig().getDouble("custom-items.combat.mana-abilities.damage-scale", 0.06D), 0.06D);
         abilityManaScale = sanitizePositive(plugin.getConfig().getDouble("custom-items.combat.mana-abilities.mana-scale", 1.0D), 1.0D);
@@ -124,6 +144,9 @@ public final class CustomWeaponCombatListener implements Listener {
             return;
         }
 
+        LivingEntity victim = event.getEntity() instanceof LivingEntity le ? le : null;
+        if (victim == null) return;
+
         ItemStack weaponItem = resolveWeaponItem(attacker, event.getDamager());
         CustomWeaponType weaponType = resolveWeaponType(weaponItem);
         if (weaponType == null) {
@@ -131,26 +154,72 @@ public final class CustomWeaponCombatListener implements Listener {
         }
 
         WeaponProfile profile = applyReforge(profile(weaponType), customItemService.reforgeOf(weaponItem), weaponItem);
-        double auraStrength = auraSkillsHook.getStat(attacker, AuraSkillsHook.StatKey.STRENGTH);
-        double auraCritChance = auraSkillsHook.getStat(attacker, AuraSkillsHook.StatKey.CRIT_CHANCE);
-        double auraCritDamage = auraSkillsHook.getStat(attacker, AuraSkillsHook.StatKey.CRIT_DAMAGE);
+        SkyblockPlayerStats stats = combatEngine == null ? null : combatEngine.stats(attacker);
 
-        double vanillaDamage = Math.max(0.1D, event.getDamage());
-        double scaledBase = vanillaDamage + (profile.flatDamage() * baseDamageScale);
-        double strengthMultiplier = Math.max(0.15D, 1.0D + ((profile.strength() + auraStrength) * strengthScaling));
-        double finalDamage = scaledBase * strengthMultiplier;
+        double weaponDamage = Math.max(0.0D, profile.flatDamage());
+        double totalStrength = stats == null ? profile.strength() : stats.strength();
+        totalStrength = Math.max(0.0D, totalStrength);
 
-        double critChance = clamp(baseCritChance + ((profile.critChancePercent() + auraCritChance) / 100.0D), 0.0D, 0.95D);
-        if (ThreadLocalRandom.current().nextDouble() < critChance) {
-            double critMultiplier = Math.max(
-                    1.0D,
-                    1.0D + ((baseCritDamagePercent + profile.critDamagePercent() + auraCritDamage) / 100.0D)
-            );
-            finalDamage *= critMultiplier;
+        // --- OFFENSIVE ENCHANTS (ATTACKER) ---
+        double enchantMultiplier = 1.0;
+        
+        // Sharpness: +5% damage per level
+        int sharpness = enchantStorage.getLevel(weaponItem, EnchantmentRegistry.get("sharpness"));
+        if (sharpness > 0) enchantMultiplier += (sharpness * 0.05);
+
+        // Smite: +8% damage per level to undead
+        int smite = enchantStorage.getLevel(weaponItem, EnchantmentRegistry.get("smite"));
+        if (smite > 0 && isUndead(victim)) enchantMultiplier += (smite * 0.08);
+
+        // Bane of Arthropods: +8% damage per level to spiders/bugs
+        int bane = enchantStorage.getLevel(weaponItem, EnchantmentRegistry.get("bane_of_arthropods"));
+        if (bane > 0 && isArthropod(victim)) enchantMultiplier += (bane * 0.08);
+
+        // --- SKILL PERKS ---
+        double perkMultiplier = 1.0;
+        if (skillManager != null) {
+            double warriorPerk = skillManager.getPerkValue(attacker, SkyblockSkill.COMBAT);
+            if (warriorPerk > 0) {
+                perkMultiplier += (warriorPerk / 100.0);
+            }
+        }
+
+        // Skyblock-style melee formula (scaled to Minecraft using baseDamageScale).
+        double skyblockDamage = (weaponDamage + 5.0D) * (1.0D + (totalStrength * strengthScaling)) * enchantMultiplier * perkMultiplier;
+        double finalDamage = Math.max(0.1D, skyblockDamage * baseDamageScale * dungeonDamageScale(attacker));
+        boolean isCritical = false;
+
+        double critChancePercent = stats == null ? profile.critChancePercent() : stats.critChancePercent();
+        critChancePercent = Math.max(0.0D, critChancePercent);
+        critChancePercent = clamp(critChancePercent, 0.0D, 100.0D);
+        if (ThreadLocalRandom.current().nextDouble() < (critChancePercent / 100.0D)) {
+            isCritical = true;
+            double critDamagePercent = stats == null ? profile.critDamagePercent() : stats.critDamagePercent();
+            critDamagePercent = Math.max(0.0D, critDamagePercent);
+            double critMultiplier = 1.0D + (critDamagePercent / 100.0D);
+            finalDamage *= Math.max(1.0D, critMultiplier);
             attacker.getWorld().spawnParticle(Particle.CRIT, event.getEntity().getLocation().add(0.0D, 1.0D, 0.0D), 8, 0.35D, 0.25D, 0.35D, 0.02D);
         }
 
+        // Apply damage indicator
+        double indicatorDamage = finalDamage / baseDamageScale; // Show original Skyblock numbers
+        DamageIndicatorUtil.spawn((GriviencePlugin) plugin, event.getEntity(), indicatorDamage, isCritical);
+
         event.setDamage(Math.max(0.1D, finalDamage));
+    }
+
+    private boolean isUndead(Entity entity) {
+        return switch (entity.getType()) {
+            case ZOMBIE, ZOMBIE_VILLAGER, HUSK, DROWNED, ZOMBIE_HORSE, SKELETON, STRAY, WITHER_SKELETON, SKELETON_HORSE, PHANTOM, ZOMBIFIED_PIGLIN -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isArthropod(Entity entity) {
+        return switch (entity.getType()) {
+            case SPIDER, CAVE_SPIDER, BEE, SILVERFISH, ENDERMITE -> true;
+            default -> false;
+        };
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -227,7 +296,7 @@ public final class CustomWeaponCombatListener implements Listener {
         event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
         if (!abilitiesEnabled) {
             return;
@@ -242,15 +311,27 @@ public final class CustomWeaponCombatListener implements Listener {
         if (!rightClickAir && !rightClickBlock) {
             return;
         }
-        if (rightClickBlock && !abilityRightClickBlocks) {
-            return;
+
+        // Only block if it's a right-click on an actual interactable block like a chest, furnace, etc.
+        // We allow abilities on things like Grass, Stone, etc. even if they are technically "interactable" in some contexts.
+        if (rightClickBlock && event.getClickedBlock() != null) {
+            Material type = event.getClickedBlock().getType();
+            if (type.isInteractable() && !type.name().contains("STAIRS") && !type.name().contains("FENCE") && !type.name().contains("WALL")) {
+                // If it's a real interactable (Chest, Door, etc.), don't trigger ability.
+                return;
+            }
         }
-        if (rightClickBlock && event.getClickedBlock() != null && event.getClickedBlock().getType().isInteractable()) {
+
+        if (rightClickBlock && !abilityRightClickBlocks) {
             return;
         }
 
         Player player = event.getPlayer();
         ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType().isAir()) {
+            return;
+        }
+
         CustomWeaponType weaponType = resolveWeaponType(item);
         if (weaponType == null) {
             return;
@@ -262,6 +343,8 @@ public final class CustomWeaponCombatListener implements Listener {
             return;
         }
 
+        event.setCancelled(true); // Cancel to prevent vanilla behavior (like blocking)
+
         long now = System.currentTimeMillis();
         long cooldownRemaining = cooldownRemainingMillis(player.getUniqueId(), weaponType, now);
         if (cooldownRemaining > 0L) {
@@ -271,22 +354,22 @@ public final class CustomWeaponCombatListener implements Listener {
             return;
         }
 
+        SkyblockPlayerStats stats = combatEngine == null ? null : combatEngine.stats(player);
+        double totalIntelligence = stats == null ? profile.intelligence() : stats.intelligence();
         double manaCost = ability.manaCost() * abilityManaScale;
-        if (manaCost > 0.0D) {
-            if (!auraSkillsHook.isAvailable()) {
-                if (requireAuraForAbilities) {
-                    player.sendMessage(ChatColor.RED + "AuraSkills is required to use mana abilities.");
-                    return;
-                }
-            } else if (!auraSkillsHook.consumeMana(player, manaCost)) {
-                player.sendMessage(ChatColor.RED + "Not enough mana.");
-                return;
-            }
+        if (totalIntelligence != 0.0D) {
+            double reductionFactor = 1.0D - (totalIntelligence / 400.0D);
+            reductionFactor = Math.min(1.5D, Math.max(0.25D, reductionFactor));
+            manaCost *= reductionFactor;
+        }
+        if (manaCost > 0.0D && !manaManager.consume(player, manaCost)) {
+            player.sendMessage(ChatColor.RED + "Not enough mana! " + ChatColor.AQUA + "You need " + (int)Math.round(manaCost) + " Mana.");
+            return;
         }
 
         long cooldownMillis = Math.max(500L, Math.round(ability.cooldownSeconds() * abilityCooldownScale * 1000.0D));
         setCooldown(player.getUniqueId(), weaponType, now + cooldownMillis);
-        castAbility(player, profile, ability);
+        castAbility(player, profile, ability, manaCost, totalIntelligence);
     }
 
     private boolean isInstantBowWeapon(CustomWeaponType weaponType) {
@@ -452,11 +535,15 @@ public final class CustomWeaponCombatListener implements Listener {
         cooldownByWeapon.put(type, expiresAt);
     }
 
-    private void castAbility(Player player, WeaponProfile profile, WeaponAbility ability) {
-        double auraStrength = auraSkillsHook.getStat(player, AuraSkillsHook.StatKey.STRENGTH);
-        double strengthMultiplier = Math.max(0.2D, 1.0D + ((profile.strength() + auraStrength) * strengthScaling));
-        double baseAbilityDamage = Math.max(2.0D, profile.flatDamage() * abilityDamageScale * ability.damageMultiplier() * strengthMultiplier);
-        player.sendMessage(ChatColor.AQUA + "Used " + ability.name() + ChatColor.GRAY + " (" + Math.round(ability.manaCost() * abilityManaScale) + " mana)");
+    private void castAbility(Player player, WeaponProfile profile, WeaponAbility ability, double manaCostUsed, double totalIntelligence) {
+        double totalStrength = combatEngine == null ? profile.strength() : combatEngine.stats(player).strength();
+        double strengthMultiplier = Math.max(0.2D, 1.0D + (totalStrength * strengthScaling));
+        double intelligenceMultiplier = Math.max(0.25D, 1.0D + (totalIntelligence / 100.0D));
+        double baseAbilityDamage = Math.max(
+                2.0D,
+                profile.flatDamage() * abilityDamageScale * ability.damageMultiplier() * strengthMultiplier * intelligenceMultiplier
+        );
+        player.sendMessage(ChatColor.AQUA + "Used " + ability.name() + ChatColor.GRAY + " (" + Math.round(manaCostUsed) + " mana)");
 
         switch (ability.effect()) {
             case DEMON_CRUSH -> {
@@ -514,6 +601,137 @@ public final class CustomWeaponCombatListener implements Listener {
                 hitNearby(player, strike, ability.radius(), baseAbilityDamage * 1.25D, ability.knockback() + 0.15D, null);
                 player.playSound(player.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 1.0F, 1.1F);
             }
+
+            // Mage Weapon Abilities
+            case ARCANE_BLAST -> {
+                playAbilityCast(player, Sound.ENTITY_ENDER_DRAGON_GROWL, Particle.PORTAL);
+                shootProjectile(player, baseAbilityDamage, ability.knockback(), Particle.PORTAL, Color.fromRGB(0xD400FF));
+            }
+            case FROST_NOVA -> {
+                playAbilityCast(player, Sound.BLOCK_POWDER_SNOW_BREAK, Particle.SNOWFLAKE);
+                hitNearby(player, player.getLocation(), ability.radius(), baseAbilityDamage, ability.knockback(), target -> {
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 1, false, true, true));
+                });
+                player.getWorld().spawnParticle(Particle.SNOWFLAKE, player.getLocation().add(0.0D, 0.5D, 0.0D), 50, 0.5D, 0.3D, 0.5D, 0.01D);
+            }
+            case INFERNO_BURST -> {
+                playAbilityCast(player, Sound.ENTITY_BLAZE_SHOOT, Particle.FLAME);
+                shootProjectile(player, baseAbilityDamage, ability.knockback(), Particle.FLAME, Color.fromRGB(0xFF4500));
+                hitNearby(player, player.getLocation(), ability.radius() * 0.6D, baseAbilityDamage * 0.5D, 0.0D, target -> {
+                    target.setFireTicks(Math.max(target.getFireTicks(), 100));
+                });
+            }
+            case CHAIN_LIGHTNING -> {
+                playAbilityCast(player, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, Particle.ELECTRIC_SPARK);
+                List<LivingEntity> targets = getNearbyEnemies(player.getLocation(), ability.radius());
+                int maxChains = Math.min(targets.size(), 5);
+                for (int i = 0; i < maxChains; i++) {
+                    LivingEntity target = targets.get(i);
+                    target.damage(baseAbilityDamage * (1.0D - i * 0.15D), player);
+                    target.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation(), 10, 0.3D, 0.3D, 0.3D, 0.01D);
+                    target.getWorld().playSound(target.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 0.5F, 1.2F);
+                }
+            }
+            case VOID_RIFT -> {
+                playAbilityCast(player, Sound.ENTITY_ENDERMAN_TELEPORT, Particle.DRAGON_BREATH);
+                Location center = player.getLocation().add(player.getLocation().getDirection().multiply(3.0D));
+                hitNearby(player, center, ability.radius(), baseAbilityDamage, 0.6D, target -> {
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 40, 0, false, true, true));
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 60, 0, false, true, true));
+                });
+                player.getWorld().spawnParticle(Particle.DRAGON_BREATH, center, 40, 0.5D, 0.3D, 0.5D, 0.02D);
+                player.getWorld().spawnParticle(Particle.PORTAL, center, 30, 0.6D, 0.4D, 0.6D, 0.03D);
+            }
+            case STARFALL -> {
+                playAbilityCast(player, Sound.ENTITY_ENDER_DRAGON_GROWL, Particle.END_ROD);
+                Location center = player.getLocation().add(player.getLocation().getDirection().multiply(4.0D));
+                for (int i = 0; i < 5; i++) {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        Location strikeLoc = center.clone().add(
+                                ThreadLocalRandom.current().nextDouble(-3.0D, 3.0D),
+                                0.0D,
+                                ThreadLocalRandom.current().nextDouble(-3.0D, 3.0D)
+                        );
+                        if (strikeLoc.getWorld() != null) {
+                            strikeLoc.getWorld().strikeLightningEffect(strikeLoc);
+                            strikeLoc.getWorld().spawnParticle(Particle.END_ROD, strikeLoc, 20, 0.5D, 0.3D, 0.5D, 0.01D);
+                            hitNearby(player, strikeLoc, 2.5D, baseAbilityDamage * 0.6D, 0.3D, null);
+                        }
+                    }, i * 10L);
+                }
+            }
+            case FIREBALL -> {
+                playAbilityCast(player, Sound.ENTITY_BLAZE_SHOOT, Particle.FLAME);
+                shootProjectile(player, baseAbilityDamage, ability.knockback(), Particle.FLAME, Color.fromRGB(0xFF6600));
+            }
+            case ICE_SPIKE -> {
+                playAbilityCast(player, Sound.BLOCK_POWDER_SNOW_BREAK, Particle.SNOWFLAKE);
+                shootProjectile(player, baseAbilityDamage, ability.knockback(), Particle.SNOWFLAKE, Color.fromRGB(0x00FFFF));
+            }
+            case THUNDER_STRIKE -> {
+                playAbilityCast(player, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, Particle.ELECTRIC_SPARK);
+                Location targetLoc = player.getLocation().add(player.getLocation().getDirection().multiply(5.0D));
+                if (targetLoc.getWorld() != null) {
+                    targetLoc.getWorld().strikeLightningEffect(targetLoc);
+                    targetLoc.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, targetLoc, 25, 0.4D, 0.3D, 0.4D, 0.01D);
+                    hitNearby(player, targetLoc, 3.0D, baseAbilityDamage, 0.4D, null);
+                }
+            }
+            case TOXIC_CLOUD -> {
+                playAbilityCast(player, Sound.ENTITY_WITCH_AMBIENT, Particle.CAMPFIRE_COSY_SMOKE);
+                Location center = player.getLocation().add(player.getLocation().getDirection().multiply(2.0D));
+                hitNearby(player, center, ability.radius(), baseAbilityDamage, 0.2D, target -> {
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 100, 0, false, true, true));
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 80, 0, false, true, true));
+                });
+                player.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, center, 40, 0.4D, 0.3D, 0.4D, 0.01D);
+                player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, center, 30, 0.4D, 0.3D, 0.4D, 0.01D);
+            }
+            case HEAL -> {
+                playAbilityCast(player, Sound.ENTITY_PLAYER_LEVELUP, Particle.HEART);
+                double healAmount = baseAbilityDamage * 0.8D + (ability.manaCost() * 0.5D);
+                double newHealth = Math.min(player.getMaxHealth(), player.getHealth() + healAmount);
+                player.setHealth(newHealth);
+                player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0.0D, 1.0D, 0.0D), 20, 0.5D, 0.5D, 0.5D, 0.01D);
+                player.sendMessage(ChatColor.GREEN + "Healed for " + Math.round(healAmount) + " health.");
+            }
+            case MASS_HEAL -> {
+                playAbilityCast(player, Sound.BLOCK_BEACON_ACTIVATE, Particle.HEART);
+                double intelligence = combatEngine == null ? 0.0D : combatEngine.stats(player).intelligence();
+                double healAmount = 50.0D + (intelligence * 0.3D);
+                for (Entity entity : player.getWorld().getNearbyEntities(player.getLocation(), 8.0D, 8.0D, 8.0D)) {
+                    if (entity instanceof Player ally && isFriendly(player, ally)) {
+                        double newHealth = Math.min(ally.getMaxHealth(), ally.getHealth() + healAmount);
+                        ally.setHealth(newHealth);
+                        ally.getWorld().spawnParticle(Particle.HEART, ally.getLocation().add(0.0D, 1.0D, 0.0D), 15, 0.4D, 0.4D, 0.4D, 0.01D);
+                        ally.sendMessage(ChatColor.GREEN + "Healed for " + Math.round(healAmount) + " health by " + player.getName() + ".");
+                    }
+                }
+                double newHealth = Math.min(player.getMaxHealth(), player.getHealth() + healAmount);
+                player.setHealth(newHealth);
+                player.sendMessage(ChatColor.GREEN + "Mass heal restored " + Math.round(healAmount) + " health to nearby allies.");
+            }
+            case WITHER_STORM -> {
+                playAbilityCast(player, Sound.ENTITY_WITHER_AMBIENT, Particle.SOUL);
+                hitNearby(player, player.getLocation(), ability.radius(), baseAbilityDamage, ability.knockback(), target -> {
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 120, 1, false, true, true));
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 0, false, true, true));
+                });
+                player.getWorld().spawnParticle(Particle.SOUL, player.getLocation().add(0.0D, 0.5D, 0.0D), 50, 0.5D, 0.3D, 0.5D, 0.01D);
+            }
+            case REGENERATION_AURA -> {
+                playAbilityCast(player, Sound.BLOCK_BEACON_ACTIVATE, Particle.HAPPY_VILLAGER);
+                for (Entity entity : player.getWorld().getNearbyEntities(player.getLocation(), 8.0D, 8.0D, 8.0D)) {
+                    if (entity instanceof Player ally && isFriendly(player, ally)) {
+                        ally.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 200, 1, false, true, true));
+                        ally.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, ally.getLocation().add(0.0D, 1.0D, 0.0D), 15, 0.4D, 0.4D, 0.4D, 0.01D);
+                        ally.sendMessage(ChatColor.AQUA + "Granted Regeneration by " + player.getName() + ".");
+                    }
+                }
+                player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 200, 1, false, true, true));
+                player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, player.getLocation().add(0.0D, 1.0D, 0.0D), 20, 0.4D, 0.4D, 0.4D, 0.01D);
+                player.sendMessage(ChatColor.AQUA + "Regeneration Aura activated for 10 seconds.");
+            }
         }
     }
 
@@ -568,6 +786,68 @@ public final class CustomWeaponCombatListener implements Listener {
         }
     }
 
+    private void shootProjectile(Player player, double damage, double knockback, Particle particle, Color color) {
+        Location loc = player.getLocation().add(0.0D, 1.5D, 0.0D);
+        Vector direction = loc.getDirection();
+        
+        shootProjectileTask(player, loc.clone(), direction.clone(), damage, knockback, particle, 0);
+    }
+    
+    private void shootProjectileTask(Player player, Location current, Vector vel, double damage, double knockback, Particle particle, int ticks) {
+        if (ticks >= 100) {
+            return;
+        }
+        
+        current.add(vel);
+        player.getWorld().spawnParticle(particle, current, 5, 0.1D, 0.1D, 0.1D, 0.01D);
+        
+        // Check for hits
+        for (Entity entity : player.getWorld().getNearbyEntities(current, 0.8D, 0.8D, 0.8D)) {
+            if (entity instanceof LivingEntity target && !entity.equals(player)) {
+                if (target.isInvulnerable() || target.isDead()) {
+                    continue;
+                }
+                if (target instanceof Player otherPlayer && isFriendly(player, otherPlayer)) {
+                    continue;
+                }
+                
+                target.damage(damage, player);
+                Vector push = target.getLocation().toVector().subtract(current.toVector());
+                if (push.lengthSquared() > 1.0E-6D) {
+                    push.normalize().multiply(knockback).setY(0.15D);
+                    target.setVelocity(target.getVelocity().add(push));
+                }
+                
+                player.getWorld().spawnParticle(Particle.CRIT, current, 20, 0.3D, 0.3D, 0.3D, 0.02D);
+                player.getWorld().playSound(current, Sound.ENTITY_GENERIC_EXPLODE, 0.8F, 1.0F);
+                return;
+            }
+        }
+        
+        // Check for block collision
+        if (!current.getBlock().getType().isAir()) {
+            player.getWorld().spawnParticle(Particle.SMOKE, current, 15, 0.2D, 0.2D, 0.2D, 0.01D);
+            player.getWorld().playSound(current, Sound.BLOCK_FIRE_EXTINGUISH, 0.7F, 1.0F);
+            return;
+        }
+        
+        Bukkit.getScheduler().runTaskLater(plugin, () -> 
+            shootProjectileTask(player, current, vel, damage, knockback, particle, ticks + 1), 1L);
+    }
+
+    private List<LivingEntity> getNearbyEnemies(Location center, double radius) {
+        List<LivingEntity> enemies = new ArrayList<>();
+        if (center.getWorld() == null) {
+            return enemies;
+        }
+        for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
+            if (entity instanceof LivingEntity living && !entity.isDead() && !entity.isInvulnerable()) {
+                enemies.add(living);
+            }
+        }
+        return enemies;
+    }
+
     private WeaponAbility resolveAbility(CustomWeaponType type, WeaponAbility defaults) {
         if (defaults == null) {
             return null;
@@ -582,71 +862,55 @@ public final class CustomWeaponCombatListener implements Listener {
     }
 
     private WeaponProfile profile(CustomWeaponType type) {
+        CustomWeaponProfiles.StatProfile base = CustomWeaponProfiles.stats(type);
+        WeaponAbility ability = defaultAbility(type);
+        return new WeaponProfile(
+                base.flatDamage(),
+                base.strength(),
+                base.critChancePercent(),
+                base.critDamagePercent(),
+                base.attackSpeedPercent(),
+                base.intelligence(),
+                ability
+        );
+    }
+
+    private WeaponAbility defaultAbility(CustomWeaponType type) {
+        if (type == null) {
+            return null;
+        }
+
         return switch (type) {
-            case ONI_CLEAVER -> new WeaponProfile(
-                    125.0D, 45.0D, 0.0D, 0.0D,
-                    new WeaponAbility("Demon Crush", AbilityEffect.DEMON_CRUSH, 40.0D, 8.0D, 1.00D, 3.6D, 0.45D)
-            );
-            case TENGU_GALEBLADE -> new WeaponProfile(
-                    110.0D, 20.0D, 18.0D, 20.0D,
-                    new WeaponAbility("Wind Slash", AbilityEffect.WIND_SLASH, 32.0D, 6.0D, 0.95D, 4.0D, 0.52D)
-            );
-            case TENGU_STORMBOW -> new WeaponProfile(
-                    118.0D, 16.0D, 22.0D, 24.0D,
-                    null
-            );
-            case TENGU_SHORTBOW -> new WeaponProfile(
-                    112.0D, 14.0D, 26.0D, 18.0D,
-                    null
-            );
-            case KAPPA_TIDEBREAKER -> new WeaponProfile(
-                    120.0D, 30.0D, 0.0D, 10.0D,
-                    new WeaponAbility("Tide Surge", AbilityEffect.TIDE_SURGE, 36.0D, 7.0D, 1.05D, 3.8D, 0.40D)
-            );
-            case ONRYO_SPIRITBLADE -> new WeaponProfile(
-                    145.0D, 45.0D, 5.0D, 20.0D,
-                    new WeaponAbility("Wraith Cut", AbilityEffect.SPIRIT_CUT, 46.0D, 9.0D, 1.10D, 3.7D, 0.42D)
-            );
-            case ONRYO_SHORTBOW -> new WeaponProfile(
-                    138.0D, 30.0D, 14.0D, 30.0D,
-                    null
-            );
-            case JOROGUMO_STINGER -> new WeaponProfile(
-                    95.0D, 18.0D, 8.0D, 10.0D,
-                    new WeaponAbility("Silk Snare", AbilityEffect.WEB_SNARE, 28.0D, 6.0D, 0.85D, 3.5D, 0.30D)
-            );
-            case JOROGUMO_SHORTBOW -> new WeaponProfile(
-                    104.0D, 14.0D, 24.0D, 18.0D,
-                    null
-            );
-            case KITSUNE_FANG -> new WeaponProfile(
-                    108.0D, 25.0D, 12.0D, 25.0D,
-                    new WeaponAbility("Foxfire Burst", AbilityEffect.FOXFIRE_BURST, 40.0D, 8.0D, 1.00D, 4.2D, 0.36D)
-            );
-            case KITSUNE_DAWNBOW -> new WeaponProfile(
-                    126.0D, 22.0D, 14.0D, 40.0D,
-                    null
-            );
-            case KITSUNE_SHORTBOW -> new WeaponProfile(
-                    124.0D, 18.0D, 20.0D, 36.0D,
-                    null
-            );
-            case GASHADOKURO_NODACHI -> new WeaponProfile(
-                    165.0D, 70.0D, 4.0D, 30.0D,
-                    new WeaponAbility("Bone Cleave", AbilityEffect.BONE_CLEAVE, 58.0D, 11.0D, 1.20D, 4.1D, 0.52D)
-            );
-            case FLYING_RAIJIN -> new WeaponProfile(
-                    210.0D, 100.0D, 10.0D, 35.0D,
-                    new WeaponAbility("Thunder Step", AbilityEffect.THUNDER_STEP, 75.0D, 12.0D, 1.25D, 4.2D, 0.58D)
-            );
-            case HAYABUSA_KATANA -> new WeaponProfile(
-                    175.0D, 55.0D, 32.0D, 28.0D,
-                    new WeaponAbility("Aerial Dash", AbilityEffect.WIND_SLASH, 42.0D, 6.5D, 1.05D, 3.5D, 0.35D)
-            );
-            case RAIJIN_SHORTBOW -> new WeaponProfile(
-                    140.0D, 24.0D, 30.0D, 42.0D,
-                    null
-            );
+            case ONI_CLEAVER -> new WeaponAbility("Demon Crush", AbilityEffect.DEMON_CRUSH, 40.0D, 8.0D, 1.00D, 3.6D, 0.45D);
+            case TENGU_GALEBLADE -> new WeaponAbility("Wind Slash", AbilityEffect.WIND_SLASH, 32.0D, 6.0D, 0.95D, 4.0D, 0.52D);
+            case KAPPA_TIDEBREAKER -> new WeaponAbility("Tide Surge", AbilityEffect.TIDE_SURGE, 36.0D, 7.0D, 1.05D, 3.8D, 0.40D);
+            case ONRYO_SPIRITBLADE -> new WeaponAbility("Wraith Cut", AbilityEffect.SPIRIT_CUT, 46.0D, 9.0D, 1.10D, 3.7D, 0.42D);
+            case JOROGUMO_STINGER -> new WeaponAbility("Silk Snare", AbilityEffect.WEB_SNARE, 28.0D, 6.0D, 0.85D, 3.5D, 0.30D);
+            case KITSUNE_FANG -> new WeaponAbility("Foxfire Burst", AbilityEffect.FOXFIRE_BURST, 40.0D, 8.0D, 1.00D, 4.2D, 0.36D);
+            case GASHADOKURO_NODACHI -> new WeaponAbility("Bone Cleave", AbilityEffect.BONE_CLEAVE, 58.0D, 11.0D, 1.20D, 4.1D, 0.52D);
+            case FLYING_RAIJIN -> new WeaponAbility("Thunder Step", AbilityEffect.THUNDER_STEP, 75.0D, 12.0D, 1.25D, 4.2D, 0.58D);
+            case HAYABUSA_KATANA -> new WeaponAbility("Aerial Dash", AbilityEffect.WIND_SLASH, 42.0D, 6.5D, 1.05D, 3.5D, 0.35D);
+
+            // Mage Weapons - Staffs
+            case ARCANE_STAFF -> new WeaponAbility("Arcane Blast", AbilityEffect.ARCANE_BLAST, 35.0D, 5.0D, 1.10D, 4.5D, 0.40D);
+            case FROSTBITE_STAFF -> new WeaponAbility("Frost Nova", AbilityEffect.FROST_NOVA, 45.0D, 7.0D, 1.15D, 5.0D, 0.35D);
+            case INFERNO_STAFF -> new WeaponAbility("Inferno Burst", AbilityEffect.INFERNO_BURST, 55.0D, 8.0D, 1.25D, 4.8D, 0.38D);
+            case STORMCALLER_STAFF -> new WeaponAbility("Chain Lightning", AbilityEffect.CHAIN_LIGHTNING, 50.0D, 6.0D, 1.20D, 5.5D, 0.30D);
+            case VOIDWALKER_STAFF -> new WeaponAbility("Void Rift", AbilityEffect.VOID_RIFT, 65.0D, 10.0D, 1.35D, 4.5D, 0.50D);
+            case CELESTIAL_STAFF -> new WeaponAbility("Starfall", AbilityEffect.STARFALL, 80.0D, 14.0D, 1.50D, 6.0D, 0.40D);
+
+            // Mage Weapons - Wands
+            case FLAME_WAND -> new WeaponAbility("Fireball", AbilityEffect.FIREBALL, 25.0D, 4.0D, 0.90D, 3.5D, 0.35D);
+            case ICE_WAND -> new WeaponAbility("Ice Spike", AbilityEffect.ICE_SPIKE, 22.0D, 3.5D, 0.85D, 4.0D, 0.30D);
+            case LIGHTNING_WAND -> new WeaponAbility("Thunder Strike", AbilityEffect.THUNDER_STRIKE, 28.0D, 4.5D, 0.95D, 3.8D, 0.32D);
+            case POISON_WAND -> new WeaponAbility("Toxic Cloud", AbilityEffect.TOXIC_CLOUD, 20.0D, 5.0D, 0.80D, 4.2D, 0.25D);
+            case HEALING_WAND -> new WeaponAbility("Heal", AbilityEffect.HEAL, 30.0D, 6.0D, 0.0D, 0.0D, 0.0D);
+
+            // Mage Weapons - Scepters
+            case SCEPTER_OF_HEALING -> new WeaponAbility("Mass Heal", AbilityEffect.MASS_HEAL, 50.0D, 12.0D, 0.0D, 0.0D, 0.0D);
+            case SCEPTER_OF_DECAY -> new WeaponAbility("Wither Storm", AbilityEffect.WITHER_STORM, 45.0D, 8.0D, 1.10D, 5.5D, 0.30D);
+            case SCEPTER_OF_MENDING -> new WeaponAbility("Regeneration Aura", AbilityEffect.REGENERATION_AURA, 40.0D, 10.0D, 0.0D, 0.0D, 0.0D);
+            default -> null;
         };
     }
 
@@ -660,8 +924,42 @@ public final class CustomWeaponCombatListener implements Listener {
                 profile.strength() + stats.strengthBonus(),
                 profile.critChancePercent() + stats.critChanceBonus(),
                 profile.critDamagePercent() + stats.critDamageBonus(),
+                profile.attackSpeedPercent() + stats.attackSpeedBonus(),
+                profile.intelligence() + stats.intelligenceBonus(),
                 profile.defaultAbility()
         );
+    }
+
+    private double dungeonDamageScale(Player attacker) {
+        if (attacker == null) {
+            return 1.0D;
+        }
+        DungeonSession session = dungeonManager.getSession(attacker.getUniqueId());
+        if (session == null || session.floor() == null) {
+            return 1.0D;
+        }
+        int floorNum = parseFloorNumber(session.floor().id());
+        return 1.0D + Math.max(0, floorNum - 1) * 0.08D;
+    }
+
+    private int parseFloorNumber(String floorId) {
+        if (floorId == null || floorId.isBlank()) {
+            return 1;
+        }
+        StringBuilder digits = new StringBuilder();
+        for (char c : floorId.toCharArray()) {
+            if (Character.isDigit(c)) {
+                digits.append(c);
+            }
+        }
+        if (digits.isEmpty()) {
+            return 1;
+        }
+        try {
+            return Integer.parseInt(digits.toString());
+        } catch (NumberFormatException ignored) {
+            return 1;
+        }
     }
 
     private double sanitizePositive(double value, double fallback) {
@@ -693,6 +991,8 @@ public final class CustomWeaponCombatListener implements Listener {
             double strength,
             double critChancePercent,
             double critDamagePercent,
+            double attackSpeedPercent,
+            double intelligence,
             WeaponAbility defaultAbility
     ) {
     }
@@ -716,9 +1016,26 @@ public final class CustomWeaponCombatListener implements Listener {
         WEB_SNARE,
         FOXFIRE_BURST,
         BONE_CLEAVE,
-        THUNDER_STEP
+        THUNDER_STEP,
+
+        // Mage Weapon Abilities
+        ARCANE_BLAST,
+        FROST_NOVA,
+        INFERNO_BURST,
+        CHAIN_LIGHTNING,
+        VOID_RIFT,
+        STARFALL,
+        FIREBALL,
+        ICE_SPIKE,
+        THUNDER_STRIKE,
+        TOXIC_CLOUD,
+        HEAL,
+        MASS_HEAL,
+        WITHER_STORM,
+        REGENERATION_AURA
     }
 
     private record AmmoSource(boolean offHand, int slot, ItemStack stack) {
     }
 }
+

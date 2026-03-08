@@ -18,7 +18,27 @@ public enum CustomWeaponType {
     GASHADOKURO_NODACHI,
     FLYING_RAIJIN,
     HAYABUSA_KATANA,
-    RAIJIN_SHORTBOW;
+    RAIJIN_SHORTBOW,
+
+    // Mage Weapons - Staffs
+    ARCANE_STAFF,
+    FROSTBITE_STAFF,
+    INFERNO_STAFF,
+    STORMCALLER_STAFF,
+    VOIDWALKER_STAFF,
+    CELESTIAL_STAFF,
+
+    // Mage Weapons - Wands
+    FLAME_WAND,
+    ICE_WAND,
+    LIGHTNING_WAND,
+    POISON_WAND,
+    HEALING_WAND,
+
+    // Mage Weapons - Scepters
+    SCEPTER_OF_HEALING,
+    SCEPTER_OF_DECAY,
+    SCEPTER_OF_MENDING;
 
     public static CustomWeaponType parse(String input) {
         if (input == null || input.isBlank()) {

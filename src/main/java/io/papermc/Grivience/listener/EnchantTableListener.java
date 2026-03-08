@@ -104,7 +104,15 @@ public final class EnchantTableListener implements Listener {
             return;
         }
         event.setCancelled(true);
-        openTable(event.getPlayer(), 0);
+        
+        // Use the new EnchantmentTableGui instead of old system
+        io.papermc.Grivience.enchantment.EnchantmentTableGui newGui = 
+            ((io.papermc.Grivience.GriviencePlugin) plugin).getEnchantmentManager().getEnchantTableGui();
+        if (newGui != null) {
+            newGui.openEnchantTable((Player) event.getPlayer());
+        } else {
+            openTable((Player) event.getPlayer(), 0);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -112,48 +120,48 @@ public final class EnchantTableListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        if (!(event.getView().getTopInventory().getHolder() instanceof ArcaneTableHolder holder)) {
-            return;
-        }
-
-        event.setCancelled(true);
-        if (!Objects.equals(event.getClickedInventory(), event.getView().getTopInventory())) {
-            return;
-        }
-
-        ItemStack item = event.getCurrentItem();
-        if (item == null || item.getType() == Material.AIR || !item.hasItemMeta()) {
-            return;
-        }
-
-        ItemMeta meta = item.getItemMeta();
-        String action = meta.getPersistentDataContainer().get(actionKey, PersistentDataType.STRING);
-        if (action != null) {
-            switch (action) {
-                case "page_prev" -> openTable(player, holder.page() - 1);
-                case "page_next" -> openTable(player, holder.page() + 1);
-                case "refresh" -> openTable(player, 0);
-                case "close" -> player.closeInventory();
-                default -> {
+        
+        // If the top inventory is an Arcane Table menu, cancel ALL clicks
+        if (event.getInventory().getHolder() instanceof ArcaneTableHolder holder) {
+            event.setCancelled(true);
+            
+            // Only handle clicks in the top inventory
+            if (event.getClickedInventory() != null && event.getClickedInventory().equals(event.getInventory())) {
+                ItemStack item = event.getCurrentItem();
+                if (item == null || item.getType() == Material.AIR || !item.hasItemMeta()) {
+                    return;
                 }
+
+                ItemMeta meta = item.getItemMeta();
+                String action = meta.getPersistentDataContainer().get(actionKey, PersistentDataType.STRING);
+                if (action != null) {
+                    switch (action) {
+                        case "page_prev" -> openTable(player, holder.page - 1);
+                        case "page_next" -> openTable(player, holder.page + 1);
+                        case "refresh" -> openTable(player, 0);
+                        case "close" -> player.closeInventory();
+                        default -> {
+                        }
+                    }
+                    return;
+                }
+
+                String optionId = meta.getPersistentDataContainer().get(optionIdKey, PersistentDataType.STRING);
+                if (optionId == null) {
+                    return;
+                }
+
+                EnchantOption option = resolveOptionForPlayer(player, optionId);
+                if (option == null) {
+                    player.sendMessage(ChatColor.RED + "That enchant option is unavailable for your held weapon.");
+                    openTable(player, holder.page);
+                    return;
+                }
+
+                applyOption(player, option);
+                openTable(player, holder.page);
             }
-            return;
         }
-
-        String optionId = meta.getPersistentDataContainer().get(optionIdKey, PersistentDataType.STRING);
-        if (optionId == null) {
-            return;
-        }
-
-        EnchantOption option = resolveOptionForPlayer(player, optionId);
-        if (option == null) {
-            player.sendMessage(ChatColor.RED + "That enchant option is unavailable for your held weapon.");
-            openTable(player, holder.page());
-            return;
-        }
-
-        applyOption(player, option);
-        openTable(player, holder.page());
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -181,7 +189,7 @@ public final class EnchantTableListener implements Listener {
 
         inventory.setItem(4, namedItem(
                 Material.ENCHANTED_BOOK,
-                ChatColor.LIGHT_PURPLE + "Hypixel-Style Arcane Forge",
+                ChatColor.LIGHT_PURPLE + "Skyblock-Style Arcane Forge",
                 List.of(
                         ChatColor.GRAY + "Showing all valid enchants",
                         ChatColor.GRAY + "for your currently held weapon.",
@@ -313,6 +321,12 @@ public final class EnchantTableListener implements Listener {
         }
 
         player.setLevel(Math.max(0, player.getLevel() - option.costLevels()));
+        
+        // Award Enchanting XP
+        if (plugin instanceof io.papermc.Grivience.GriviencePlugin griv) {
+            griv.getSkyblockLevelManager().recordEnchanting(player, option.costLevels());
+        }
+
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 1.0F, 1.1F);
         player.sendMessage(ChatColor.GREEN + "Applied " + option.displayName() + ChatColor.GREEN + ".");
     }
@@ -667,3 +681,4 @@ public final class EnchantTableListener implements Listener {
         }
     }
 }
+

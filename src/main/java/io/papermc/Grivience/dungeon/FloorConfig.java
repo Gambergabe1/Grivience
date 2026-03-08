@@ -166,24 +166,27 @@ public final class FloorConfig {
     }
 
     public List<String> rewardsForGrade(String grade) {
-        String normalized = grade.toUpperCase(Locale.ROOT);
+        String normalized = grade == null ? "" : grade.toUpperCase(Locale.ROOT);
         List<String> direct = rewardsByGrade.get(normalized);
         if (direct != null && !direct.isEmpty()) {
             return direct;
         }
-        if (Objects.equals(normalized, "S")) {
-            return rewardsByGrade.getOrDefault("A", List.of());
+
+        String[] fallbacks = switch (normalized) {
+            case "S" -> new String[]{"A", "B", "C", "D"};
+            case "A" -> new String[]{"B", "C", "D"};
+            case "B" -> new String[]{"C", "D"};
+            case "C" -> new String[]{"D"};
+            default -> new String[]{"D"};
+        };
+
+        for (String fallback : fallbacks) {
+            List<String> commands = rewardsByGrade.get(fallback);
+            if (commands != null && !commands.isEmpty()) {
+                return commands;
+            }
         }
-        if (Objects.equals(normalized, "A")) {
-            return rewardsByGrade.getOrDefault("B", List.of());
-        }
-        if (Objects.equals(normalized, "B")) {
-            return rewardsByGrade.getOrDefault("C", List.of());
-        }
-        if (Objects.equals(normalized, "C")) {
-            return rewardsByGrade.getOrDefault("D", List.of());
-        }
-        return rewardsByGrade.getOrDefault("D", List.of());
+        return List.of();
     }
 
     public static FloorConfig fromSection(String id, ConfigurationSection section) {

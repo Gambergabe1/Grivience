@@ -35,7 +35,7 @@ public final class SkyblockMenuCommand implements CommandExecutor, TabCompleter 
         switch (subCommand) {
             case "menu", "main" -> {
                 skyblockMenuManager.openMainMenu(player);
-                player.sendMessage(ChatColor.GREEN + "Opened SkyBlock Menu.");
+                player.sendMessage(ChatColor.GREEN + "Opened Skyblock Menu.");
             }
             case "island", "is" -> {
                 skyblockMenuManager.openIslandMenu(player);
@@ -52,6 +52,10 @@ public final class SkyblockMenuCommand implements CommandExecutor, TabCompleter 
             case "settings" -> {
                 skyblockMenuManager.openSettingsMenu(player);
                 player.sendMessage(ChatColor.GREEN + "Opened Island Settings.");
+            }
+            case "leveling", "levels", "xp" -> {
+                skyblockMenuManager.openLevelingMenu(player);
+                player.sendMessage(ChatColor.GREEN + "Opened Skyblock Leveling.");
             }
             case "permissions", "perms" -> {
                 skyblockMenuManager.openPermissionsMenu(player);
@@ -76,19 +80,20 @@ public final class SkyblockMenuCommand implements CommandExecutor, TabCompleter 
     }
 
     private void sendHelp(Player player) {
-        player.sendMessage(ChatColor.GOLD + "=== SkyBlock Menu Commands ===");
+        player.sendMessage(ChatColor.GOLD + "=== Skyblock Menu Commands ===");
         player.sendMessage(ChatColor.YELLOW + "/skyblock" + ChatColor.GRAY + " - Open main menu");
         player.sendMessage(ChatColor.YELLOW + "/skyblock island" + ChatColor.GRAY + " - Island management");
         player.sendMessage(ChatColor.YELLOW + "/skyblock upgrades" + ChatColor.GRAY + " - Browse upgrades");
         player.sendMessage(ChatColor.YELLOW + "/skyblock minions" + ChatColor.GRAY + " - Minion management");
         player.sendMessage(ChatColor.YELLOW + "/skyblock settings" + ChatColor.GRAY + " - Island settings");
+        player.sendMessage(ChatColor.YELLOW + "/skyblock leveling" + ChatColor.GRAY + " - Skyblock XP and guide");
         player.sendMessage(ChatColor.YELLOW + "/skyblock permissions" + ChatColor.GRAY + " - Manage permissions");
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            List<String> commands = new ArrayList<>(List.of("menu", "island", "upgrades", "minions", "settings", "permissions", "help"));
+            List<String> commands = new ArrayList<>(List.of("menu", "island", "upgrades", "minions", "settings", "leveling", "permissions", "help"));
             return filterPrefix(commands, args[0]);
         }
         return List.of();
@@ -105,3 +110,4 @@ public final class SkyblockMenuCommand implements CommandExecutor, TabCompleter 
         return filtered;
     }
 }
+

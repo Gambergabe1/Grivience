@@ -2,20 +2,34 @@ name: Grivience
 version: ${version}
 main: io.papermc.Grivience.GriviencePlugin
 api-version: "1.21"
-description: Japanese-themed party dungeon runs inspired by SkyBlock-style floors.
+description: Japanese-themed party dungeon runs inspired by Skyblock-style floors.
 author: Kazutos
 softdepend:
-  - AuraSkills
   - EcoEnchants
-  - Vault
   - AuroraCollections
+  - LuckPerms
+  - ZNPCs
   - WorldEdit
+  - ZNPCsPlus
 
 commands:
+  skills:
+    description: Open the Skyblock skills menu.
+    usage: /skills [skill_id]
+    aliases: [skill]
+  skillxp:
+    description: Admin command to grant/check skill XP.
+    usage: /skillxp <give|check> <player> [skill] [amount]
+    permission: grivience.admin
   dungeon:
     description: Manage parties and run dungeon floors.
     usage: /dungeon help | /dungeon menu | /dungeon give <player> <item_id> [amount]
     aliases: [dg]
+  giveitem:
+    description: Admin command to give custom items.
+    usage: /giveitem <item_id> [amount] [player]
+    permission: grivience.admin
+    aliases: [gi]
   party:
     description: Manage your dungeon party.
     usage: /party <create|invite|accept|leave|kick|list|finder>
@@ -28,44 +42,303 @@ commands:
     description: Open your wardrobe.
     usage: /wardrobe
     aliases: [wd]
+  pets:
+    description: Open your pets menu.
+    usage: /pets
+    aliases: [pet]
   bazaar:
     description: Open the Bazaar shop menu.
     usage: /bazaar [menu|custom|vanilla|help]
     aliases: [bz]
+  npcshop:
+    description: Open the NPC commodity buyback shop.
+    usage: /npcshop
+    aliases: [sellnpc, commodityshop]
   grisanity:
     description: Quick sanity checks for recipes and mob spawning.
     usage: /grisanity [all|recipes|mobs]
     permission: grivience.admin
   skyblock:
-    description: Open SkyBlock-style island management menus.
-    usage: /skyblock [menu|island|upgrades|minions|settings|permissions|help]
+    description: Open Skyblock-style island management menus.
+    usage: /skyblock [menu|island|upgrades|minions|settings|leveling|permissions|help]
     aliases: [sb, skyblockmenu]
+  minion:
+    description: Manage your Skyblock minions.
+    usage: /minion [list|collectall|pickupall|give|givefuel|giveupgrade|givefragment|constellation|help]
+    aliases: [minions]
   island:
-    description: Manage your SkyBlock island.
+    description: Manage your Skyblock island.
     usage: /island [go|create|expand|info|sethome|setname|setdesc|leave|help]
-    aliases: [is, skyblock island]
+    aliases: [is]
+  islandbypass:
+    description: Admin command to bypass island build restrictions.
+    usage: /islandbypass [on|off|toggle|status|list]
+    aliases: [ib]
+    permission: grivience.island.bypass
   visit:
     description: Visit a player's island.
     usage: /visit <player>
     aliases: [vi, v]
+  invite:
+    description: Invite a player to visit your island.
+    usage: /invite <player>
+  sbkick:
+    description: Kick a visitor from your island.
+    usage: /sbkick <player>
+  sbkickall:
+    description: Kick all visitors from your island.
+    usage: /sbkickall
+  setguestspawn:
+    description: Set your island guest spawn location.
+    usage: /setguestspawn
+  setspawn:
+    description: Set your island spawn location.
+    usage: /setspawn
   hub:
-    description: Teleport to the Hub/Spawn.
-    usage: /hub
+    description: Teleport to the Hub/Spawn. Use /hub set to set the location.
+    usage: /hub [set]
     aliases: [spawn, lobby]
+  minehub:
+    description: Teleport to the Minehub. Use /minehub set to set the location.
+    usage: /minehub [set]
+    aliases: [mh]
+  endmine:
+    description: Teleport to the End Mines. Use /endmine set to set the location.
+    usage: /endmine [help|status|set|generate|access|mobs|mineables]
+    aliases: [endmines, em]
+  farmhub:
+    description: Teleport to the Farm Hub and configure crop regeneration area.
+    usage: /farmhub [set|setpos1|setpos2|setarea|info]
+    aliases: [fh]
   dungeonhub:
     description: Teleport to the Dungeon Hub or set its location.
     usage: /dungeonhub [set <world> <x> <y> <z> [yaw] [pitch]]
     aliases: [dhub]
   skyblockadmin:
-    description: Admin commands for SkyBlock management.
+    description: Admin commands for Skyblock management.
     usage: /skyblockadmin <sethub|reload|goto|help>
     permission: grivience.admin
   mobspawn:
     description: Admin commands for custom monster spawn management.
     usage: /mobspawn <create|remove|list|info|toggle|monsters|help>
     permission: grivience.admin
+  grivience:
+    description: Reload Grivience plugin systems.
+    usage: /grivience reload
+    permission: grivience.admin
+  quest:
+    description: Quest system commands.
+    usage: /quest <menu|list|progress|start|cancel|talk|gui|help>
+  admintp:
+    description: Admin teleport to players or coordinates.
+    usage: /admintp <player>|<x> <y> <z> [world]
+    permission: grivience.admin
+  jumppad:
+    description: Create and link jump pads.
+    usage: /jumppad <create|target|corner1|corner2|remove|list> [id]
+    permission: grivience.admin
+  blacksmith:
+    description: Open the blacksmith reforge menu.
+    usage: /blacksmith
+  bitsadmin:
+    description: Admin commands for managing player bits.
+    usage: /bitsadmin <set|give|take|check> <player> <amount>
+    permission: grivience.admin
+  coinsadmin:
+    description: Admin commands for managing player purse and bank coins.
+    usage: /coinsadmin <balance|purse|bank|help> [args]
+    permission: grivience.admin
+  bossbar:
+    description: Send BossBar announcements to players.
+    usage: /bossbar <announce|to|clear|reload|help> [args]
+    aliases: [announce]
+    permission: grivience.announce
+  sbadmin:
+    description: Admin commands for managing player Skyblock levels.
+    usage: /sbadmin <set|setxp|give|take|check|reset> <player> [value]
+    permission: grivience.admin
+  collection:
+    description: Open the Skyblock accurate collections menu.
+    usage: /collection [search|top|admin]
+    aliases: [collections]
+  profile:
+    description: Manage your Skyblock profiles.
+    usage: /profile <create|list|switch|delete>
+    aliases: [profiles]
+  zone:
+    description: Zone editor commands for creating and managing zones.
+    usage: /zone <create|delete|select|setpos1|setpos2|setname|setdisplayname|setcolor|setpriority|list|info|reload>
+    permission: grivience.admin
+    aliases: [zoneeditor]
+  enchant:
+    description: Open the Skyblock enchantment table menu.
+    usage: /enchant [page]
+    aliases: [et, enchantmenttable]
+  anvil:
+    description: Open the Skyblock anvil combining menu.
+    usage: /anvil
+    aliases: [av]
+  enchantinfo:
+    description: View information about a specific enchantment.
+    usage: /enchantinfo <enchantment_id>
+    aliases: [ei]
+  enchantlist:
+    description: List all available enchantments.
+    usage: /enchantlist [page]
+    aliases: [el]
+
+  craft:
+    description: Open the Skyblock crafting menu.
+    usage: /craft [recipe_name]
+    aliases: [crafting, recipe]
+  welcome:
+    description: Open the welcome event GUI and claim starter rewards.
+    usage: /welcome [claim|status|help]
+    aliases: [starter, newplayer]
+  questline:
+    description: View and track your welcome quest line progress.
+    usage: /questline [progress|reset|help]
+    aliases: [ql, quests, welcomequests]
+  storage:
+    description: Open and manage your storage systems.
+    usage: /storage [open|upgrade|status|rename|lock|unlock|top|rank|help]
+    aliases: [storages]
+  fasttravel:
+    description: Open the fast travel menu.
+    usage: /fasttravel [destination]
+    aliases: [ft]
+  trade:
+    description: Trade items with another player.
+    usage: /trade <player> | /trade accept [player] | /trade decline [player] | /trade cancel
+    aliases: [tr]
+  bank:
+    description: Open the Skyblock bank menu.
+    usage: /bank [balance|deposit|withdraw]
+    aliases: [bnk]
+  mineevent:
+    description: Admin commands for managing mining events and the drill mechanic.
+    usage: /mineevent <start|stop|status|shop|mechanic|npcshop>
+    permission: grivience.admin.mineevent
+  globalevent:
+    description: Admin commands for managing global server events and XP boosts.
+    usage: /globalevent <startboost|stopboost|status>
+    permission: grivience.admin.globalevent
+    aliases: [gevent, global]
+  nick:
+    description: Open the nickname settings menu.
+    usage: /nick [reset]
+  unnick:
+    description: Remove your current nickname.
+    usage: /unnick
 
 permissions:
   grivience.admin:
-    description: Allows dungeon reload and admin operations.
+    description: Allows reload and admin operations, including quest editing.
     default: op
+    children:
+      grivience.admin.globalevent: true
+      grivience.admin.mineevent: true
+      grivience.announce: true
+      grivience.collections.admin: true
+      grivience.endmines.build: true
+      grivience.fasttravel.admin: true
+      grivience.island.bypass: true
+      grivience.island.bypass.admin: true
+      grivience.minion.bypass: true
+      grivience.storage.admin: true
+      grivience.storage.admin.other: true
+      grivience.visit.bypass: true
+  grivience.admin.globalevent:
+    description: Allows managing global XP boost events.
+    default: op
+  grivience.admin.mineevent:
+    description: Allows managing mining events and NPC controls.
+    default: op
+  grivience.island.bypass:
+    description: Allows bypassing island build restrictions.
+    default: op
+  grivience.island.bypass.admin:
+    description: Allows viewing all players with bypass enabled.
+    default: op
+  grivience.announce:
+    description: Allows sending BossBar announcements.
+    default: op
+  grivience.collections.admin:
+    description: Allows collection admin operations.
+    default: op
+  grivience.fasttravel.admin:
+    description: Allows editing and reloading fast-travel destinations.
+    default: op
+  grivience.storage.admin:
+    description: Allows storage admin commands.
+    default: op
+  grivience.storage.admin.other:
+    description: Allows storage admin actions on other players.
+    default: op
+  grivience.endmines.build:
+    description: Allows building and block interaction bypasses in End Mines.
+    default: op
+  grivience.minion.bypass:
+    description: Bypasses minion placement and ownership limits.
+    default: op
+  grivience.visit.bypass:
+    description: Bypasses island visiting restrictions.
+    default: op
+  grivience.visit.guestlimit.unlimited:
+    description: Sets island guest limit to unlimited.
+    default: false
+  grivience.visit.guestlimit.vip:
+    description: Increases island guest limit to VIP tier.
+    default: false
+  grivience.visit.guestlimit.mvp:
+    description: Increases island guest limit to MVP tier.
+    default: false
+  grivience.visit.guestlimit.mvpplus:
+    description: Increases island guest limit to MVP+ tier.
+    default: false
+  grivience.visit.guestlimit.youtuber:
+    description: Increases island guest limit to YouTuber tier.
+    default: false
+  storage.personal:
+    description: Allows accessing personal storage.
+    default: true
+  storage.personal.upgrade:
+    description: Allows upgrading personal storage.
+    default: true
+  storage.vault:
+    description: Allows accessing vault storage.
+    default: true
+  storage.vault.upgrade:
+    description: Allows upgrading vault storage.
+    default: true
+  storage.ender:
+    description: Allows accessing ender storage.
+    default: true
+  storage.ender.upgrade:
+    description: Allows upgrading ender storage.
+    default: true
+  storage.backpack:
+    description: Allows accessing backpack storage.
+    default: true
+  storage.backpack.upgrade:
+    description: Allows upgrading backpack storage.
+    default: true
+  storage.warehouse:
+    description: Allows accessing warehouse storage.
+    default: true
+  storage.warehouse.upgrade:
+    description: Allows upgrading warehouse storage.
+    default: true
+  storage.accessory:
+    description: Allows accessing accessory bag storage.
+    default: true
+  storage.accessory.upgrade:
+    description: Allows upgrading accessory bag storage.
+    default: true
+  storage.potion:
+    description: Allows accessing potion bag storage.
+    default: true
+  storage.potion.upgrade:
+    description: Allows upgrading potion bag storage.
+    default: true
+

@@ -83,7 +83,7 @@ public final class BazaarOrderStore {
         yaml.set("last-id", lastId);
         ConfigurationSection ordersSection = yaml.createSection("orders");
         for (BazaarOrder order : orders.values()) {
-            ConfigurationSection section = ordersSection.createSection(order.getId());
+            ConfigurationSection section = ordersSection.createSection(order.getOrderId());
             order.save(section);
         }
         ConfigurationSection deliverySection = yaml.createSection("deliveries");
@@ -106,12 +106,12 @@ public final class BazaarOrderStore {
     }
 
     public synchronized void addOrder(BazaarOrder order) {
-        orders.put(order.getId(), order);
+        orders.put(order.getOrderId(), order);
         save();
     }
 
     public synchronized void updateOrder(BazaarOrder order) {
-        orders.put(order.getId(), order);
+        orders.put(order.getOrderId(), order);
         save();
     }
 
@@ -120,23 +120,23 @@ public final class BazaarOrderStore {
         save();
     }
 
-    public synchronized List<BazaarOrder> ordersFor(String itemKey, BazaarOrder.Type type) {
+    public synchronized List<BazaarOrder> ordersFor(String itemKey, BazaarOrder.OrderType type) {
         List<BazaarOrder> matched = new ArrayList<>();
         for (BazaarOrder order : orders.values()) {
-            if (order.getType() == type && order.getItemKey().equalsIgnoreCase(itemKey) && order.getRemainingAmount() > 0) {
+            if (order.getOrderType() == type && order.getProductId().equalsIgnoreCase(itemKey) && order.getRemainingAmount() > 0) {
                 matched.add(order);
             }
         }
         Comparator<BazaarOrder> comparator = Comparator.comparingDouble(BazaarOrder::getUnitPrice)
                 .thenComparingLong(BazaarOrder::getCreatedAt);
-        if (type == BazaarOrder.Type.BUY) {
+        if (type == BazaarOrder.OrderType.BUY) {
             comparator = comparator.reversed();
         }
         matched.sort(comparator);
         return Collections.unmodifiableList(matched);
     }
 
-    public synchronized double bestPrice(String itemKey, BazaarOrder.Type type) {
+    public synchronized double bestPrice(String itemKey, BazaarOrder.OrderType type) {
         List<BazaarOrder> list = ordersFor(itemKey, type);
         if (list.isEmpty()) {
             return Double.NaN;

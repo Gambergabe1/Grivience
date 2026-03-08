@@ -1,6 +1,7 @@
 package io.papermc.Grivience.dungeon;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,10 +74,12 @@ public final class ArenaLayout {
     public static final class Gate {
         private final int index;
         private final List<Location> barrierBlocks;
+        private final Material barrierMaterial;
 
-        public Gate(int index, List<Location> barrierBlocks) {
+        public Gate(int index, List<Location> barrierBlocks, Material barrierMaterial) {
             this.index = index;
             this.barrierBlocks = List.copyOf(barrierBlocks);
+            this.barrierMaterial = barrierMaterial;
         }
 
         public int index() {
@@ -87,8 +90,12 @@ public final class ArenaLayout {
             return barrierBlocks;
         }
 
-        public static Gate of(int index, List<Location> barrierBlocks) {
-            return new Gate(index, new ArrayList<>(barrierBlocks));
+        public Material barrierMaterial() {
+            return barrierMaterial;
+        }
+
+        public static Gate of(int index, List<Location> barrierBlocks, Material barrierMaterial) {
+            return new Gate(index, new ArrayList<>(barrierBlocks), barrierMaterial);
         }
     }
 }

@@ -45,7 +45,7 @@ public final class NetherPortalListener implements Listener {
         if (world.getEnvironment() == World.Environment.NETHER) {
             event.setCancelled(true);
             hubCommand.teleportToHub(player);
-            player.sendMessage(ChatColor.GRAY + "Nether portal teleports to Hub in SkyBlock worlds.");
+            player.sendMessage(ChatColor.GRAY + "Nether portal teleports to Hub in Skyblock worlds.");
             return;
         }
 
@@ -99,3 +99,4 @@ public final class NetherPortalListener implements Listener {
         return world.getName().equalsIgnoreCase(skyblockWorldName);
     }
 }
+

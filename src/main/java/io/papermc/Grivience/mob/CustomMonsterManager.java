@@ -3,6 +3,7 @@ package io.papermc.Grivience.mob;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.item.CustomItemService;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -15,6 +16,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import io.papermc.Grivience.util.MobHealthDisplay;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,11 +28,13 @@ public final class CustomMonsterManager {
     private final Map<String, CustomMonster> monsters = new HashMap<>();
     private final Map<UUID, SpawnPoint> spawnPoints = new ConcurrentHashMap<>();
     private final Map<String, List<SpawnPoint>> spawnPointsByWorld = new ConcurrentHashMap<>();
+    private final NamespacedKey healthBaseNameKey;
     private CustomItemService customItemService;
     private boolean spawningEnabled;
 
     public CustomMonsterManager(GriviencePlugin plugin) {
         this.plugin = plugin;
+        this.healthBaseNameKey = new NamespacedKey(plugin, "health_base_name");
         loadMonsters();
         loadSpawnPoints();
         startSpawning();
@@ -75,16 +79,25 @@ public final class CustomMonsterManager {
         }
 
         monster.setHealth(plugin.getConfig().getDouble(path + ".health", 20.0));
-        monster.setDamage(plugin.getConfig().getDouble(path + ".damage", 3.0));
+        double baseDamage = plugin.getConfig().getDouble(path + ".damage", 3.0);
+        double damageMultiplier = Math.max(0.0D, plugin.getConfig().getDouble("custom-monsters.damage-multiplier", 1.0D));
+        monster.setDamage(Math.max(0.0D, baseDamage * damageMultiplier));
         monster.setSpeed(plugin.getConfig().getDouble(path + ".speed", 0.23));
         monster.setExpReward(plugin.getConfig().getInt(path + ".exp-reward", 10));
         monster.setGlowing(plugin.getConfig().getBoolean(path + ".glowing", false));
 
         // Load drops
         monster.getDrops().clear();
-        List<String> dropIds = plugin.getConfig().getStringList(path + ".drops");
+        String dropsBase = path + ".drops";
+        List<String> dropIds = plugin.getConfig().getStringList(dropsBase);
+        if (dropIds == null || dropIds.isEmpty()) {
+            ConfigurationSection dropSection = plugin.getConfig().getConfigurationSection(dropsBase);
+            if (dropSection != null) {
+                dropIds = new ArrayList<>(dropSection.getKeys(false));
+            }
+        }
         for (String dropId : dropIds) {
-            String dropPath = path + ".drops." + dropId;
+            String dropPath = dropsBase + "." + dropId;
             if (plugin.getConfig().contains(dropPath)) {
                 MonsterDrop drop = new MonsterDrop();
                 drop.setMaterial(plugin.getConfig().getString(dropPath + ".material", "ROTTEN_FLESH"));
@@ -220,7 +233,6 @@ public final class CustomMonsterManager {
         }
 
         Location spawnLoc = point.getLocation();
-        World world = spawnLoc.getWorld();
 
         // Find a suitable spawn location within radius
         Location actualSpawn = findSpawnLocation(spawnLoc, point.getSpawnRadius());
@@ -228,15 +240,48 @@ public final class CustomMonsterManager {
             return;
         }
 
-        LivingEntity entity = (LivingEntity) world.spawnEntity(actualSpawn, monster.getEntityType());
+        LivingEntity entity = spawnMonster(monster.getId(), actualSpawn);
+        if (entity != null) {
+            entity.getPersistentDataContainer().set(
+                    new org.bukkit.NamespacedKey(plugin, "spawn_point"),
+                    org.bukkit.persistence.PersistentDataType.STRING,
+                    point.getId().toString()
+            );
+        }
+    }
+
+    public LivingEntity spawnMonster(String monsterId, Location location) {
+        CustomMonster monster = monsters.get(monsterId);
+        if (monster == null) {
+            return null;
+        }
+
+        World world = location.getWorld();
+        if (world == null) {
+            return null;
+        }
+
+        LivingEntity entity = (LivingEntity) world.spawnEntity(location, monster.getEntityType());
 
         // Apply custom stats
         entity.setCustomNameVisible(true);
-        entity.setCustomName(ChatColor.RED + monster.getDisplayName());
-        entity.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).setBaseValue(monster.getHealth());
+        var maxHealthAttr = entity.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
+        if (maxHealthAttr != null) {
+            maxHealthAttr.setBaseValue(monster.getHealth());
+        }
         entity.setHealth(monster.getHealth());
-        entity.getAttribute(org.bukkit.attribute.Attribute.ATTACK_DAMAGE).setBaseValue(monster.getDamage());
-        entity.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED).setBaseValue(monster.getSpeed());
+        
+        var attackDamageAttr = entity.getAttribute(org.bukkit.attribute.Attribute.ATTACK_DAMAGE);
+        if (attackDamageAttr != null) {
+            attackDamageAttr.setBaseValue(monster.getDamage());
+        }
+        
+        var movementSpeedAttr = entity.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED);
+        if (movementSpeedAttr != null) {
+            movementSpeedAttr.setBaseValue(monster.getSpeed());
+        }
+        
+        MobHealthDisplay.setBaseName(entity, healthBaseNameKey, ChatColor.RED + monster.getDisplayName());
 
         if (monster.isGlowing()) {
             entity.setGlowing(true);
@@ -250,10 +295,12 @@ public final class CustomMonsterManager {
         );
 
         entity.getPersistentDataContainer().set(
-                new org.bukkit.NamespacedKey(plugin, "spawn_point"),
-                org.bukkit.persistence.PersistentDataType.STRING,
-                point.getId().toString()
+                new org.bukkit.NamespacedKey(plugin, "monster_level"),
+                org.bukkit.persistence.PersistentDataType.INTEGER,
+                monster.getLevel()
         );
+
+        return entity;
     }
 
     private Location findSpawnLocation(Location center, int radius) {
@@ -303,11 +350,13 @@ public final class CustomMonsterManager {
                         amount = drop.getMinAmount() + new Random().nextInt(drop.getMaxAmount() - drop.getMinAmount() + 1);
                     }
                     customItem.setAmount(amount);
+                    trackCollectionDrop(killer, customItem);
                     entity.getWorld().dropItemNaturally(entity.getLocation(), customItem);
                 }
             } else {
                 ItemStack dropItem = drop.toItemStack();
                 if (dropItem != null) {
+                    trackCollectionDrop(killer, dropItem);
                     entity.getWorld().dropItemNaturally(entity.getLocation(), dropItem);
                 }
             }
@@ -317,6 +366,25 @@ public final class CustomMonsterManager {
         if (killer != null) {
             killer.giveExp(monster.getExpReward());
         }
+    }
+
+    private void trackCollectionDrop(Player killer, ItemStack item) {
+        if (killer == null || item == null || item.getType().isAir()) {
+            return;
+        }
+        var collectionsManager = plugin.getCollectionsManager();
+        if (collectionsManager == null || !collectionsManager.isEnabled()) {
+            return;
+        }
+
+        String itemId = null;
+        if (customItemService != null) {
+            itemId = customItemService.itemId(item);
+        }
+        if (itemId == null || itemId.isBlank()) {
+            itemId = item.getType().name();
+        }
+        collectionsManager.addCollection(killer, itemId, item.getAmount());
     }
 
     public void reload() {

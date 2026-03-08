@@ -83,7 +83,7 @@ public final class DungeonBuilder {
             carveCorridor(world, y, from, to, radius, direction, theme);
             cleanupVolumes.add(corridorCleanupVolume(y, from, to, radius, direction));
             List<Location> barrier = placeLockedGate(world, y, from, to, radius, direction, theme);
-            gates.add(ArenaLayout.Gate.of(gateIndex, barrier));
+            gates.add(ArenaLayout.Gate.of(gateIndex, barrier, theme.gateBarrier()));
         }
 
         return new ArenaLayout(centers, gates, cleanupVolumes);

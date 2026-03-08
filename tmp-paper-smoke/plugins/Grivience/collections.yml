@@ -1,0 +1,3714 @@
+# Collections Configuration
+# Skyblock Accurate Collections System
+# Supports 100+ items across all categories
+
+collections:
+  # ==================== FARMING COLLECTIONS ====================
+  
+  wheat:
+    name: "§eWheat"
+    description: "Harvested from wheat crops"
+    icon: WHEAT
+    category: FARMING
+    enabled: true
+    items:
+      - wheat
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 5000
+          skill-type: Farming
+
+  carrot:
+    name: "§6Carrot"
+    description: "Harvested from carrot crops"
+    icon: CARROT
+    category: FARMING
+    enabled: true
+    items:
+      - carrot
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 5000
+          skill-type: Farming
+
+  potato:
+    name: "§fPotato"
+    description: "Harvested from potato crops"
+    icon: POTATO
+    category: FARMING
+    enabled: true
+    items:
+      - potato
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 5000
+          skill-type: Farming
+
+  pumpkin:
+    name: "§fPumpkin"
+    description: "Harvested from pumpkin patches"
+    icon: PUMPKIN
+    category: FARMING
+    enabled: true
+    items:
+      - pumpkin
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  melon:
+    name: "§cMelon"
+    description: "Harvested from melon stems"
+    icon: MELON
+    category: FARMING
+    enabled: true
+    items:
+      - melon
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  cactus:
+    name: "§aCactus"
+    description: "Harvested from cactus blocks"
+    icon: CACTUS
+    category: FARMING
+    enabled: true
+    items:
+      - cactus
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 5000
+          skill-type: Farming
+
+  sugar_cane:
+    name: "§aSugar Cane"
+    description: "Harvested near water"
+    icon: SUGAR_CANE
+    category: FARMING
+    enabled: true
+    items:
+      - sugar_cane
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  nether_wart:
+    name: "§cNether Wart"
+    description: "Grown in the Nether"
+    icon: NETHER_WART
+    category: FARMING
+    enabled: true
+    items:
+      - nether_wart
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 500
+          skill-type: Alchemy
+
+  cocoa_beans:
+    name: "§6Cocoa Beans"
+    description: "Harvested from jungle trees"
+    icon: COCOA_BEANS
+    category: FARMING
+    enabled: true
+    items:
+      - cocoa_beans
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  seeds:
+    name: "§fSeeds"
+    description: "Obtained from tall grass"
+    icon: WHEAT_SEEDS
+    category: FARMING
+    enabled: true
+    items:
+      - wheat_seeds
+    tiers:
+      tier-1:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 100000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  # Animal Products
+  raw_beef:
+    name: "§cRaw Beef"
+    description: "Obtained from cows"
+    icon: BEEF
+    category: FARMING
+    enabled: true
+    items:
+      - beef
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  porkchop:
+    name: "§cPorkchop"
+    description: "Obtained from pigs"
+    icon: PORKCHOP
+    category: FARMING
+    enabled: true
+    items:
+      - porkchop
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  raw_chicken:
+    name: "§cChicken"
+    description: "Obtained from chickens"
+    icon: CHICKEN
+    category: FARMING
+    enabled: true
+    items:
+      - chicken
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  leather:
+    name: "§fLeather"
+    description: "Obtained from cows"
+    icon: LEATHER
+    category: FARMING
+    enabled: true
+    items:
+      - leather
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  feather:
+    name: "§fFeather"
+    description: "Obtained from chickens"
+    icon: FEATHER
+    category: FARMING
+    enabled: true
+    items:
+      - feather
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  egg:
+    name: "§fEgg"
+    description: "Obtained from chickens"
+    icon: EGG
+    category: FARMING
+    enabled: true
+    items:
+      - egg
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  honeycomb:
+    name: "§6Honeycomb"
+    description: "Obtained from bee nests"
+    icon: HONEYCOMB
+    category: FARMING
+    enabled: true
+    items:
+      - honeycomb
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  # ==================== MINING COLLECTIONS ====================
+  
+  coal:
+    name: "§fCoal"
+    description: "Mined from coal ore"
+    icon: COAL
+    category: MINING
+    enabled: true
+    items:
+      - coal
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Mining
+
+  cobblestone:
+    name: "§7Cobblestone"
+    description: "Mined from stone"
+    icon: COBBLESTONE
+    category: MINING
+    enabled: true
+    items:
+      - cobblestone
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  iron_ingot:
+    name: "§fIron"
+    description: "Smelted from iron ore"
+    icon: IRON_INGOT
+    category: MINING
+    enabled: true
+    items:
+      - iron_ingot
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Mining
+
+  gold_ingot:
+    name: "§6Gold"
+    description: "Smelted from gold ore"
+    icon: GOLD_INGOT
+    category: MINING
+    enabled: true
+    items:
+      - gold_ingot
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Mining
+
+  diamond:
+    name: "§bDiamond"
+    description: "Mined from diamond ore"
+    icon: DIAMOND
+    category: MINING
+    enabled: true
+    items:
+      - diamond
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Mining
+
+  emerald:
+    name: "§aEmerald"
+    description: "Mined from emerald ore"
+    icon: EMERALD
+    category: MINING
+    enabled: true
+    items:
+      - emerald
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Mining
+
+  lapis_lazuli:
+    name: "§9Lapis Lazuli"
+    description: "Mined from lapis ore"
+    icon: LAPIS_LAZULI
+    category: MINING
+    enabled: true
+    items:
+      - lapis_lazuli
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  redstone:
+    name: "§cRedstone"
+    description: "Mined from redstone ore"
+    icon: REDSTONE
+    category: MINING
+    enabled: true
+    items:
+      - redstone
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  quartz:
+    name: "§fQuartz"
+    description: "Mined from nether quartz ore"
+    icon: QUARTZ
+    category: MINING
+    enabled: true
+    items:
+      - quartz
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  obsidian:
+    name: "§5Obsidian"
+    description: "Mined with diamond or netherite pickaxe"
+    icon: OBSIDIAN
+    category: MINING
+    enabled: true
+    items:
+      - obsidian
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  gravel:
+    name: "§7Gravel"
+    description: "Mined from gravel deposits"
+    icon: GRAVEL
+    category: MINING
+    enabled: true
+    items:
+      - gravel
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  sand:
+    name: "§fSand"
+    description: "Mined from sand deposits"
+    icon: SAND
+    category: MINING
+    enabled: true
+    items:
+      - sand
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  end_stone:
+    name: "§fEnd Stone"
+    description: "Mined in the End"
+    icon: END_STONE
+    category: MINING
+    enabled: true
+    items:
+      - end_stone
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  endstone_shard:
+    name: "§eEndstone Shard"
+    description: "Mining drops from the End Mines"
+    icon: END_STONE
+    category: MINING
+    enabled: true
+    items:
+      - endstone_shard
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 20000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  rift_essence:
+    name: "§5Rift Essence"
+    description: "Rare essence harvested from End rifts"
+    icon: ECHO_SHARD
+    category: MINING
+    enabled: true
+    items:
+      - rift_essence
+    tiers:
+      tier-1:
+        amount: 5
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 10
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 2000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  void_crystal:
+    name: "§dVoid Crystal"
+    description: "A crystal that resonates with the void"
+    icon: AMETHYST_SHARD
+    category: MINING
+    enabled: true
+    items:
+      - void_crystal
+    tiers:
+      tier-1:
+        amount: 2
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 5
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 10
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 20
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 40
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 80
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 160
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 320
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 640
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  obsidian_core:
+    name: "§8Obsidian Core"
+    description: "A hardened core pulled from molten obsidian"
+    icon: OBSIDIAN
+    category: MINING
+    enabled: true
+    items:
+      - obsidian_core
+    tiers:
+      tier-1:
+        amount: 5
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 10
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 2000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  chorus_weave:
+    name: "§bChorus Weave"
+    description: "Woven fibers that shift between dimensions"
+    icon: STRING
+    category: MINING
+    enabled: true
+    items:
+      - chorus_weave
+    tiers:
+      tier-1:
+        amount: 5
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 10
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 2000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  netherrack:
+    name: "§cNetherrack"
+    description: "Mined in the Nether"
+    icon: NETHERRACK
+    category: MINING
+    enabled: true
+    items:
+      - netherrack
+    tiers:
+      tier-1:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  glowstone_dust:
+    name: "§6Glowstone Dust"
+    description: "Obtained from glowstone"
+    icon: GLOWSTONE_DUST
+    category: MINING
+    enabled: true
+    items:
+      - glowstone_dust
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  # ==================== COMBAT COLLECTIONS ====================
+  
+  rotten_flesh:
+    name: "§aRotten Flesh"
+    description: "Dropped by zombies"
+    icon: ROTTEN_FLESH
+    category: COMBAT
+    enabled: true
+    items:
+      - rotten_flesh
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Combat
+
+  bone:
+    name: "§fBone"
+    description: "Dropped by skeletons"
+    icon: BONE
+    category: COMBAT
+    enabled: true
+    items:
+      - bone
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Combat
+
+  string:
+    name: "§fString"
+    description: "Dropped by spiders"
+    icon: STRING
+    category: COMBAT
+    enabled: true
+    items:
+      - string
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Combat
+
+  spider_eye:
+    name: "§cSpider Eye"
+    description: "Dropped by spiders"
+    icon: SPIDER_EYE
+    category: COMBAT
+    enabled: true
+    items:
+      - spider_eye
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  gunpowder:
+    name: "§cGunpowder"
+    description: "Dropped by creepers"
+    icon: GUNPOWDER
+    category: COMBAT
+    enabled: true
+    items:
+      - gunpowder
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Combat
+
+  ender_pearl:
+    name: "§aEnder Pearl"
+    description: "Dropped by endermen"
+    icon: ENDER_PEARL
+    category: COMBAT
+    enabled: true
+    items:
+      - ender_pearl
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Combat
+
+  slime_ball:
+    name: "§aSlimeball"
+    description: "Dropped by slimes"
+    icon: SLIME_BALL
+    category: COMBAT
+    enabled: true
+    items:
+      - slime_ball
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  ghast_tear:
+    name: "§fGhast Tear"
+    description: "Dropped by ghasts"
+    icon: GHAST_TEAR
+    category: COMBAT
+    enabled: true
+    items:
+      - ghast_tear
+    tiers:
+      tier-1:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  blaze_rod:
+    name: "§cBlaze Rod"
+    description: "Dropped by blazes"
+    icon: BLAZE_ROD
+    category: COMBAT
+    enabled: true
+    items:
+      - blaze_rod
+    tiers:
+      tier-1:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  magma_cream:
+    name: "§fMagma Cream"
+    description: "Dropped by magma cubes"
+    icon: MAGMA_CREAM
+    category: COMBAT
+    enabled: true
+    items:
+      - magma_cream
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  phantom_membrane:
+    name: "§aPhantom Membrane"
+    description: "Dropped by phantoms"
+    icon: PHANTOM_MEMBRANE
+    category: COMBAT
+    enabled: true
+    items:
+      - phantom_membrane
+    tiers:
+      tier-1:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  shulker_shell:
+    name: "§fShulker Shell"
+    description: "Dropped by shulkers"
+    icon: SHULKER_SHELL
+    category: COMBAT
+    enabled: true
+    items:
+      - shulker_shell
+    tiers:
+      tier-1:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  # ==================== FORAGING COLLECTIONS ====================
+  
+  oak_log:
+    name: "§fOak Log"
+    description: "Chopped from oak trees"
+    icon: OAK_LOG
+    category: FORAGING
+    enabled: true
+    items:
+      - oak_log
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 2000
+          skill-type: Foraging
+
+  spruce_log:
+    name: "§fSpruce Log"
+    description: "Chopped from spruce trees"
+    icon: SPRUCE_LOG
+    category: FORAGING
+    enabled: true
+    items:
+      - spruce_log
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  birch_log:
+    name: "§fBirch Log"
+    description: "Chopped from birch trees"
+    icon: BIRCH_LOG
+    category: FORAGING
+    enabled: true
+    items:
+      - birch_log
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  jungle_log:
+    name: "§fJungle Log"
+    description: "Chopped from jungle trees"
+    icon: JUNGLE_LOG
+    category: FORAGING
+    enabled: true
+    items:
+      - jungle_log
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  acacia_log:
+    name: "§fAcacia Log"
+    description: "Chopped from acacia trees"
+    icon: ACACIA_LOG
+    category: FORAGING
+    enabled: true
+    items:
+      - acacia_log
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  dark_oak_log:
+    name: "§fDark Oak Log"
+    description: "Chopped from dark oak trees"
+    icon: DARK_OAK_LOG
+    category: FORAGING
+    enabled: true
+    items:
+      - dark_oak_log
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  mangrove_log:
+    name: "§fMangrove Log"
+    description: "Chopped from mangrove trees"
+    icon: MANGROVE_LOG
+    category: FORAGING
+    enabled: true
+    items:
+      - mangrove_log
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  cherry_log:
+    name: "§fCherry Log"
+    description: "Chopped from cherry trees"
+    icon: CHERRY_LOG
+    category: FORAGING
+    enabled: true
+    items:
+      - cherry_log
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  # ==================== FISHING COLLECTIONS ====================
+  
+  cod:
+    name: "§fCod"
+    description: "Caught from ocean water"
+    icon: COD
+    category: FISHING
+    enabled: true
+    items:
+      - cod
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: SKILL_XP
+          amount: 1000
+          skill-type: Fishing
+
+  salmon:
+    name: "§fSalmon"
+    description: "Caught from rivers"
+    icon: SALMON
+    category: FISHING
+    enabled: true
+    items:
+      - salmon
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  tropical_fish:
+    name: "§dTropical Fish"
+    description: "Caught in warm oceans"
+    icon: TROPICAL_FISH
+    category: FISHING
+    enabled: true
+    items:
+      - tropical_fish
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  pufferfish:
+    name: "§cPufferfish"
+    description: "Caught from ocean water"
+    icon: PUFFERFISH
+    category: FISHING
+    enabled: true
+    items:
+      - pufferfish
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  ink_sac:
+    name: "§fInk Sac"
+    description: "Dropped by squids"
+    icon: INK_SAC
+    category: FISHING
+    enabled: true
+    items:
+      - ink_sac
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  lily_pad:
+    name: "§aLily Pad"
+    description: "Found on water surfaces"
+    icon: LILY_PAD
+    category: FISHING
+    enabled: true
+    items:
+      - lily_pad
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  clay_ball:
+    name: "§fClay"
+    description: "Dug from clay blocks underwater"
+    icon: CLAY_BALL
+    category: FISHING
+    enabled: true
+    items:
+      - clay_ball
+    tiers:
+      tier-1:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 25000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  prismarine_crystals:
+    name: "§bPrismarine Crystals"
+    description: "Dropped by guardians"
+    icon: PRISMARINE_CRYSTALS
+    category: FISHING
+    enabled: true
+    items:
+      - prismarine_crystals
+    tiers:
+      tier-1:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  prismarine_shard:
+    name: "§bPrismarine Shard"
+    description: "Dropped by guardians"
+    icon: PRISMARINE_SHARD
+    category: FISHING
+    enabled: true
+    items:
+      - prismarine_shard
+    tiers:
+      tier-1:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 10000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+

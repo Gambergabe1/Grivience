@@ -7,7 +7,11 @@ public enum RaijinCraftingItemType {
     THUNDER_ESSENCE,
     RAIJIN_CORE,
     DRAGON_SCALE,
-    BLOSSOM_FIBER;
+    BLOSSOM_FIBER,
+    ARCANE_CLOTH,
+    SOULTHREAD,
+    STAR_PEARL,
+    GUARDIAN_FRAGMENT;
 
     public static RaijinCraftingItemType parse(String input) {
         if (input == null || input.isBlank()) {

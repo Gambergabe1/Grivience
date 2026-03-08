@@ -16,6 +16,7 @@ public final class CustomMonster implements ConfigurationSerializable {
     private double health;
     private double damage;
     private double speed;
+    private int level;
     private List<MonsterDrop> drops;
     private int expReward;
     private boolean glowing;
@@ -27,6 +28,7 @@ public final class CustomMonster implements ConfigurationSerializable {
         this.health = 20.0;
         this.damage = 3.0;
         this.speed = 0.23;
+        this.level = 1;
         this.drops = new ArrayList<>();
         this.expReward = 10;
         this.glowing = false;
@@ -44,6 +46,7 @@ public final class CustomMonster implements ConfigurationSerializable {
         this.health = ((Number) data.getOrDefault("health", 20.0)).doubleValue();
         this.damage = ((Number) data.getOrDefault("damage", 3.0)).doubleValue();
         this.speed = ((Number) data.getOrDefault("speed", 0.23)).doubleValue();
+        this.level = ((Number) data.getOrDefault("level", 1)).intValue();
         this.expReward = (int) data.getOrDefault("expReward", 10);
         this.glowing = (boolean) data.getOrDefault("glowing", false);
 
@@ -68,6 +71,7 @@ public final class CustomMonster implements ConfigurationSerializable {
         data.put("health", health);
         data.put("damage", damage);
         data.put("speed", speed);
+        data.put("level", level);
         data.put("expReward", expReward);
         data.put("glowing", glowing);
 
@@ -106,6 +110,14 @@ public final class CustomMonster implements ConfigurationSerializable {
 
     public double getSpeed() {
         return speed;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public void setLevel(int level) {
+        this.level = level;
     }
 
     public List<MonsterDrop> getDrops() {

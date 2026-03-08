@@ -3,6 +3,7 @@ package io.papermc.Grivience.skyblock.command;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.skyblock.island.Island;
 import io.papermc.Grivience.skyblock.island.IslandManager;
+import io.papermc.Grivience.skyblock.profile.SkyBlockProfile;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -75,6 +76,9 @@ public final class SkyblockAdminCommand implements CommandExecutor, TabCompleter
 
         try {
             plugin.saveConfig();
+            if (plugin.getFastTravelManager() != null) {
+                plugin.getFastTravelManager().syncHubWarpsFromConfig();
+            }
             player.sendMessage(ChatColor.GREEN + "Hub location set successfully!");
             player.sendMessage(ChatColor.GRAY + "World: " + ChatColor.AQUA + world.getName());
             player.sendMessage(ChatColor.GRAY + "Location: " + ChatColor.AQUA + 
@@ -110,7 +114,35 @@ public final class SkyblockAdminCommand implements CommandExecutor, TabCompleter
             return;
         }
 
-        Island island = islandManager.getIsland(target.getUniqueId());
+        Island island = null;
+        if (target instanceof Player targetPlayer && targetPlayer.isOnline()) {
+            island = islandManager.getIsland(targetPlayer);
+        }
+        if (island == null && plugin.getProfileManager() != null) {
+            SkyBlockProfile selected = plugin.getProfileManager().getSelectedProfile(target.getUniqueId());
+            if (selected != null) {
+                island = islandManager.getIslandByProfileId(selected.getProfileId());
+                if (island == null) {
+                    // Legacy islands keyed by profile name: try to locate and migrate.
+                    for (Island candidate : islandManager.getIslandsForOwner(target.getUniqueId())) {
+                        if (candidate == null) {
+                            continue;
+                        }
+                        if (candidate.getProfileName() != null && candidate.getProfileName().equalsIgnoreCase(selected.getProfileName())) {
+                            if (candidate.getProfileId() == null) {
+                                candidate.setProfileId(selected.getProfileId());
+                                islandManager.saveIsland(candidate);
+                            }
+                            island = candidate;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (island == null) {
+            island = islandManager.getIsland(target.getUniqueId());
+        }
         if (island == null) {
             sender.sendMessage(ChatColor.RED + "That player does not have an island.");
             return;
@@ -132,7 +164,7 @@ public final class SkyblockAdminCommand implements CommandExecutor, TabCompleter
     }
 
     private void sendHelp(CommandSender sender) {
-        sender.sendMessage(ChatColor.GOLD + "=== SkyBlock Admin Commands ===");
+        sender.sendMessage(ChatColor.GOLD + "=== Skyblock Admin Commands ===");
         sender.sendMessage(ChatColor.YELLOW + "/skyblockadmin sethub" + ChatColor.GRAY + " - Set hub spawn location");
         sender.sendMessage(ChatColor.YELLOW + "/skyblockadmin reload" + ChatColor.GRAY + " - Reload plugin config");
         sender.sendMessage(ChatColor.YELLOW + "/skyblockadmin goto <player>" + ChatColor.GRAY + " - Teleport to a player's island");
@@ -173,3 +205,4 @@ public final class SkyblockAdminCommand implements CommandExecutor, TabCompleter
         return filtered;
     }
 }
+

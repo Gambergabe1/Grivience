@@ -6,9 +6,9 @@ public enum ItemRarity {
     COMMON("Common", ChatColor.WHITE),
     UNCOMMON("Uncommon", ChatColor.GREEN),
     RARE("Rare", ChatColor.BLUE),
-    EPIC("Epic", ChatColor.LIGHT_PURPLE),
+    EPIC("Epic", ChatColor.DARK_PURPLE),
     LEGENDARY("Legendary", ChatColor.GOLD),
-    MYTHIC("Mythic", ChatColor.DARK_PURPLE);
+    MYTHIC("Mythic", ChatColor.LIGHT_PURPLE);
 
     private final String displayName;
     private final ChatColor color;

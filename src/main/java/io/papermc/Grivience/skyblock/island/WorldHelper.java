@@ -72,6 +72,33 @@ public final class WorldHelper {
         }
     }
 
+    public static void setAreaBiome(Location min, Location max, org.bukkit.block.Biome biome) {
+        if (min == null || max == null || min.getWorld() == null || max.getWorld() == null) {
+            return;
+        }
+
+        if (!min.getWorld().equals(max.getWorld())) {
+            return;
+        }
+
+        World world = min.getWorld();
+        int minX = min.getBlockX();
+        int minZ = min.getBlockZ();
+        int maxX = max.getBlockX();
+        int maxZ = max.getBlockZ();
+
+        // Biomes are often 4x4x4 in the engine, but Spigot/Paper can handle 1x1x1
+        // We set them in 4x4 intervals to be efficient if needed, but 1x1 is safer for exact bounds.
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                // Biomes are 3D in 1.16+
+                for (int y = 0; y < 256; y += 4) {
+                    world.setBiome(x, y, z, biome);
+                }
+            }
+        }
+    }
+
     public static void setBlock(Location location, Material material) {
         if (location == null || location.getWorld() == null) {
             return;
