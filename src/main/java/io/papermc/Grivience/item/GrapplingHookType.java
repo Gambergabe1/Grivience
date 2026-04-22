@@ -25,7 +25,6 @@ public enum GrapplingHookType {
     private final double launchVelocity;
     private final double maxDistance;
     private final long cooldownMs;
-    private final int customModelData;
 
     GrapplingHookType(String id, String displayName, String... lore) {
         this.id = id;
@@ -34,7 +33,6 @@ public enum GrapplingHookType {
         this.launchVelocity = 2.0; // Ascent Skyblock uses velocity 2.0
         this.maxDistance = 50.0;   // Ascent Skyblock max range ~50 blocks
         this.cooldownMs = 2000;    // 2 second cooldown
-        this.customModelData = 1001; // Custom model data for texture
     }
 
     public String getId() {
@@ -59,10 +57,6 @@ public enum GrapplingHookType {
 
     public long getCooldownMs() {
         return cooldownMs;
-    }
-
-    public int getCustomModelData() {
-        return customModelData;
     }
 
     public static GrapplingHookType parse(String id) {

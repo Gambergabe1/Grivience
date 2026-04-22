@@ -51,6 +51,12 @@ public final class SkyblockStatsManager {
         perLevelDefense = cfg.getDouble("skyblock-stats.per-level.defense", 0.0D);
     }
 
+    public void reload(Player player) {
+        if (player == null || !player.isOnline()) return;
+        // This is typically called when stats change (e.g. level up).
+        // Actual attribute application is usually handled by a Combat Engine task or event.
+    }
+
     public double getStrength(Player player) {
         if (player == null) {
             return baseStrength;

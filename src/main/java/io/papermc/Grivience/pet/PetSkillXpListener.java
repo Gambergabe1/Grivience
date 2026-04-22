@@ -39,7 +39,9 @@ public final class PetSkillXpListener implements Listener {
             return;
         }
 
-        long skillXp = skillXp("combat-kill");
+        long skillXp = levelManager != null
+                ? levelManager.resolveCombatSkillXp(event.getEntity())
+                : skillXp("combat-kill");
         if (skillXp > 0L) {
             petManager.addSkillXp(killer, PetSkillType.COMBAT, skillXp);
         }

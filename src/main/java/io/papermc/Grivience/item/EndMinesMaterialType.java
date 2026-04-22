@@ -6,6 +6,7 @@ import java.util.Locale;
  * Custom materials used by the End Mines expansion.
  */
 public enum EndMinesMaterialType {
+    KUNZITE,
     ENDSTONE_SHARD,
     RIFT_ESSENCE,
     VOID_CRYSTAL,
@@ -26,4 +27,3 @@ public enum EndMinesMaterialType {
         return null;
     }
 }
-

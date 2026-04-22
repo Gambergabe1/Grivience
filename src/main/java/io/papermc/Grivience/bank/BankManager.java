@@ -2,6 +2,7 @@ package io.papermc.Grivience.bank;
 
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.skyblock.economy.ProfileBankService;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -15,6 +16,11 @@ public final class BankManager {
     public BankManager(GriviencePlugin plugin) {
         this.plugin = plugin;
         this.bankService = new ProfileBankService(plugin);
+        startInterestTask();
+    }
+
+    private void startInterestTask() {
+        Bukkit.getScheduler().runTaskTimer(plugin, new BankInterestTask(plugin, this), 20L * 60 * 5, 20L * 60 * 5); // Every 5 minutes
     }
 
     public void open(Player player, BankGui.ViewType viewType) {

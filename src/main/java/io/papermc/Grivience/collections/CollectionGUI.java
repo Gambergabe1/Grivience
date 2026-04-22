@@ -4,6 +4,7 @@ import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.crafting.RecipeRegistry;
 import io.papermc.Grivience.crafting.SkyblockRecipe;
 import io.papermc.Grivience.gui.SkyblockGui;
+import io.papermc.Grivience.item.ArmorCraftingListener;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -16,9 +17,9 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +32,7 @@ import java.util.UUID;
 public class CollectionGUI implements Listener, InventoryHolder {
     private final GriviencePlugin plugin;
     private final CollectionsManager collectionsManager;
+    private final Inventory holderInventory;
 
     // Skyblock-accurate inventory sizes and titles
     private static final String MAIN_TITLE = SkyblockGui.title("Collections");
@@ -41,24 +43,34 @@ public class CollectionGUI implements Listener, InventoryHolder {
     private static final int[] TIER_SLOTS = {9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44};
     
     // GUI State per player
-    private final java.util.Map<UUID, GuiState> playerStates;
+    private final Map<UUID, GuiState> playerStates;
 
     public CollectionGUI(GriviencePlugin plugin, CollectionsManager collectionsManager) {
         this.plugin = plugin;
         this.collectionsManager = collectionsManager;
-        this.playerStates = new java.util.HashMap<>();
+        this.playerStates = new HashMap<>();
+        this.holderInventory = Bukkit.createInventory(this, 54, MAIN_TITLE);
     }
 
     /**
      * Open the main collections menu - Skyblock accurate layout.
      */
     public void openMainGui(Player player) {
+        openMainGui(player, player);
+    }
+
+    public void openMainGui(Player viewer, Player viewedPlayer) {
+        ViewContext viewContext = createViewContext(viewer, viewedPlayer);
+        openMainGui(viewer, viewContext);
+    }
+
+    private void openMainGui(Player viewer, ViewContext viewContext) {
         Inventory gui = Bukkit.createInventory(this, 54, MAIN_TITLE);
 
         fillSkyblockBackground(gui);
 
         // Header information (slot 4 - center top)
-        gui.setItem(4, createMainHeader(player));
+        gui.setItem(4, createMainHeader(viewContext));
 
         // Category buttons in Skyblock-accurate positions
         int slotIndex = 0;
@@ -68,7 +80,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
             int totalInCategory = collectionsManager.getCollectionsByCategory(category).size();
             if (totalInCategory == 0) continue; // Skip empty categories
             
-            ItemStack icon = createCategoryIcon(category, totalInCategory);
+            ItemStack icon = createCategoryIcon(category, totalInCategory, viewContext);
             gui.setItem(CATEGORY_SLOTS[slotIndex], icon);
             slotIndex++;
         }
@@ -92,32 +104,32 @@ public class CollectionGUI implements Listener, InventoryHolder {
             )
         ));
 
-        gui.setItem(50, createMenuItem(
-            Material.PLAYER_HEAD,
-            ChatColor.YELLOW + "" + ChatColor.BOLD + "Your Stats",
-            createStatsLore(player)
-        ));
+        gui.setItem(50, createProfileStatsItem(viewContext));
 
         // Close button (bottom right)
         gui.setItem(53, createCloseButton());
 
-        player.openInventory(gui);
-        playOpenSound(player);
+        viewer.openInventory(gui);
+        playOpenSound(viewer);
 
-        playerStates.put(player.getUniqueId(), new GuiState(GuiType.MAIN, null, null, null));
+        playerStates.put(viewer.getUniqueId(), new GuiState(viewContext, GuiType.MAIN, null, null, null));
     }
 
     /**
      * Open category collections menu - Skyblock accurate.
      */
     public void openCategoryGui(Player player, CollectionCategory category) {
+        openCategoryGui(player, createViewContext(player, player), category);
+    }
+
+    private void openCategoryGui(Player viewer, ViewContext viewContext, CollectionCategory category) {
         String title = SkyblockGui.title(ChatColor.stripColor(category.getDisplayName()));
         Inventory gui = Bukkit.createInventory(this, 54, title);
 
         fillSkyblockBackground(gui);
 
         // Category header
-        gui.setItem(4, createCategoryHeader(category, player));
+        gui.setItem(4, createCategoryHeader(category, viewContext));
 
         List<CollectionDefinition> collections = collectionsManager.getCollectionsByCategory(category);
         List<String> subcategories = collectionsManager.getSubcategories(category);
@@ -136,7 +148,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
                 if (!collection.isEnabled()) continue;
                 if (slotIndex >= COLLECTION_SLOTS.length) break;
 
-                PlayerCollectionProgress progress = collectionsManager.getPlayerProgress(player, collection.getId());
+                PlayerCollectionProgress progress = getProgress(viewContext, collection.getId());
                 ItemStack icon = createCollectionIcon(collection, progress);
                 gui.setItem(COLLECTION_SLOTS[slotIndex], icon);
                 slotIndex++;
@@ -166,14 +178,18 @@ public class CollectionGUI implements Listener, InventoryHolder {
         // Close button
         gui.setItem(53, createCloseButton());
 
-        player.openInventory(gui);
-        playOpenSound(player);
+        viewer.openInventory(gui);
+        playOpenSound(viewer);
 
-        playerStates.put(player.getUniqueId(), new GuiState(GuiType.CATEGORY, category, null, null));
+        playerStates.put(viewer.getUniqueId(), new GuiState(viewContext, GuiType.CATEGORY, category, null, null));
     }
 
     public void openSubcategoryGui(Player player, CollectionCategory category, String subcategory) {
-        if (player == null || category == null || subcategory == null || subcategory.isBlank()) {
+        openSubcategoryGui(player, createViewContext(player, player), category, subcategory);
+    }
+
+    private void openSubcategoryGui(Player viewer, ViewContext viewContext, CollectionCategory category, String subcategory) {
+        if (viewer == null || category == null || subcategory == null || subcategory.isBlank()) {
             return;
         }
 
@@ -197,7 +213,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
             if (!collection.isEnabled()) continue;
             if (slotIndex >= COLLECTION_SLOTS.length) break;
 
-            PlayerCollectionProgress progress = collectionsManager.getPlayerProgress(player, collection.getId());
+            PlayerCollectionProgress progress = getProgress(viewContext, collection.getId());
             ItemStack icon = createCollectionIcon(collection, progress);
             gui.setItem(COLLECTION_SLOTS[slotIndex], icon);
             slotIndex++;
@@ -206,25 +222,25 @@ public class CollectionGUI implements Listener, InventoryHolder {
         gui.setItem(48, createBackButton(categoryName(category)));
         gui.setItem(53, createCloseButton());
 
-        player.openInventory(gui);
-        playOpenSound(player);
+        viewer.openInventory(gui);
+        playOpenSound(viewer);
 
-        playerStates.put(player.getUniqueId(), new GuiState(GuiType.SUBCATEGORY, category, subcategory, null));
+        playerStates.put(viewer.getUniqueId(), new GuiState(viewContext, GuiType.SUBCATEGORY, category, subcategory, null));
     }
 
     /**
      * Open collection details menu - Skyblock accurate tier display.
      */
     public void openCollectionDetailsGui(Player player, CollectionDefinition collection) {
-        openCollectionDetailsGui(player, collection, null);
+        openCollectionDetailsGui(player, createViewContext(player, player), collection, null);
     }
 
-    private void openCollectionDetailsGui(Player player, CollectionDefinition collection, String subcategory) {
+    private void openCollectionDetailsGui(Player viewer, ViewContext viewContext, CollectionDefinition collection, String subcategory) {
         Inventory gui = Bukkit.createInventory(this, 54, SkyblockGui.title(ChatColor.stripColor(collection.getName())));
 
         fillSkyblockBackground(gui);
 
-        PlayerCollectionProgress progress = collectionsManager.getPlayerProgress(player, collection.getId());
+        PlayerCollectionProgress progress = getProgress(viewContext, collection.getId());
 
         // Collection info item (center - slot 13)
         gui.setItem(13, createCollectionDetailIcon(collection, progress));
@@ -245,7 +261,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
         }
 
         // Stats panel (bottom left)
-        gui.setItem(45, createStatsPanel(player, collection, progress));
+        gui.setItem(45, createStatsPanel(viewer, viewContext, collection, progress));
         
         // Progress panel (bottom center-left)
         gui.setItem(46, createProgressPanel(collection, progress));
@@ -259,15 +275,15 @@ public class CollectionGUI implements Listener, InventoryHolder {
         // Close button
         gui.setItem(53, createCloseButton());
 
-        player.openInventory(gui);
-        playOpenSound(player);
+        viewer.openInventory(gui);
+        playOpenSound(viewer);
 
-        playerStates.put(player.getUniqueId(), new GuiState(GuiType.COLLECTION_DETAILS, collection.getCategory(), subcategory, collection.getId()));
+        playerStates.put(viewer.getUniqueId(), new GuiState(viewContext, GuiType.COLLECTION_DETAILS, collection.getCategory(), subcategory, collection.getId()));
     }
 
     // ==================== ITEM CREATORS ====================
 
-    private ItemStack createMainHeader(Player player) {
+    private ItemStack createMainHeader(ViewContext viewContext) {
         ItemStack item = new ItemStack(Material.BOOKSHELF);
         ItemMeta meta = item.getItemMeta();
         
@@ -275,11 +291,14 @@ public class CollectionGUI implements Listener, InventoryHolder {
         
         List<String> lore = new ArrayList<>();
         lore.add("");
+        lore.add(ChatColor.GRAY + "Viewing: " + ChatColor.GOLD + viewContext.profileLabel());
+        lore.add("");
         lore.add(ChatColor.GRAY + "Collections track items you've gathered");
         lore.add(ChatColor.GRAY + "throughout your gameplay on Skyblock.");
         lore.add("");
         lore.add(ChatColor.GRAY + "Total Collections: " + ChatColor.GREEN + collectionsManager.getEnabledCollections().size());
-        lore.add(ChatColor.GRAY + "Maxed Collections: " + ChatColor.GOLD + collectionsManager.getMaxedCollectionsCount(player));
+        lore.add(ChatColor.GRAY + "Maxed Collections: " + ChatColor.GOLD + collectionsManager.getMaxedCollectionsCount(viewContext.profileId));
+        lore.add(ChatColor.GRAY + "Total Items Collected: " + ChatColor.YELLOW + formatNumber(collectionsManager.getTotalCollectedItems(viewContext.profileId)));
         lore.add("");
         lore.add(ChatColor.GRAY + "Collect items naturally by:");
         lore.add(ChatColor.GREEN + "  • Mining ores and stone");
@@ -290,19 +309,29 @@ public class CollectionGUI implements Listener, InventoryHolder {
         lore.add("");
         lore.add(ChatColor.YELLOW + "Click a category to browse collections!");
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
     }
 
-    private ItemStack createCategoryHeader(CollectionCategory category, Player player) {
+    private ItemStack createProfileStatsItem(ViewContext viewContext) {
+        return createMenuItem(
+                Material.PLAYER_HEAD,
+                ChatColor.YELLOW + "" + ChatColor.BOLD + viewContext.statsTitle(),
+                createStatsLore(viewContext)
+        );
+    }
+
+    private ItemStack createCategoryHeader(CollectionCategory category, ViewContext viewContext) {
         ItemStack item = new ItemStack(category.getIcon());
         ItemMeta meta = item.getItemMeta();
         
-        meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + category.getDisplayName());
+        meta.setDisplayName(ChatColor.BOLD + "" + category.getDisplayName());
         
         List<String> lore = new ArrayList<>();
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Viewing: " + ChatColor.YELLOW + viewContext.profileLabel());
         lore.add("");
         lore.add(ChatColor.GRAY + "Browse collections in this category.");
         lore.add("");
@@ -311,7 +340,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
         int maxedInCategory = 0;
         
         for (CollectionDefinition collection : collectionsManager.getCollectionsByCategory(category)) {
-            PlayerCollectionProgress progress = collectionsManager.getPlayerProgress(player, collection.getId());
+            PlayerCollectionProgress progress = getProgress(viewContext, collection.getId());
             if (collection.isMaxed(progress.getCollectedAmount())) {
                 maxedInCategory++;
             }
@@ -324,27 +353,28 @@ public class CollectionGUI implements Listener, InventoryHolder {
                 ? "Click a collection to view tiers!"
                 : "Click a subcategory to browse!"));
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
     }
 
-    private ItemStack createCategoryIcon(CollectionCategory category, int totalInCategory) {
+    private ItemStack createCategoryIcon(CollectionCategory category, int totalInCategory, ViewContext viewContext) {
         ItemStack item = new ItemStack(category.getIcon());
         ItemMeta meta = item.getItemMeta();
         
-        meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + category.getDisplayName());
+        meta.setDisplayName(ChatColor.BOLD + "" + category.getDisplayName());
         
         List<String> lore = new ArrayList<>();
         lore.add("");
         lore.add(ChatColor.GRAY + "Collections: " + ChatColor.GREEN + totalInCategory);
+        lore.add(ChatColor.GRAY + "Completed: " + ChatColor.GOLD + countMaxedCollectionsInCategory(category, viewContext) + ChatColor.GRAY + "/" + ChatColor.GREEN + totalInCategory);
         lore.add("");
         lore.add(ChatColor.GRAY + category.getDescription());
         lore.add("");
         lore.add(ChatColor.YELLOW + "Click to browse!");
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
@@ -369,7 +399,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
         lore.add("");
         lore.add(ChatColor.YELLOW + "Click to browse!");
 
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
 
         return item;
@@ -390,7 +420,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
         int maxTierLevel = collection.getTiers().isEmpty() ? 0 : collection.getTiers().get(collection.getTiers().size() - 1).getTierLevel();
 
         if (currentTierLevel > 0) {
-            lore.add("§eTier " + CollectionTier.toRoman(currentTierLevel));
+            lore.add(ChatColor.YELLOW + "Tier " + CollectionTier.toRoman(currentTierLevel));
         }
 
         if (currentTierLevel < maxTierLevel) {
@@ -398,23 +428,23 @@ public class CollectionGUI implements Listener, InventoryHolder {
             double percent = (double) progress.getCollectedAmount() / nextTier.getAmountRequired() * 100.0;
             if (percent > 100.0) percent = 100.0;
 
-            lore.add("§7Progress to Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + ": §e" + String.format("%.1f%%", percent));
+            lore.add(ChatColor.GRAY + "Progress to Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + ": " + ChatColor.YELLOW + String.format("%.1f%%", percent));
             lore.add(createProgressBar(percent, 20));
-            lore.add("§e" + formatNumber(progress.getCollectedAmount()) + "§7/§e" + formatNumber(nextTier.getAmountRequired()));
+            lore.add(ChatColor.YELLOW + formatNumber(progress.getCollectedAmount()) + ChatColor.GRAY + "/" + ChatColor.YELLOW + formatNumber(nextTier.getAmountRequired()));
             lore.add("");
-            lore.add("§aTier " + CollectionTier.toRoman(nextTier.getTierLevel()) + " Rewards:");
+            lore.add(ChatColor.GREEN + "Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + " Rewards:");
             for (CollectionReward reward : nextTier.getRewards()) {
                 lore.add("  " + reward.getFormattedLore());
             }
         } else {
-            lore.add("§a§lMAXED OUT!");
-            lore.add("§e" + formatNumber(progress.getCollectedAmount()) + " §7items collected");
+            lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "MAXED OUT!");
+            lore.add(ChatColor.YELLOW + formatNumber(progress.getCollectedAmount()) + " " + ChatColor.GRAY + "items collected");
         }
         
         lore.add("");
         lore.add(ChatColor.YELLOW + "Click to view details!");
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
@@ -429,7 +459,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
         List<String> lore = new ArrayList<>();
         lore.add(ChatColor.GRAY + collection.getCategory().getDisplayName());
         if (collection.getDescription() != null && !collection.getDescription().isEmpty()) {
-            lore.add("§8" + collection.getDescription());
+            lore.add(ChatColor.DARK_GRAY + collection.getDescription());
         }
         lore.add("");
         
@@ -437,7 +467,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
         int maxTierLevel = collection.getTiers().isEmpty() ? 0 : collection.getTiers().get(collection.getTiers().size() - 1).getTierLevel();
         
         if (currentTierLevel > 0) {
-            lore.add("§eTier " + CollectionTier.toRoman(currentTierLevel));
+            lore.add(ChatColor.YELLOW + "Tier " + CollectionTier.toRoman(currentTierLevel));
         }
 
         if (currentTierLevel < maxTierLevel) {
@@ -445,20 +475,20 @@ public class CollectionGUI implements Listener, InventoryHolder {
             double percent = (double) progress.getCollectedAmount() / nextTier.getAmountRequired() * 100.0;
             if (percent > 100.0) percent = 100.0;
 
-            lore.add("§7Progress to Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + ": §e" + String.format("%.1f%%", percent));
+            lore.add(ChatColor.GRAY + "Progress to Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + ": " + ChatColor.YELLOW + String.format("%.1f%%", percent));
             lore.add(createProgressBar(percent, 20));
-            lore.add("§e" + formatNumber(progress.getCollectedAmount()) + "§7/§e" + formatNumber(nextTier.getAmountRequired()));
+            lore.add(ChatColor.YELLOW + formatNumber(progress.getCollectedAmount()) + ChatColor.GRAY + "/" + ChatColor.YELLOW + formatNumber(nextTier.getAmountRequired()));
             lore.add("");
-            lore.add("§aTier " + CollectionTier.toRoman(nextTier.getTierLevel()) + " Rewards:");
+            lore.add(ChatColor.GREEN + "Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + " Rewards:");
             for (CollectionReward reward : nextTier.getRewards()) {
                 lore.add("  " + reward.getFormattedLore());
             }
         } else {
-            lore.add("§a§lMAXED OUT!");
-            lore.add("§e" + formatNumber(progress.getCollectedAmount()) + " §7items collected");
+            lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "MAXED OUT!");
+            lore.add(ChatColor.YELLOW + formatNumber(progress.getCollectedAmount()) + " " + ChatColor.GRAY + "items collected");
         }
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
@@ -524,7 +554,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
             }
         }
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
@@ -539,7 +569,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
             return List.of();
         }
 
-        List<String> lines = new ArrayList<>();
+        Set<String> names = new java.util.LinkedHashSet<>();
         for (SkyblockRecipe recipe : RecipeRegistry.getAll()) {
             if (recipe == null || recipe.getCollectionId() == null) {
                 continue;
@@ -550,12 +580,32 @@ public class CollectionGUI implements Listener, InventoryHolder {
             if (!recipe.getCollectionId().equalsIgnoreCase(collectionId)) {
                 continue;
             }
-            lines.add(ChatColor.YELLOW + "Unlock Recipe: " + ChatColor.AQUA + recipe.getName());
+            names.add(recipe.getName());
+        }
+
+        if (plugin.getArmorCraftingListener() != null) {
+            for (ArmorCraftingListener.ArmorRecipeDefinition recipe : plugin.getArmorCraftingListener().getRegisteredRecipeDefinitions()) {
+                if (recipe == null || recipe.collectionId() == null) {
+                    continue;
+                }
+                if (recipe.collectionTierRequired() != tierLevel) {
+                    continue;
+                }
+                if (!recipe.collectionId().equalsIgnoreCase(collectionId)) {
+                    continue;
+                }
+                names.add(recipe.name());
+            }
+        }
+
+        List<String> lines = new ArrayList<>();
+        for (String name : names) {
+            lines.add(ChatColor.YELLOW + "Unlock Recipe: " + ChatColor.AQUA + name);
         }
         return lines;
     }
 
-    private ItemStack createStatsPanel(Player viewer, CollectionDefinition collection, PlayerCollectionProgress progress) {
+    private ItemStack createStatsPanel(Player viewer, ViewContext viewContext, CollectionDefinition collection, PlayerCollectionProgress progress) {
         ItemStack item = new ItemStack(Material.BOOK);
         ItemMeta meta = item.getItemMeta();
         
@@ -576,7 +626,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
             coopProfile = coopMembers > 1;
         }
 
-        lore.add(ChatColor.GRAY + (coopProfile ? "Co-op Progress:" : "Your Progress:"));
+        lore.add(ChatColor.GRAY + (coopProfile ? "Co-op Progress:" : viewContext.progressLabel()));
         lore.add("  " + ChatColor.GOLD + "Collected: " + ChatColor.WHITE + formatNumber(progress.getCollectedAmount()));
         lore.add("  " + ChatColor.GOLD + "Total: " + ChatColor.WHITE + formatNumber(collection.getTotalAmountRequired()));
         long totalRequired = Math.max(1L, collection.getTotalAmountRequired());
@@ -643,10 +693,10 @@ public class CollectionGUI implements Listener, InventoryHolder {
         
         int rank = collectionsManager.getPlayerRank(progress.getProfileId(), collection.getId());
         if (rank > 0) {
-            lore.add(ChatColor.GRAY + "Your Rank: " + ChatColor.GOLD + "#" + rank);
+            lore.add(ChatColor.GRAY + (viewContext.selfView ? "Your Rank: " : "Profile Rank: ") + ChatColor.GOLD + "#" + rank);
         }
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
@@ -677,7 +727,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
             lore.add(ChatColor.GRAY + formatNumber(collection.getTotalAmountRequired()) + " items!");
         }
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
@@ -723,7 +773,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
             lore.add(ChatColor.GREEN + "more rewards!");
         }
         
-        meta.setLore(lore);
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         
         return item;
@@ -732,10 +782,22 @@ public class CollectionGUI implements Listener, InventoryHolder {
     private ItemStack createMenuItem(Material material, String displayName, List<String> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(displayName);
-        meta.setLore(lore);
+        meta.setDisplayName(CollectionTextUtil.sanitizeDisplayText(displayName));
+        meta.setLore(sanitizeLore(lore));
         item.setItemMeta(meta);
         return item;
+    }
+
+    private List<String> sanitizeLore(List<String> lore) {
+        if (lore == null || lore.isEmpty()) {
+            return lore;
+        }
+
+        List<String> sanitized = new ArrayList<>(lore.size());
+        for (String line : lore) {
+            sanitized.add(CollectionTextUtil.sanitizeDisplayText(line));
+        }
+        return sanitized;
     }
 
     private ItemStack createBackButton(String target) {
@@ -763,6 +825,9 @@ public class CollectionGUI implements Listener, InventoryHolder {
     }
 
     private String createProgressBar(double percent, int length) {
+        if (length >= 0) {
+            return CollectionTextUtil.createProgressBar(percent, length);
+        }
         int filled = (int) (percent / 100.0 * length);
         int empty = length - filled;
         
@@ -795,12 +860,14 @@ public class CollectionGUI implements Listener, InventoryHolder {
         return category.getDisplayName();
     }
 
-    private List<String> createStatsLore(Player player) {
+    private List<String> createStatsLore(ViewContext viewContext) {
         List<String> lore = new ArrayList<>();
         lore.add("");
+        lore.add(ChatColor.GRAY + "Viewing: " + ChatColor.GOLD + viewContext.profileLabel());
+        lore.add("");
         lore.add(ChatColor.GRAY + "Total Collections: " + ChatColor.GREEN + collectionsManager.getEnabledCollections().size());
-        lore.add(ChatColor.GRAY + "Maxed: " + ChatColor.GOLD + collectionsManager.getMaxedCollectionsCount(player));
-        lore.add(ChatColor.GRAY + "Total Items: " + ChatColor.YELLOW + formatNumber(collectionsManager.getTotalCollectedItems(player)));
+        lore.add(ChatColor.GRAY + "Maxed: " + ChatColor.GOLD + collectionsManager.getMaxedCollectionsCount(viewContext.profileId));
+        lore.add(ChatColor.GRAY + "Total Items: " + ChatColor.YELLOW + formatNumber(collectionsManager.getTotalCollectedItems(viewContext.profileId)));
         lore.add("");
         lore.add(ChatColor.YELLOW + "Click to view details!");
         return lore;
@@ -808,6 +875,43 @@ public class CollectionGUI implements Listener, InventoryHolder {
 
     private void playOpenSound(Player player) {
         player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.5f);
+    }
+
+    private ViewContext createViewContext(Player viewer, Player viewedPlayer) {
+        Player target = viewedPlayer == null ? viewer : viewedPlayer;
+        UUID profileId = target == null ? null : collectionsManager.getProfileId(target);
+        if (profileId == null && target != null) {
+            profileId = target.getUniqueId();
+        }
+
+        String displayName = target == null ? "Unknown" : target.getName();
+        if (displayName == null || displayName.isBlank()) {
+            displayName = profileId == null ? "Unknown" : profileId.toString().substring(0, 8);
+        }
+
+        boolean selfView = viewer != null
+                && target != null
+                && viewer.getUniqueId() != null
+                && viewer.getUniqueId().equals(target.getUniqueId());
+        return new ViewContext(profileId, displayName, selfView);
+    }
+
+    private PlayerCollectionProgress getProgress(ViewContext viewContext, String collectionId) {
+        if (viewContext == null || viewContext.profileId == null) {
+            return new PlayerCollectionProgress(null, collectionId);
+        }
+        return collectionsManager.getPlayerProgress(viewContext.profileId, collectionId);
+    }
+
+    private int countMaxedCollectionsInCategory(CollectionCategory category, ViewContext viewContext) {
+        int maxed = 0;
+        for (CollectionDefinition collection : collectionsManager.getCollectionsByCategory(category)) {
+            PlayerCollectionProgress progress = getProgress(viewContext, collection.getId());
+            if (collection.isMaxed(progress.getCollectedAmount())) {
+                maxed++;
+            }
+        }
+        return maxed;
     }
 
     // ==================== EVENT HANDLERS ====================
@@ -853,7 +957,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
             if (state.guiType == GuiType.MAIN) {
                 for (CollectionCategory category : CollectionCategory.values()) {
                     if (displayName.contains(ChatColor.stripColor(category.getDisplayName()))) {
-                        openCategoryGui(player, category);
+                        openCategoryGui(player, state.viewContext, category);
                         return;
                     }
                 }
@@ -865,7 +969,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
                 if (!subcategories.isEmpty()) {
                     for (String subcategory : subcategories) {
                         if (displayName.contains(ChatColor.stripColor(subcategory))) {
-                            openSubcategoryGui(player, state.category, subcategory);
+                            openSubcategoryGui(player, state.viewContext, state.category, subcategory);
                             return;
                         }
                     }
@@ -875,7 +979,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
                 List<CollectionDefinition> collections = collectionsManager.getCollectionsByCategory(state.category);
                 for (CollectionDefinition collection : collections) {
                     if (displayName.contains(ChatColor.stripColor(collection.getName()))) {
-                        openCollectionDetailsGui(player, collection);
+                        openCollectionDetailsGui(player, state.viewContext, collection, null);
                         return;
                     }
                 }
@@ -886,7 +990,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
                 List<CollectionDefinition> collections = collectionsManager.getCollectionsByCategoryAndSubcategory(state.category, state.subcategory);
                 for (CollectionDefinition collection : collections) {
                     if (displayName.contains(ChatColor.stripColor(collection.getName()))) {
-                        openCollectionDetailsGui(player, collection, state.subcategory);
+                        openCollectionDetailsGui(player, state.viewContext, collection, state.subcategory);
                         return;
                     }
                 }
@@ -903,18 +1007,18 @@ public class CollectionGUI implements Listener, InventoryHolder {
     private void handleBackButton(Player player, GuiState state) {
         switch (state.guiType) {
             case MAIN -> player.performCommand("skyblock menu");
-            case CATEGORY -> openMainGui(player);
-            case SUBCATEGORY -> openCategoryGui(player, state.category);
+            case CATEGORY -> openMainGui(player, state.viewContext);
+            case SUBCATEGORY -> openCategoryGui(player, state.viewContext, state.category);
             case COLLECTION_DETAILS -> {
                 if (state.category == null) {
-                    openMainGui(player);
+                    openMainGui(player, state.viewContext);
                 } else if (state.subcategory != null && !state.subcategory.isBlank()) {
-                    openSubcategoryGui(player, state.category, state.subcategory);
+                    openSubcategoryGui(player, state.viewContext, state.category, state.subcategory);
                 } else {
-                    openCategoryGui(player, state.category);
+                    openCategoryGui(player, state.viewContext, state.category);
                 }
             }
-            case LEADERBOARD -> openMainGui(player);
+            case LEADERBOARD -> openMainGui(player, state.viewContext);
             default -> player.closeInventory();
         }
         player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f);
@@ -922,13 +1026,46 @@ public class CollectionGUI implements Listener, InventoryHolder {
 
     // ==================== GUI STATE ====================
 
+    private static class ViewContext {
+        final UUID profileId;
+        final String displayName;
+        final boolean selfView;
+
+        ViewContext(UUID profileId, String displayName, boolean selfView) {
+            this.profileId = profileId;
+            this.displayName = displayName == null || displayName.isBlank() ? "Unknown" : displayName;
+            this.selfView = selfView;
+        }
+
+        String profileLabel() {
+            return selfView ? "Your Profile" : displayName;
+        }
+
+        String statsTitle() {
+            return selfView ? "Your Stats" : possessive(displayName) + " Stats";
+        }
+
+        String progressLabel() {
+            return selfView ? "Your Progress:" : possessive(displayName) + " Progress:";
+        }
+
+        private String possessive(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return "Profile";
+            }
+            return raw.endsWith("s") ? raw + "'" : raw + "'s";
+        }
+    }
+
     private static class GuiState {
+        final ViewContext viewContext;
         final GuiType guiType;
         final CollectionCategory category;
         final String subcategory;
         final String collectionId;
 
-        GuiState(GuiType guiType, CollectionCategory category, String subcategory, String collectionId) {
+        GuiState(ViewContext viewContext, GuiType guiType, CollectionCategory category, String subcategory, String collectionId) {
+            this.viewContext = viewContext;
             this.guiType = guiType;
             this.category = category;
             this.subcategory = subcategory;
@@ -948,7 +1085,7 @@ public class CollectionGUI implements Listener, InventoryHolder {
 
     @Override
     public Inventory getInventory() {
-        return null;
+        return holderInventory;
     }
 }
 

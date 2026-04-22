@@ -1,5 +1,6 @@
 package io.papermc.Grivience.skyblock.profile;
 
+import io.papermc.Grivience.accessory.AccessoryPowerType;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -11,16 +12,6 @@ import java.util.*;
 
 /**
  * Represents a Skyblock-accurate player profile.
- * 
- * Features:
- * - Multiple profiles per player (like Skyblock)
- * - Profile-specific islands, inventories, collections, skills
- * - Profile banking, wardrobe, pets, quests
- * - Profile creation time, last save, playtime tracking
- * - Profile name, icon, description
- * - Profile bank, purse, museum
- * - Collection progress per profile
- * - Skill levels per profile
  */
 public final class SkyBlockProfile {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -28,6 +19,7 @@ public final class SkyBlockProfile {
     // Profile identification
     private final UUID profileId;
     private final UUID ownerId;
+    private UUID sharedProfileId;
     private String profileName;
     private String profileIcon;
     private String description;
@@ -36,6 +28,7 @@ public final class SkyBlockProfile {
     private final long createdAt;
     private long lastSaveTime;
     private long totalPlaytime;
+    private long lastInterestTime;
     private boolean selected;
     
     // Profile economy
@@ -45,6 +38,7 @@ public final class SkyBlockProfile {
     
     // Profile progression
     private Map<String, Integer> skillLevels;
+    private Map<String, Long> skillXp;
     private Map<String, Integer> collectionLevels;
     private Set<String> unlockedRecipes;
     private Set<String> completedQuests;
@@ -66,10 +60,15 @@ public final class SkyBlockProfile {
     private int coinsSpent;
     private int itemsFished;
     private int dungeonsCompleted;
-    
+
+    private Set<String> discoveredSouls;
+    private Set<String> discoveredLayers;
+
     // Profile settings
     private boolean autoRecombobulator;
     private boolean showFashionPoints;
+    private AccessoryPowerType selectedAccessoryPower;
+    private final Map<Integer, String> personalCompactorSlots;
     
     public SkyBlockProfile(UUID ownerId, String profileName) {
         this(UUID.randomUUID(), ownerId, profileName, System.currentTimeMillis());
@@ -78,6 +77,7 @@ public final class SkyBlockProfile {
     private SkyBlockProfile(UUID profileId, UUID ownerId, String profileName, long createdAt) {
         this.profileId = profileId != null ? profileId : UUID.randomUUID();
         this.ownerId = ownerId;
+        this.sharedProfileId = null;
         String ownerSuffix = ownerId == null ? "unknown" : ownerId.toString().substring(0, 8);
         this.profileName = profileName != null ? profileName : "Profile " + ownerSuffix;
         this.profileIcon = "IRON_HELMET"; // Default icon
@@ -90,6 +90,7 @@ public final class SkyBlockProfile {
         this.bankBalance = 0.0;
         this.museumValue = 0.0;
         this.skillLevels = new HashMap<>();
+        this.skillXp = new HashMap<>();
         this.collectionLevels = new HashMap<>();
         this.unlockedRecipes = new HashSet<>();
         this.completedQuests = new HashSet<>();
@@ -105,26 +106,32 @@ public final class SkyBlockProfile {
         this.coinsSpent = 0;
         this.itemsFished = 0;
         this.dungeonsCompleted = 0;
+        this.discoveredSouls = new HashSet<>();
+        this.discoveredLayers = new HashSet<>();
         this.autoRecombobulator = false;
         this.showFashionPoints = false;
+        this.selectedAccessoryPower = AccessoryPowerType.NONE;
+        this.personalCompactorSlots = new HashMap<>();
         
         // Initialize default skill levels
         initializeSkillLevels();
     }
     
     private void initializeSkillLevels() {
-        // Skyblock skills
-        skillLevels.put("TAMING", 0);
-        skillLevels.put("MINING", 0);
-        skillLevels.put("COMBAT", 0);
-        skillLevels.put("FORAGING", 0);
-        skillLevels.put("FARMING", 0);
-        skillLevels.put("FISHING", 0);
-        skillLevels.put("ENCHANTING", 0);
-        skillLevels.put("ALCHEMY", 0);
-        skillLevels.put("CARPENTRY", 0);
-        skillLevels.put("RUNECRAFTING", 0);
-        skillLevels.put("SOCIAL", 0);
+        // Skyblock skills - Use enum values to ensure every skill is covered
+        for (io.papermc.Grivience.skills.SkyblockSkill skill : io.papermc.Grivience.skills.SkyblockSkill.values()) {
+            String skillName = skill.name();
+            skillLevels.put(skillName, 0);
+            skillXp.put(skillName, 0L);
+        }
+        
+        // Additional secondary skills that might not be in the main enum yet
+        for (String extra : Arrays.asList("RUNECRAFTING", "SOCIAL")) {
+            if (!skillLevels.containsKey(extra)) {
+                skillLevels.put(extra, 0);
+                skillXp.put(extra, 0L);
+            }
+        }
     }
     
     // ==================== GETTERS ====================
@@ -135,6 +142,18 @@ public final class SkyBlockProfile {
     
     public UUID getOwnerId() {
         return ownerId;
+    }
+
+    public UUID getSharedProfileId() {
+        return sharedProfileId;
+    }
+
+    public boolean isCoopMemberProfile() {
+        return sharedProfileId != null && !sharedProfileId.equals(profileId);
+    }
+
+    public UUID getCanonicalProfileId() {
+        return sharedProfileId != null ? sharedProfileId : profileId;
     }
     
     public String getProfileName() {
@@ -164,6 +183,10 @@ public final class SkyBlockProfile {
     public boolean isSelected() {
         return selected;
     }
+
+    public long getLastInterestTime() {
+        return lastInterestTime;
+    }
     
     public double getPurse() {
         return purse;
@@ -177,12 +200,28 @@ public final class SkyBlockProfile {
         return museumValue;
     }
     
+    public AccessoryPowerType getSelectedAccessoryPower() {
+        return selectedAccessoryPower != null ? selectedAccessoryPower : AccessoryPowerType.NONE;
+    }
+
+    public void setSelectedAccessoryPower(AccessoryPowerType power) {
+        this.selectedAccessoryPower = power != null ? power : AccessoryPowerType.NONE;
+    }
+    
     public Map<String, Integer> getSkillLevels() {
         return new HashMap<>(skillLevels);
     }
     
     public int getSkillLevel(String skill) {
         return skillLevels.getOrDefault(skill.toUpperCase(), 0);
+    }
+
+    public Map<String, Long> getSkillXp() {
+        return new HashMap<>(skillXp);
+    }
+
+    public long getSkillXp(String skill) {
+        return skillXp.getOrDefault(skill.toUpperCase(), 0L);
     }
     
     public Map<String, Integer> getCollectionLevels() {
@@ -249,6 +288,49 @@ public final class SkyBlockProfile {
         return dungeonsCompleted;
     }
     
+    public Set<String> getDiscoveredSouls() {
+        return new HashSet<>(discoveredSouls);
+    }
+    
+    public void addDiscoveredSoul(String soulId) {
+        this.discoveredSouls.add(soulId);
+    }
+    
+    public boolean hasDiscoveredSoul(String soulId) {
+        return this.discoveredSouls.contains(soulId);
+    }
+
+    public void replaceDiscoveredSouls(Set<String> souls) {
+        this.discoveredSouls.clear();
+        if (souls != null) {
+            this.discoveredSouls.addAll(souls);
+        }
+    }
+
+    public Set<String> getDiscoveredLayers() {
+        return new HashSet<>(discoveredLayers);
+    }
+
+    public void addDiscoveredLayer(String layerName) {
+        if (layerName != null && !layerName.isBlank()) {
+            this.discoveredLayers.add(layerName.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    public boolean hasDiscoveredLayer(String layerName) {
+        if (layerName == null || layerName.isBlank()) return true; // No requirement
+        return this.discoveredLayers.contains(layerName.toLowerCase(Locale.ROOT));
+    }
+
+    public void replaceDiscoveredLayers(Set<String> layers) {
+        this.discoveredLayers.clear();
+        if (layers != null) {
+            for (String l : layers) {
+                addDiscoveredLayer(l);
+            }
+        }
+    }
+    
     public boolean isAutoRecombobulator() {
         return autoRecombobulator;
     }
@@ -256,11 +338,27 @@ public final class SkyBlockProfile {
     public boolean isShowFashionPoints() {
         return showFashionPoints;
     }
+
+    public Map<Integer, String> getPersonalCompactorSlots() {
+        return new HashMap<>(personalCompactorSlots);
+    }
+
+    public String getPersonalCompactorSlot(int slot) {
+        return personalCompactorSlots.get(slot);
+    }
     
     // ==================== SETTERS ====================
     
     public void setProfileName(String profileName) {
         this.profileName = profileName;
+    }
+
+    public void setSharedProfileId(UUID sharedProfileId) {
+        if (sharedProfileId == null || sharedProfileId.equals(profileId)) {
+            this.sharedProfileId = null;
+            return;
+        }
+        this.sharedProfileId = sharedProfileId;
     }
     
     public void setProfileIcon(String profileIcon) {
@@ -277,6 +375,10 @@ public final class SkyBlockProfile {
     
     public void setTotalPlaytime(long totalPlaytime) {
         this.totalPlaytime = totalPlaytime;
+    }
+
+    public void setLastInterestTime(long lastInterestTime) {
+        this.lastInterestTime = lastInterestTime;
     }
     
     public void addPlaytime(long milliseconds) {
@@ -306,17 +408,26 @@ public final class SkyBlockProfile {
     public void setSkillLevel(String skill, int level) {
         this.skillLevels.put(skill.toUpperCase(), Math.max(0, Math.min(60, level)));
     }
-    
-    public void addSkillXp(String skill, double xp) {
-        // XP calculation handled by SkyBlockLevelManager
-        int currentLevel = getSkillLevel(skill);
-        if (currentLevel < 60) {
-            // Level up logic would be here
-        }
+
+    public void setSkillXp(String skill, long xp) {
+        this.skillXp.put(skill.toUpperCase(), Math.max(0L, xp));
     }
     
     public void setCollectionLevel(String collection, int level) {
         this.collectionLevels.put(collection.toUpperCase(), level);
+    }
+
+    public void replaceCollectionLevels(Map<String, Integer> collectionLevels) {
+        this.collectionLevels.clear();
+        if (collectionLevels == null || collectionLevels.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Integer> entry : collectionLevels.entrySet()) {
+            if (entry.getKey() == null || entry.getKey().isBlank()) {
+                continue;
+            }
+            setCollectionLevel(entry.getKey(), entry.getValue() == null ? 0 : entry.getValue());
+        }
     }
     
     public void addCollectionProgress(String collection, int amount) {
@@ -330,6 +441,19 @@ public final class SkyBlockProfile {
     
     public void completeQuest(String questId) {
         this.completedQuests.add(questId.toUpperCase());
+    }
+
+    public void replaceCompletedQuests(Set<String> completedQuests) {
+        this.completedQuests.clear();
+        if (completedQuests == null || completedQuests.isEmpty()) {
+            return;
+        }
+        for (String questId : completedQuests) {
+            if (questId == null || questId.isBlank()) {
+                continue;
+            }
+            this.completedQuests.add(questId);
+        }
     }
     
     public void setInventoryData(String inventoryData) {
@@ -387,6 +511,24 @@ public final class SkyBlockProfile {
     public void setShowFashionPoints(boolean showFashionPoints) {
         this.showFashionPoints = showFashionPoints;
     }
+
+    public void setPersonalCompactorSlot(int slot, String inputKey) {
+        if (slot < 0 || slot >= 12) {
+            return;
+        }
+        if (inputKey == null || inputKey.isBlank()) {
+            personalCompactorSlots.remove(slot);
+            return;
+        }
+        personalCompactorSlots.put(slot, inputKey);
+    }
+
+    public void clearPersonalCompactorSlot(int slot) {
+        if (slot < 0 || slot >= 12) {
+            return;
+        }
+        personalCompactorSlots.remove(slot);
+    }
     
     // ==================== SERIALIZATION ====================
     
@@ -396,12 +538,14 @@ public final class SkyBlockProfile {
     public void save(ConfigurationSection section) {
         section.set("profile-id", profileId.toString());
         section.set("owner-id", ownerId.toString());
+        section.set("shared-profile-id", sharedProfileId != null ? sharedProfileId.toString() : null);
         section.set("profile-name", profileName);
         section.set("profile-icon", profileIcon);
         section.set("description", description);
         section.set("created-at", createdAt);
         section.set("last-save-time", lastSaveTime);
         section.set("total-playtime", totalPlaytime);
+        section.set("last-interest-time", lastInterestTime);
         section.set("selected", selected);
         section.set("purse", purse);
         section.set("bank-balance", bankBalance);
@@ -410,7 +554,8 @@ public final class SkyBlockProfile {
         // Skills
         ConfigurationSection skillsSection = section.createSection("skills");
         for (Map.Entry<String, Integer> entry : skillLevels.entrySet()) {
-            skillsSection.set(entry.getKey(), entry.getValue());
+            skillsSection.set(entry.getKey() + ".level", entry.getValue());
+            skillsSection.set(entry.getKey() + ".xp", skillXp.getOrDefault(entry.getKey(), 0L));
         }
         
         // Collections
@@ -445,9 +590,21 @@ public final class SkyBlockProfile {
         section.set("stats.items-fished", itemsFished);
         section.set("stats.dungeons-completed", dungeonsCompleted);
         
+        section.set("discovered-souls", new ArrayList<>(discoveredSouls));
+        section.set("discovered-layers", new ArrayList<>(discoveredLayers));
+        
         // Settings
         section.set("settings.auto-recombobulator", autoRecombobulator);
         section.set("settings.show-fashion-points", showFashionPoints);
+        section.set("settings.selected-accessory-power", selectedAccessoryPower != null ? selectedAccessoryPower.name() : "NONE");
+
+        ConfigurationSection compactorSection = section.createSection("personal-compactor.slots");
+        for (Map.Entry<Integer, String> entry : new HashMap<>(personalCompactorSlots).entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null || entry.getValue().isBlank()) {
+                continue;
+            }
+            compactorSection.set(String.valueOf(entry.getKey()), entry.getValue());
+        }
     }
     
     /**
@@ -473,11 +630,19 @@ public final class SkyBlockProfile {
         String profileName = section.getString("profile-name", "Unknown Profile");
         long createdAt = section.getLong("created-at", System.currentTimeMillis());
         SkyBlockProfile profile = new SkyBlockProfile(profileId, ownerId, profileName, createdAt);
-        
+        String sharedProfileIdString = section.getString("shared-profile-id");
+        if (sharedProfileIdString != null && !sharedProfileIdString.isBlank()) {
+            try {
+                profile.setSharedProfileId(UUID.fromString(sharedProfileIdString));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+
         profile.setProfileIcon(section.getString("profile-icon", "IRON_HELMET"));
         profile.setDescription(section.getString("description", ""));
         profile.setLastSaveTime(section.getLong("last-save-time", System.currentTimeMillis()));
         profile.setTotalPlaytime(section.getLong("total-playtime", 0));
+        profile.setLastInterestTime(section.getLong("last-interest-time", System.currentTimeMillis()));
         profile.setSelected(section.getBoolean("selected", false));
         profile.setPurse(section.getDouble("purse", 0.0));
         profile.setBankBalance(section.getDouble("bank-balance", 0.0));
@@ -487,7 +652,13 @@ public final class SkyBlockProfile {
         ConfigurationSection skillsSection = section.getConfigurationSection("skills");
         if (skillsSection != null) {
             for (String key : skillsSection.getKeys(false)) {
-                profile.setSkillLevel(key, skillsSection.getInt(key, 0));
+                if (skillsSection.isConfigurationSection(key)) {
+                    profile.setSkillLevel(key, skillsSection.getInt(key + ".level", 0));
+                    profile.setSkillXp(key, skillsSection.getLong(key + ".xp", 0L));
+                } else {
+                    // Legacy support for simple integer levels
+                    profile.setSkillLevel(key, skillsSection.getInt(key, 0));
+                }
             }
         }
         
@@ -542,11 +713,42 @@ public final class SkyBlockProfile {
             profile.dungeonsCompleted = statsSection.getInt("dungeons-completed", 0);
         }
         
+        List<String> souls = section.getStringList("discovered-souls");
+        if (souls != null) {
+            profile.discoveredSouls.addAll(souls);
+        }
+
+        List<String> layers = section.getStringList("discovered-layers");
+        if (layers != null) {
+            profile.discoveredLayers.addAll(layers);
+        }
+        
         // Settings
         ConfigurationSection settingsSection = section.getConfigurationSection("settings");
         if (settingsSection != null) {
             profile.setAutoRecombobulator(settingsSection.getBoolean("auto-recombobulator", false));
             profile.setShowFashionPoints(settingsSection.getBoolean("show-fashion-points", false));
+            
+            String powerName = settingsSection.getString("selected-accessory-power", "NONE");
+            try {
+                profile.setSelectedAccessoryPower(AccessoryPowerType.valueOf(powerName));
+            } catch (Exception e) {
+                profile.setSelectedAccessoryPower(AccessoryPowerType.NONE);
+            }
+        }
+
+        ConfigurationSection compactorSection = section.getConfigurationSection("personal-compactor.slots");
+        if (compactorSection != null) {
+            for (String key : compactorSection.getKeys(false)) {
+                if (key == null || key.isBlank()) {
+                    continue;
+                }
+                try {
+                    int slot = Integer.parseInt(key);
+                    profile.setPersonalCompactorSlot(slot, compactorSection.getString(key, null));
+                } catch (NumberFormatException ignored) {
+                }
+            }
         }
         
         return profile;
@@ -618,4 +820,3 @@ public final class SkyBlockProfile {
         }
     }
 }
-

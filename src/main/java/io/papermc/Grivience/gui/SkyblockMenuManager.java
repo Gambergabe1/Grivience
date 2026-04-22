@@ -10,6 +10,7 @@ import io.papermc.Grivience.stats.SkyblockManaManager;
 import io.papermc.Grivience.stats.SkyblockPlayerStats;
 import io.papermc.Grivience.stats.SkyblockStatsManager;
 import io.papermc.Grivience.item.CustomArmorManager;
+import io.papermc.Grivience.storage.StorageType;
 import io.papermc.Grivience.skyblock.island.IslandManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -71,6 +72,8 @@ public final class SkyblockMenuManager implements Listener {
     private io.papermc.Grivience.crafting.CraftingManager craftingManager;
     private io.papermc.Grivience.fasttravel.FastTravelGui fastTravelGui;
     private io.papermc.Grivience.minion.MinionGuiManager minionGuiManager;
+    private io.papermc.Grivience.farming.FarmingContestManager farmingContestManager;
+    private io.papermc.Grivience.quest.QuestGui questGui;
 
     private io.papermc.Grivience.event.GlobalEventManager globalEventManager;
 
@@ -80,11 +83,6 @@ public final class SkyblockMenuManager implements Listener {
     private final Map<UUID, PendingTextInput> pendingTextInput = new ConcurrentHashMap<>();
     private final DecimalFormat wholeNumberFormat = new DecimalFormat("#,##0", DecimalFormatSymbols.getInstance(Locale.US));
     private final DecimalFormat decimalFormat = new DecimalFormat("#,##0.00");
-
-    private static final long CONTEST_INTERVAL_MILLIS = 20 * 60 * 1000L;
-    private static final String[] CONTEST_CROPS = {
-            "Wheat", "Carrot", "Potato", "Sugar Cane", "Nether Wart", "Cactus"
-    };
 
     public SkyblockMenuManager(GriviencePlugin plugin) {
         this.plugin = plugin;
@@ -119,8 +117,16 @@ public final class SkyblockMenuManager implements Listener {
         this.minionGuiManager = minionGuiManager;
     }
 
+    public void setFarmingContestManager(io.papermc.Grivience.farming.FarmingContestManager farmingContestManager) {
+        this.farmingContestManager = farmingContestManager;
+    }
+
     public void setGlobalEventManager(io.papermc.Grivience.event.GlobalEventManager globalEventManager) {
         this.globalEventManager = globalEventManager;
+    }
+
+    public void setQuestGui(io.papermc.Grivience.quest.QuestGui questGui) {
+        this.questGui = questGui;
     }
 
     public void openMainMenu(Player player) {
@@ -165,13 +171,13 @@ public final class SkyblockMenuManager implements Listener {
         inventory.setItem(29, createMenuItem(Material.BUNDLE, ChatColor.GOLD + "Your Bags", List.of(ChatColor.GRAY + "Access your specialized bags.", "", ChatColor.YELLOW + "Click to view!"), "open_bags", "", false));
         inventory.setItem(30, createMenuItem(Material.BONE, ChatColor.GREEN + "Pets", List.of(ChatColor.GRAY + "Manage your pets.", "", ChatColor.YELLOW + "Click to view!"), "open_pets", "", false));
         inventory.setItem(31, createMenuItem(Material.CRAFTING_TABLE, ChatColor.GREEN + "Crafting Table", List.of(ChatColor.GRAY + "Open your crafting grid.", "", ChatColor.YELLOW + "Click to open!"), "open_crafting", "", false));
-        inventory.setItem(32, createMenuItem(Material.LEATHER_CHESTPLATE, ChatColor.GREEN + "Wardrobe", List.of(ChatColor.GRAY + "Swap armor sets.", "", ChatColor.YELLOW + "Click to view!"), "open_wardrobe", "", false));
+        inventory.setItem(32, createWardrobeMenuItem(player));
 
         // Bottom Row Actions
-        inventory.setItem(48, createMenuItem(Material.GLOBE_BANNER_PATTERN, ChatColor.AQUA + "Fast Travel", List.of(ChatColor.GRAY + "Travel quickly across Hubs.", "", ChatColor.YELLOW + "Click to open!"), "open_fast_travel", "", false));
-        inventory.setItem(49, createMenuItem(Material.NAME_TAG, ChatColor.LIGHT_PURPLE + "Profile Management", List.of(ChatColor.GRAY + "Switch between island profiles.", "", ChatColor.YELLOW + "Click to view!"), "open_profiles", "", false));
-        inventory.setItem(50, createMenuItem(Material.BARRIER, ChatColor.RED + "Close", List.of(ChatColor.GRAY + "Close this menu"), "close_menu", ""));
-        inventory.setItem(51, createMenuItem(
+        inventory.setItem(47, createMenuItem(Material.GLOBE_BANNER_PATTERN, ChatColor.AQUA + "Fast Travel", List.of(ChatColor.GRAY + "Travel quickly across Hubs.", "", ChatColor.YELLOW + "Click to open!"), "open_fast_travel", "", false));
+        inventory.setItem(48, createMenuItem(Material.NAME_TAG, ChatColor.LIGHT_PURPLE + "Profile Management", List.of(ChatColor.GRAY + "Switch between island profiles.", "", ChatColor.YELLOW + "Click to view!"), "open_profiles", "", false));
+        inventory.setItem(49, createMenuItem(Material.BARRIER, ChatColor.RED + "Close", List.of(ChatColor.GRAY + "Close this menu"), "close_menu", ""));
+        inventory.setItem(50, createMenuItem(
                 Material.EMERALD,
                 ChatColor.GREEN + "NPC Commodity Sell",
                 List.of(
@@ -184,7 +190,7 @@ public final class SkyblockMenuManager implements Listener {
                 "",
                 false
         ));
-        inventory.setItem(52, createMenuItem(Material.REDSTONE_TORCH, ChatColor.RED + "Settings", List.of(ChatColor.GRAY + "Configure your settings.", "", ChatColor.YELLOW + "Click to view!"), "open_settings", "", false));
+        inventory.setItem(51, createMenuItem(Material.REDSTONE_TORCH, ChatColor.RED + "Settings", List.of(ChatColor.GRAY + "Configure your settings.", "", ChatColor.YELLOW + "Click to view!"), "open_settings", "", false));
 
         player.openInventory(inventory);
     }
@@ -216,6 +222,22 @@ public final class SkyblockMenuManager implements Listener {
         lore.add("");
         lore.add(ChatColor.YELLOW + "Click to view!");
         return lore;
+    }
+
+    private ItemStack createWardrobeMenuItem(Player player) {
+        int wardrobeLevel = levelManager != null ? levelManager.getLevel(player) : 0;
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Swap armor sets.");
+        lore.add("");
+        if (wardrobeLevel < io.papermc.Grivience.wardrobe.WardrobeManager.UNLOCK_LEVEL) {
+            lore.add(ChatColor.RED + "Unlocked at SkyBlock Level " + io.papermc.Grivience.wardrobe.WardrobeManager.UNLOCK_LEVEL + ".");
+            lore.add(ChatColor.GRAY + "Your current level: " + ChatColor.YELLOW + wardrobeLevel);
+            lore.add("");
+            lore.add(ChatColor.YELLOW + "Click to preview!");
+        } else {
+            lore.add(ChatColor.YELLOW + "Click to view!");
+        }
+        return createMenuItem(Material.LEATHER_CHESTPLATE, ChatColor.GREEN + "Wardrobe", lore, "open_wardrobe", "", false);
     }
 
     public void openIslandMenu(Player player) {
@@ -538,8 +560,30 @@ public final class SkyblockMenuManager implements Listener {
         holder.inventory = inv;
         fillMainMenuBackground(inv);
 
-        inv.setItem(20, createMenuItem(Material.REDSTONE, ChatColor.GOLD + "Accessory Bag", List.of(ChatColor.GRAY + "Stores accessories.", "", ChatColor.YELLOW + "Click to open!"), "open_bag", "ACCESSORY_BAG"));
-        inv.setItem(22, createMenuItem(Material.POTION, ChatColor.LIGHT_PURPLE + "Potion Bag", List.of(ChatColor.GRAY + "Stores potions.", "", ChatColor.YELLOW + "Click to open!"), "open_bag", "POTION_BAG"));
+        inv.setItem(20, createMenuItem(
+                Material.REDSTONE,
+                ChatColor.GOLD + "Accessory Bag",
+                List.of(
+                        ChatColor.GRAY + "Stores accessories.",
+                        "",
+                        ChatColor.YELLOW + "Click to open!",
+                        ChatColor.GOLD + "Shift-Click to upgrade slots!"
+                ),
+                "open_bag",
+                "ACCESSORY_BAG"
+        ));
+        inv.setItem(22, createMenuItem(
+                Material.POTION,
+                ChatColor.LIGHT_PURPLE + "Potion Bag",
+                List.of(
+                        ChatColor.GRAY + "Stores potions.",
+                        "",
+                        ChatColor.YELLOW + "Click to open!",
+                        ChatColor.GOLD + "Shift-Click to upgrade slots!"
+                ),
+                "open_bag",
+                "POTION_BAG"
+        ));
         inv.setItem(48, createMenuItem(Material.ARROW, ChatColor.YELLOW + "Back", List.of(ChatColor.GRAY + "Go back to Skyblock Menu"), "open_main", ""));
         inv.setItem(50, createMenuItem(Material.BARRIER, ChatColor.RED + "Close", List.of(ChatColor.GRAY + "Close this menu"), "close_menu", ""));
 
@@ -558,30 +602,223 @@ public final class SkyblockMenuManager implements Listener {
         }
 
         MenuHolder holder = new MenuHolder(MenuType.MAIN);
-        Inventory inv = Bukkit.createInventory(holder, 27, TITLE_UPGRADES);
+        Inventory inv = Bukkit.createInventory(holder, 54, TITLE_UPGRADES);
         holder.inventory = inv;
         fillBackground(inv);
 
-        int nextLevel = island.getUpgradeLevel() + 1;
+        // 1. Island Size Upgrade (Slot 10)
+        int sizeLevel = island.getUpgradeLevel();
+        int nextSizeLevel = sizeLevel + 1;
+        double sizeCost = islandManager.getUpgradeCost(nextSizeLevel);
         int nextSize = islandManager.getNextUpgradeSize(island);
-        double cost = islandManager.getUpgradeCost(nextLevel);
 
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + island.getUpgradeLevel());
-        lore.add(ChatColor.GRAY + "Current Size: " + ChatColor.GREEN + island.getSize() + "x" + island.getSize());
-        lore.add("");
-        
-        if (cost > 0) {
-            lore.add(ChatColor.GRAY + "Next Size: " + ChatColor.AQUA + nextSize + "x" + nextSize);
-            lore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(cost));
-            lore.add("");
-            lore.add(ChatColor.YELLOW + "Click to upgrade!");
+        List<String> sizeLore = new ArrayList<>();
+        sizeLore.add(ChatColor.GRAY + "Increases the boundary of your island.");
+        sizeLore.add("");
+        sizeLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + sizeLevel);
+        sizeLore.add(ChatColor.GRAY + "Current Size: " + ChatColor.GREEN + island.getSize() + "x" + island.getSize());
+        sizeLore.add("");
+        if (sizeCost > 0) {
+            sizeLore.add(ChatColor.GRAY + "Next Size: " + ChatColor.AQUA + nextSize + "x" + nextSize);
+            sizeLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(sizeCost));
+            sizeLore.add("");
+            sizeLore.add(ChatColor.YELLOW + "Click to upgrade!");
         } else {
-            lore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+            sizeLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
         }
+        inv.setItem(10, createMenuItem(Material.OAK_SAPLING, ChatColor.GREEN + "Expand Island", sizeLore, "expand_island", String.valueOf(nextSizeLevel)));
 
-        inv.setItem(13, createMenuItem(Material.OAK_SAPLING, ChatColor.GREEN + "Expand Island", lore, "expand_island", String.valueOf(nextLevel)));
-        inv.setItem(18, createMenuItem(Material.ARROW, ChatColor.YELLOW + "Back", List.of(ChatColor.GRAY + "Go back to Island Menu"), "open_island", ""));
+        // 2. Guest Limit Upgrade (Slot 12)
+        int guestLevel = island.getGuestLimitUpgrade();
+        int nextGuestLevel = guestLevel + 1;
+        double guestCost = islandManager.getGuestLimitUpgradeCost(nextGuestLevel);
+        int currentGuests = islandManager.computeGuestLimit(player);
+
+        List<String> guestLore = new ArrayList<>();
+        guestLore.add(ChatColor.GRAY + "Allows more visitors on your island.");
+        guestLore.add("");
+        guestLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + guestLevel);
+        guestLore.add(ChatColor.GRAY + "Current Limit: " + ChatColor.GREEN + currentGuests + " guests");
+        guestLore.add("");
+        if (guestCost > 0) {
+            guestLore.add(ChatColor.GRAY + "Next Limit: " + ChatColor.AQUA + (currentGuests + 2) + " guests");
+            guestLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(guestCost));
+            guestLore.add("");
+            guestLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            guestLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(12, createMenuItem(Material.WRITABLE_BOOK, ChatColor.GREEN + "Guest Limit", guestLore, "upgrade_guest_limit", ""));
+
+        // 3. Member Limit Upgrade (Slot 14)
+        int memberLevel = island.getMemberLimitUpgrade();
+        int nextMemberLevel = memberLevel + 1;
+        double memberCost = islandManager.getMemberLimitUpgradeCost(nextMemberLevel);
+        int currentMembers = 2 + memberLevel;
+
+        List<String> memberLore = new ArrayList<>();
+        memberLore.add(ChatColor.GRAY + "Increases the co-op member limit.");
+        memberLore.add("");
+        memberLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + memberLevel);
+        memberLore.add(ChatColor.GRAY + "Current Limit: " + ChatColor.GREEN + currentMembers + " members");
+        memberLore.add("");
+        if (memberCost > 0) {
+            memberLore.add(ChatColor.GRAY + "Next Limit: " + ChatColor.AQUA + (currentMembers + 1) + " members");
+            memberLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(memberCost));
+            memberLore.add("");
+            memberLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            memberLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(14, createMenuItem(Material.PLAYER_HEAD, ChatColor.GREEN + "Co-op Member Limit", memberLore, "upgrade_member_limit", ""));
+
+        // 4. Minion Slot Upgrade (Slot 16)
+        int minionLevel = island.getMinionLimitUpgrade();
+        int nextMinionLevel = minionLevel + 1;
+        double minionCost = islandManager.getMinionLimitUpgradeCost(nextMinionLevel);
+
+        List<String> minionLore = new ArrayList<>();
+        minionLore.add(ChatColor.GRAY + "Increases total minion slots.");
+        minionLore.add("");
+        minionLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + minionLevel);
+        minionLore.add(ChatColor.GRAY + "Bonus Slots: " + ChatColor.GREEN + "+" + minionLevel);
+        minionLore.add("");
+        if (minionCost > 0) {
+            minionLore.add(ChatColor.GRAY + "Next Bonus: " + ChatColor.AQUA + "+" + nextMinionLevel + " slots");
+            minionLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(minionCost));
+            minionLore.add("");
+            minionLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            minionLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(16, createMenuItem(Material.ARMOR_STAND, ChatColor.GREEN + "Bonus Minion Slots", minionLore, "upgrade_minion_limit", ""));
+
+        // 5. End Mines Luck Upgrade (Slot 28)
+        int luckLevel = island.getEndMinesLuckUpgrade();
+        int nextLuckLevel = luckLevel + 1;
+        double luckCost = islandManager.getEndMinesLuckUpgradeCost(nextLuckLevel);
+
+        List<String> luckLore = new ArrayList<>();
+        luckLore.add(ChatColor.GRAY + "Increases rare drop chance in End Mines.");
+        luckLore.add("");
+        luckLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + luckLevel);
+        luckLore.add(ChatColor.GRAY + "Luck Bonus: " + ChatColor.AQUA + "+" + (luckLevel * 5) + "%");
+        luckLore.add("");
+        if (luckCost > 0) {
+            luckLore.add(ChatColor.GRAY + "Next Bonus: " + ChatColor.AQUA + "+" + (nextLuckLevel * 5) + "%");
+            luckLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(luckCost));
+            luckLore.add("");
+            luckLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            luckLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(28, createMenuItem(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "End Mines Luck", luckLore, "upgrade_end_mines_luck", ""));
+
+        // 6. Bank Interest Upgrade (Slot 30)
+        int interestLevel = island.getBankInterestUpgrade();
+        int nextInterestLevel = interestLevel + 1;
+        double interestCost = islandManager.getBankInterestUpgradeCost(nextInterestLevel);
+
+        List<String> interestLore = new ArrayList<>();
+        interestLore.add(ChatColor.GRAY + "Increases interest earned in the bank.");
+        interestLore.add("");
+        interestLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + interestLevel);
+        interestLore.add(ChatColor.GRAY + "Interest Bonus: " + ChatColor.AQUA + "+" + (interestLevel * 10) + "%");
+        interestLore.add("");
+        if (interestCost > 0) {
+            interestLore.add(ChatColor.GRAY + "Next Bonus: " + ChatColor.AQUA + "+" + (nextInterestLevel * 10) + "%");
+            interestLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(interestCost));
+            interestLore.add("");
+            interestLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            interestLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(30, createMenuItem(Material.GOLD_INGOT, ChatColor.GOLD + "Bank Interest", interestLore, "upgrade_bank_interest", ""));
+
+        // 7. Bazaar Flipper Upgrade (Slot 32)
+        int flipperLevel = island.getBazaarFlipperUpgrade();
+        int nextFlipperLevel = flipperLevel + 1;
+        double flipperCost = islandManager.getBazaarFlipperUpgradeCost(nextFlipperLevel);
+
+        List<String> flipperLore = new ArrayList<>();
+        flipperLore.add(ChatColor.GRAY + "Reduces Bazaar tax and more orders.");
+        flipperLore.add("");
+        flipperLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + flipperLevel);
+        flipperLore.add("");
+        if (flipperCost > 0) {
+            flipperLore.add(ChatColor.GRAY + "Next Level: " + ChatColor.AQUA + "Tier " + nextFlipperLevel);
+            flipperLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(flipperCost));
+            flipperLore.add("");
+            flipperLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            flipperLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(32, createMenuItem(Material.BARREL, ChatColor.YELLOW + "Bazaar Flipper", flipperLore, "upgrade_bazaar_flipper", ""));
+
+        // 8. Island Speed Upgrade (Slot 34)
+        int speedLevel = island.getIslandSpeedUpgrade();
+        int nextSpeedLevel = speedLevel + 1;
+        double speedCost = islandManager.getIslandSpeedUpgradeCost(nextSpeedLevel);
+
+        List<String> speedLore = new ArrayList<>();
+        speedLore.add(ChatColor.GRAY + "Permanent speed boost while on your island.");
+        speedLore.add("");
+        speedLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + speedLevel);
+        speedLore.add(ChatColor.GRAY + "Speed Bonus: " + ChatColor.AQUA + "+" + (speedLevel * 10) + "%");
+        speedLore.add("");
+        if (speedCost > 0) {
+            speedLore.add(ChatColor.GRAY + "Next Bonus: " + ChatColor.AQUA + "+" + (nextSpeedLevel * 10) + "%");
+            speedLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(speedCost));
+            speedLore.add("");
+            speedLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            speedLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(34, createMenuItem(Material.SUGAR, ChatColor.AQUA + "Island Speed", speedLore, "upgrade_island_speed", ""));
+
+        // 9. Magic Find Upgrade (Slot 37)
+        int magicLevel = island.getMagicFindUpgrade();
+        int nextMagicLevel = magicLevel + 1;
+        double magicCost = islandManager.getMagicFindUpgradeCost(nextMagicLevel);
+
+        List<String> magicLore = new ArrayList<>();
+        magicLore.add(ChatColor.GRAY + "Permanent boost to Magic Find.");
+        magicLore.add("");
+        magicLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + magicLevel);
+        magicLore.add(ChatColor.GRAY + "Magic Find: " + ChatColor.LIGHT_PURPLE + "+" + (magicLevel * 2));
+        magicLore.add("");
+        if (magicCost > 0) {
+            magicLore.add(ChatColor.GRAY + "Next Bonus: " + ChatColor.LIGHT_PURPLE + "+" + (nextMagicLevel * 2));
+            magicLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(magicCost));
+            magicLore.add("");
+            magicLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            magicLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(37, createMenuItem(Material.GLOWSTONE_DUST, ChatColor.LIGHT_PURPLE + "Permanent Magic Find", magicLore, "upgrade_magic_find", ""));
+
+        // 10. Pet Luck Upgrade (Slot 39)
+        int petLuckLevel = island.getPetLuckUpgrade();
+        int nextPetLuckLevel = petLuckLevel + 1;
+        double petLuckCost = islandManager.getPetLuckUpgradeCost(nextPetLuckLevel);
+
+        List<String> petLuckLore = new ArrayList<>();
+        petLuckLore.add(ChatColor.GRAY + "Permanent boost to Pet Luck.");
+        petLuckLore.add("");
+        petLuckLore.add(ChatColor.GRAY + "Current Level: " + ChatColor.GREEN + petLuckLevel);
+        petLuckLore.add(ChatColor.GRAY + "Pet Luck: " + ChatColor.LIGHT_PURPLE + "+" + (petLuckLevel * 3));
+        petLuckLore.add("");
+        if (petLuckCost > 0) {
+            petLuckLore.add(ChatColor.GRAY + "Next Bonus: " + ChatColor.LIGHT_PURPLE + "+" + (nextPetLuckLevel * 3));
+            petLuckLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + "$" + wholeNumberFormat.format(petLuckCost));
+            petLuckLore.add("");
+            petLuckLore.add(ChatColor.YELLOW + "Click to upgrade!");
+        } else {
+            petLuckLore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
+        }
+        inv.setItem(39, createMenuItem(Material.BONE_MEAL, ChatColor.LIGHT_PURPLE + "Permanent Pet Luck", petLuckLore, "upgrade_pet_luck", ""));
+
+        inv.setItem(49, createMenuItem(Material.ARROW, ChatColor.YELLOW + "Back", List.of(ChatColor.GRAY + "Go back to Island Menu"), "open_island", ""));
 
         player.openInventory(inv);
     }
@@ -659,8 +896,24 @@ public final class SkyblockMenuManager implements Listener {
             case "open_permissions" -> openPermissionsMenu(player);
             case "open_bags" -> openBagsMenu(player);
             case "open_bag" -> {
-                // Requested server behavior: bag tiles route back to main Skyblock menu.
-                openMainMenu(player);
+                StorageType type = StorageType.fromId(value);
+                if (!player.hasPermission(type.getPermissionNode())) {
+                    player.sendMessage(ChatColor.RED + "You don't have permission to open this bag.");
+                    return;
+                }
+                if (plugin.getStorageGui() != null) {
+                    if (event.isShiftClick()) {
+                        if (!player.hasPermission(type.getPermissionNode() + ".upgrade")) {
+                            player.sendMessage(ChatColor.RED + "You don't have permission to upgrade this bag.");
+                            return;
+                        }
+                        plugin.getStorageGui().openUpgradeMenu(player, type);
+                    } else {
+                        plugin.getStorageGui().openStorage(player, type);
+                    }
+                } else {
+                    player.sendMessage(ChatColor.RED + "Storage unavailable.");
+                }
             }
             case "open_skills" -> plugin.getServer().dispatchCommand(player, "skills");
             case "open_collection" -> {
@@ -672,7 +925,13 @@ public final class SkyblockMenuManager implements Listener {
                 else player.sendMessage(ChatColor.RED + "Crafting unavailable.");
             }
             case "open_leveling" -> openLevelingMenu(player);
-            case "open_quests" -> plugin.getServer().dispatchCommand(player, "quest progress");
+            case "open_quests" -> {
+                if (questGui != null) {
+                    questGui.openPlayerMenu(player);
+                } else {
+                    plugin.getServer().dispatchCommand(player, "quest progress");
+                }
+            }
             case "open_storage" -> {
                 if (plugin.getStorageGui() != null) plugin.getStorageGui().openMainMenu(player);
                 else player.sendMessage(ChatColor.RED + "Storage unavailable.");
@@ -700,9 +959,88 @@ public final class SkyblockMenuManager implements Listener {
                 }
             }
             case "open_contests" -> openContestsMenu(player);
+            case "open_farming_contests" -> {
+                if (farmingContestManager != null) {
+                    farmingContestManager.openMenu(player);
+                } else {
+                    player.sendMessage(ChatColor.RED + "Farming contest system unavailable.");
+                }
+            }
             case "open_upgrades" -> openUpgradesMenu(player);
             case "open_minions" -> openMinionsMenu(player);
             case "open_biomes" -> openBiomesMenu(player);
+            case "upgrade_member_limit" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradeMemberLimit(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
+            case "upgrade_minion_limit" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradeMinionLimit(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
+            case "upgrade_guest_limit" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradeGuestLimit(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
+            case "upgrade_end_mines_luck" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradeEndMinesLuck(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
+            case "upgrade_bank_interest" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradeBankInterest(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
+            case "upgrade_bazaar_flipper" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradeBazaarFlipper(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
+            case "upgrade_island_speed" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradeIslandSpeed(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
+            case "upgrade_magic_find" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradeMagicFind(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
+            case "upgrade_pet_luck" -> {
+                if (islandManager == null) return;
+                if (islandManager.upgradePetLuck(player)) {
+                    openUpgradesMenu(player);
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+            }
             case "set_biome" -> {
                 if (islandManager == null) return;
                 Island island = islandManager.getIsland(player);
@@ -852,18 +1190,15 @@ public final class SkyblockMenuManager implements Listener {
         
         inv.setItem(22, createMenuItem(Material.EMERALD, ChatColor.GREEN + "Active Events", activeLore, "noop", ""));
 
-        // Farming Contest (Mockup based on README) Slot 24
-        List<String> farmingLore = new ArrayList<>();
-        farmingLore.add(ChatColor.GRAY + "Next contest starts in: " + ChatColor.YELLOW + "14m 20s");
-        farmingLore.add("");
-        farmingLore.add(ChatColor.GRAY + "Featured Crops:");
-        farmingLore.add(ChatColor.GRAY + " \u25cf " + ChatColor.GOLD + "Wheat");
-        farmingLore.add(ChatColor.GRAY + " \u25cf " + ChatColor.GOLD + "Carrot");
-        farmingLore.add(ChatColor.GRAY + " \u25cf " + ChatColor.GOLD + "Potato");
-        farmingLore.add("");
-        farmingLore.add(ChatColor.YELLOW + "Click to view full schedule!");
-        
-        inv.setItem(24, createMenuItem(Material.GOLDEN_HOE, ChatColor.YELLOW + "Farming Contests", farmingLore, "coming_soon", "farming_contest"));
+        List<String> farmingLore = farmingContestManager != null
+                ? farmingContestManager.buildCalendarLore(player)
+                : List.of(
+                ChatColor.RED + "Farming contest system unavailable.",
+                "",
+                ChatColor.GRAY + "The contest manager has not been initialized."
+        );
+
+        inv.setItem(24, createMenuItem(Material.GOLDEN_HOE, ChatColor.YELLOW + "Farming Contests", farmingLore, "open_farming_contests", "farming_contest"));
 
         inv.setItem(48, createMenuItem(Material.ARROW, ChatColor.YELLOW + "Back", List.of(ChatColor.GRAY + "Go back to Skyblock Menu"), "open_main", ""));
         inv.setItem(49, createMenuItem(Material.BARRIER, ChatColor.RED + "Close", List.of(ChatColor.GRAY + "Close this menu"), "close_menu", ""));

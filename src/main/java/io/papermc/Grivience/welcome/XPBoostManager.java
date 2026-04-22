@@ -19,6 +19,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * Manages XP boosts for players (mining, farming, etc.).
  */
 public class XPBoostManager {
+    private static final double MIN_BOOST_PERCENT = 0.0;
+    private static final double MAX_BOOST_PERCENT = 500.0; // Cap at 500% (6x multiplier) to prevent runaway XP
+
     private final GriviencePlugin plugin;
     private final Map<UUID, BoostData> miningBoosts = new ConcurrentHashMap<>();
     private final Map<UUID, BoostData> farmingBoosts = new ConcurrentHashMap<>();
@@ -41,9 +44,22 @@ public class XPBoostManager {
     public void loadConfig() {
         plugin.saveDefaultConfig();
         FileConfiguration config = plugin.getConfig();
-        miningBoostPercent = config.getDouble("welcome-event.mining-boost-percent", 15.0);
-        farmingBoostPercent = config.getDouble("welcome-event.farming-boost-percent", 15.0);
-        defaultDurationMinutes = config.getInt("welcome-event.boost-duration-minutes", 45);
+
+        miningBoostPercent = clampBoostPercent(config.getDouble("welcome-event.mining-boost-percent", 15.0));
+        farmingBoostPercent = clampBoostPercent(config.getDouble("welcome-event.farming-boost-percent", 15.0));
+        defaultDurationMinutes = Math.max(1, config.getInt("welcome-event.boost-duration-minutes", 45));
+    }
+
+    private double clampBoostPercent(double value) {
+        if (value < MIN_BOOST_PERCENT) {
+            plugin.getLogger().warning("Mining/farming boost percent cannot be less than " + MIN_BOOST_PERCENT + "%. Clamping to minimum.");
+            return MIN_BOOST_PERCENT;
+        }
+        if (value > MAX_BOOST_PERCENT) {
+            plugin.getLogger().warning("Mining/farming boost percent cannot exceed " + MAX_BOOST_PERCENT + "%. Clamping to maximum to prevent runaway XP.");
+            return MAX_BOOST_PERCENT;
+        }
+        return value;
     }
 
     public void loadBoosts() {

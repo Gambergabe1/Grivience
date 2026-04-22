@@ -11,6 +11,8 @@ import java.util.UUID;
  * Persistent spawn point for End Mines mobs. Managed via /endmine mobs ... commands.
  */
 public final class EndMinesMobSpawnPoint {
+    public static final int MAX_NEARBY_ENTITIES_LIMIT = 10;
+
     private final UUID id;
     private String mobTypeId;
     private String worldName;
@@ -91,7 +93,7 @@ public final class EndMinesMobSpawnPoint {
     }
 
     public void setMaxNearbyEntities(int maxNearbyEntities) {
-        this.maxNearbyEntities = Math.max(0, maxNearbyEntities);
+        this.maxNearbyEntities = clampMaxNearbyEntities(maxNearbyEntities);
     }
 
     public boolean active() {
@@ -156,8 +158,12 @@ public final class EndMinesMobSpawnPoint {
         point.pitch = (float) section.getDouble("pitch", point.pitch);
         point.spawnRadius = Math.max(1, section.getInt("spawn-radius", point.spawnRadius));
         point.spawnDelayTicks = Math.max(1, section.getInt("spawn-delay-ticks", point.spawnDelayTicks));
-        point.maxNearbyEntities = Math.max(0, section.getInt("max-nearby-entities", point.maxNearbyEntities));
+        point.maxNearbyEntities = clampMaxNearbyEntities(section.getInt("max-nearby-entities", point.maxNearbyEntities));
         point.active = section.getBoolean("active", point.active);
         return point;
+    }
+
+    public static int clampMaxNearbyEntities(int maxNearbyEntities) {
+        return Math.max(0, Math.min(MAX_NEARBY_ENTITIES_LIMIT, maxNearbyEntities));
     }
 }

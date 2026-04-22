@@ -70,12 +70,6 @@ public final class StaffManager {
             }
         }
         
-        // Check custom model data for staff items (1020-1030 range)
-        if (meta.hasCustomModelData()) {
-            int modelData = meta.getCustomModelData();
-            return modelData >= 1020 && modelData <= 1050;
-        }
-        
         // Check persistent data container
         return meta.getPersistentDataContainer().has(staffKey, PersistentDataType.BOOLEAN);
     }
@@ -159,9 +153,6 @@ public final class StaffManager {
         
         meta.setLore(lore);
         
-        // Set custom model data for texture pack
-        meta.setCustomModelData(getStaffModelData(staffType));
-        
         // Mark as staff (prevents block placement)
         meta.getPersistentDataContainer().set(staffKey, PersistentDataType.BOOLEAN, true);
         
@@ -212,18 +203,6 @@ public final class StaffManager {
             case VOIDWALKER_STAFF -> ChatColor.GRAY + "Teleports through space";
             case CELESTIAL_STAFF -> ChatColor.GRAY + "Summons heavenly light";
             default -> ChatColor.GRAY + "Unknown ability";
-        };
-    }
-
-    private int getStaffModelData(CustomWeaponType type) {
-        return switch (type) {
-            case ARCANE_STAFF -> 1020;
-            case FROSTBITE_STAFF -> 1021;
-            case INFERNO_STAFF -> 1022;
-            case STORMCALLER_STAFF -> 1023;
-            case VOIDWALKER_STAFF -> 1024;
-            case CELESTIAL_STAFF -> 1025;
-            default -> 1020;
         };
     }
 

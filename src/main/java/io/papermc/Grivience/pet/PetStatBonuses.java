@@ -18,12 +18,13 @@ public record PetStatBonuses(
         double petLuck,
         double seaCreatureChance,
         double trueDefense,
-        double abilityDamage
+        double abilityDamage,
+        double farmingFortune
 ) {
-    public static final PetStatBonuses ZERO = new PetStatBonuses(0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+    public static final PetStatBonuses ZERO = new PetStatBonuses(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
 
     // Legacy support for older constructor (if any exists in code)
     public PetStatBonuses(double health, double defense, double strength, double critChance, double critDamage, double intelligence) {
-        this(health, defense, strength, critChance, critDamage, intelligence, 0, 0, 0, 0, 0, 0, 0, 0);
+        this(health, defense, strength, critChance, critDamage, intelligence, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 }

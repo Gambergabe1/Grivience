@@ -2,9 +2,12 @@ package io.papermc.Grivience.listener;
 
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.stats.SkyblockCombatEngine;
+import io.papermc.Grivience.util.DropDeliveryUtil;
+import io.papermc.Grivience.util.FarmingSetBonusUtil;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -69,11 +72,12 @@ public final class FarmingFortuneListener implements Listener {
         }
 
         int extra = computeExtraDrops(baseDrops, farmingFortune);
+        extra += computeHarvesterEmbraceExtraDrops(player, baseDrops);
         if (extra <= 0) {
             return;
         }
 
-        addToDropEntities(event, items, primaryDrop, extra);
+        addToDropEntities(event, primaryDrop, extra);
     }
 
     private double resolveFarmingFortune(Player player) {
@@ -82,13 +86,34 @@ public final class FarmingFortuneListener implements Listener {
         }
         SkyblockCombatEngine engine = plugin.getSkyblockCombatEngine();
         if (engine == null) {
-            // Fallback: base fortune (level + skill). This does not include armor/tool bonuses.
+            // Fallback: base fortune (level + skill) plus vanilla Fortune-enchant contribution.
             if (plugin.getSkyblockStatsManager() == null) {
-                return 0.0D;
+                return regularFortuneFarmingBonus(player);
             }
-            return Math.max(0.0D, plugin.getSkyblockStatsManager().getFarmingFortune(player));
+            return Math.max(0.0D, plugin.getSkyblockStatsManager().getFarmingFortune(player))
+                    + regularFortuneFarmingBonus(player);
         }
         return Math.max(0.0D, engine.stats(player).farmingFortune());
+    }
+
+    private double regularFortuneFarmingBonus(Player player) {
+        if (player == null || plugin == null) {
+            return 0.0D;
+        }
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held == null || held.getType().isAir()) {
+            return 0.0D;
+        }
+        int fortuneLevel = held.getEnchantmentLevel(Enchantment.FORTUNE);
+        if (fortuneLevel <= 0) {
+            return 0.0D;
+        }
+
+        double perLevel = plugin.getConfig().getDouble("skyblock-combat.regular-fortune-farming-fortune-per-level", 15.0D);
+        if (!Double.isFinite(perLevel) || perLevel <= 0.0D) {
+            return 0.0D;
+        }
+        return fortuneLevel * perLevel;
     }
 
     private Material primaryDropFor(Material cropBlock) {
@@ -141,42 +166,30 @@ public final class FarmingFortuneListener implements Listener {
         return Math.max(0, guaranteed);
     }
 
-    private void addToDropEntities(BlockDropItemEvent event, List<Item> existing, Material material, int extra) {
-        int remaining = extra;
-
-        // Prefer stacking into existing item entities to avoid spawning a ton of new entities.
-        for (Item item : existing) {
-            if (remaining <= 0) {
-                return;
-            }
-            if (item == null) {
-                continue;
-            }
-            ItemStack stack = item.getItemStack();
-            if (stack == null || stack.getType() != material) {
-                continue;
-            }
-
-            int maxStack = stack.getMaxStackSize();
-            if (maxStack <= 1) {
-                continue;
-            }
-            int canAdd = Math.max(0, maxStack - stack.getAmount());
-            if (canAdd <= 0) {
-                continue;
-            }
-
-            int add = Math.min(canAdd, remaining);
-            stack.setAmount(stack.getAmount() + add);
-            item.setItemStack(stack);
-            remaining -= add;
+    private int computeHarvesterEmbraceExtraDrops(Player player, int baseDrops) {
+        if (plugin == null || plugin.getCustomArmorManager() == null) {
+            return 0;
         }
+        int equippedPieces = plugin.getCustomArmorManager().countEquippedPieces(player, FarmingSetBonusUtil.HARVESTER_EMBRACE_SET_ID);
+        return FarmingSetBonusUtil.computeHarvesterEmbraceExtraDrops(equippedPieces, baseDrops);
+    }
 
-        while (remaining > 0) {
-            int add = Math.min(remaining, material.getMaxStackSize());
-            event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation(), new ItemStack(material, add));
-            remaining -= add;
+    private void addToDropEntities(BlockDropItemEvent event, Material material, int extra) {
+        if (event == null || material == null || extra <= 0) {
+            return;
         }
+        Player player = event.getPlayer();
+        if (player == null) {
+            return;
+        }
+        if (plugin.getFarmingContestManager() != null) {
+            plugin.getFarmingContestManager().recordHarvest(player, new ItemStack(material, extra));
+        }
+        DropDeliveryUtil.giveToInventoryOrDrop(
+                player,
+                new ItemStack(material, extra),
+                event.getBlock().getLocation().add(0.5D, 0.5D, 0.5D),
+                true
+        );
     }
 }
-

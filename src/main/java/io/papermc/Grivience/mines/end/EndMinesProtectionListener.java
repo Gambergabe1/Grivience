@@ -3,13 +3,16 @@ package io.papermc.Grivience.mines.end;
 import io.papermc.Grivience.GriviencePlugin;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
 
@@ -114,11 +117,52 @@ public final class EndMinesProtectionListener implements Listener {
             return;
         }
 
+        // Check zone restrictions
+        io.papermc.Grivience.zone.Zone zone = plugin.getZoneManager().getZoneAt(event.getBlock().getLocation());
+        if (zone != null && !zone.canBreakBlocks()) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "You cannot break blocks in this area.");
+            return;
+        }
+
         Material type = event.getBlock().getType();
+        if (KunziteNodeUtil.isConfiguredKunziteNode(plugin.getConfig(), event.getBlock())) {
+            return;
+        }
         if (!getMineableBlocks().contains(type)) {
             event.setCancelled(true);
             event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "You cannot break that in the End Mines.");
         }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onPlayerDamagePlayer(EntityDamageByEntityEvent event) {
+        if (!endMinesManager.isEnabled()) {
+            return;
+        }
+        if (!(event.getEntity() instanceof Player victim)) {
+            return;
+        }
+
+        Player attacker = resolvePlayerDamager(event.getDamager());
+        if (attacker == null || attacker.getUniqueId().equals(victim.getUniqueId())) {
+            return;
+        }
+        if (!isEndMinesWorld(victim.getWorld())) {
+            return;
+        }
+
+        // Check zone restrictions
+        io.papermc.Grivience.zone.Zone zone = plugin.getZoneManager().getZoneAt(victim.getLocation());
+        if (zone != null) {
+            if (!zone.canPvP()) {
+                event.setCancelled(true);
+            }
+            return; // If in a zone, let the zone decide.
+        }
+
+        // Default behavior for End Mines world (PvP disabled)
+        event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -154,5 +198,15 @@ public final class EndMinesProtectionListener implements Listener {
         }
         // Enderman block pickup/placement grief prevention.
         event.setCancelled(true);
+    }
+
+    private Player resolvePlayerDamager(Entity damager) {
+        if (damager instanceof Player player) {
+            return player;
+        }
+        if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Player player) {
+            return player;
+        }
+        return null;
     }
 }

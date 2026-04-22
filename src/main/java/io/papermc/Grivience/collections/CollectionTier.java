@@ -1,12 +1,14 @@
 package io.papermc.Grivience.collections;
 
+import org.bukkit.ChatColor;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Represents a single tier/milestone within a collection.
  * Each tier has a required amount and associated rewards.
- * 
+ *
  * Skyblock accurate tier structure:
  * - Tier I-XI (some go up to XVI)
  * - Each tier typically grants +4 Skyblock XP
@@ -59,7 +61,7 @@ public class CollectionTier {
      * Get formatted tier display name.
      */
     public String getDisplayName() {
-        return "§6Tier " + getTierRoman();
+        return ChatColor.GOLD + "Tier " + getTierRoman();
     }
 
     /**
@@ -67,9 +69,9 @@ public class CollectionTier {
      */
     public int getTotalSkyblockXp() {
         return rewards.stream()
-            .filter(r -> r.getType() == CollectionReward.RewardType.SKYBLOCK_XP)
-            .mapToInt(CollectionReward::getSkyblockXp)
-            .sum();
+                .filter(r -> r.getType() == CollectionReward.RewardType.SKYBLOCK_XP)
+                .mapToInt(CollectionReward::getSkyblockXp)
+                .sum();
     }
 
     /**
@@ -83,7 +85,9 @@ public class CollectionTier {
      * Get progress percentage toward this tier.
      */
     public double getProgress(long collectedAmount) {
-        if (collectedAmount >= amountRequired) return 100.0;
+        if (collectedAmount >= amountRequired) {
+            return 100.0;
+        }
         return (collectedAmount * 100.0) / amountRequired;
     }
 
@@ -91,31 +95,20 @@ public class CollectionTier {
      * Get formatted progress bar.
      */
     public String getProgressBar(long collectedAmount, int length) {
-        double progress = getProgress(collectedAmount) / 100.0;
-        int filled = (int) (progress * length);
-        int empty = length - filled;
-
-        StringBuilder bar = new StringBuilder("§a");
-        for (int i = 0; i < filled; i++) {
-            bar.append("█");
-        }
-        bar.append("§7");
-        for (int i = 0; i < empty; i++) {
-            bar.append("█");
-        }
-
-        return bar.toString();
+        return CollectionTextUtil.createProgressBar(getProgress(collectedAmount), length);
     }
 
     /**
      * Convert integer to Roman numeral.
      */
     public static String toRoman(int num) {
-        if (num <= 0) return String.valueOf(num);
-        
+        if (num <= 0) {
+            return String.valueOf(num);
+        }
+
         int[] values = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
         String[] roman = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
-        
+
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < values.length; i++) {
             while (num >= values[i]) {
@@ -126,4 +119,3 @@ public class CollectionTier {
         return result.toString();
     }
 }
-

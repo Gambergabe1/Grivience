@@ -87,8 +87,7 @@ public final class DrillUpgradeCraftListener implements Listener {
             return null;
         }
         return switch (drillId) {
-            case "IRONCREST_DRILL" -> MiningItemType.MITHRIL_DRILL;
-            case "MITHRIL_DRILL" -> MiningItemType.TITANIUM_DRILL;
+            case "IRONCREST_DRILL" -> MiningItemType.TITANIUM_DRILL;
             case "TITANIUM_DRILL" -> MiningItemType.GEMSTONE_DRILL;
             default -> null;
         };

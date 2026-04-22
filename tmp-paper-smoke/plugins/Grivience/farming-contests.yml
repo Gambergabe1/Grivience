@@ -1,0 +1,10 @@
+active:
+  enabled: true
+  id: scheduled:1480349
+  forced: false
+  start-at-ms: 1776418800000
+  end-at-ms: 1776420000000
+  crops:
+  - nether_wart
+  - mushroom
+  - wheat

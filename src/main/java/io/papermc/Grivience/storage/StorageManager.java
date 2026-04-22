@@ -3,6 +3,7 @@ package io.papermc.Grivience.storage;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.skyblock.economy.ProfileEconomyService;
 import io.papermc.Grivience.skyblock.profile.SkyBlockProfile;
+import io.papermc.Grivience.util.CommandDispatchUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
@@ -36,6 +37,7 @@ public class StorageManager {
     // Storage indexed by: owner UUID -> profile UUID -> storage type -> storage profile
     private final Map<UUID, Map<UUID, Map<StorageType, StorageProfile>>> playerProfileStorages;
     private final Map<StorageType, List<StorageUpgrade>> upgradeTrees;
+    private final Set<UUID> dirtyPlayerIds;
     private final File storageDataFile;
     private final File upgradesConfigFile;
     private boolean enabled;
@@ -48,11 +50,13 @@ public class StorageManager {
         this.profileEconomy = new ProfileEconomyService(plugin);
         this.playerProfileStorages = new ConcurrentHashMap<>();
         this.upgradeTrees = new EnumMap<>(StorageType.class);
+        this.dirtyPlayerIds = ConcurrentHashMap.newKeySet();
         this.storageDataFile = new File(plugin.getDataFolder(), "storage_data.yml");
         this.upgradesConfigFile = new File(plugin.getDataFolder(), "storage_upgrades.yml");
         this.enabled = false;
         this.autoSaveEnabled = true;
         this.autoSaveIntervalTicks = 600L; // 30 seconds
+        this.autoSaveTaskId = -1;
     }
 
     /**
@@ -144,7 +148,7 @@ public class StorageManager {
     public Map<StorageType, StorageProfile> getAllStorages(UUID playerId, UUID profileId) {
         return new EnumMap<>(playerProfileStorages
             .computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
-            .computeIfAbsent(profileId, k -> new EnumMap<>(StorageType.class)));
+            .computeIfAbsent(profileId, k -> new ConcurrentHashMap<>()));
     }
 
     /**
@@ -256,11 +260,12 @@ public class StorageManager {
         // Apply upgrade
         profile.setCurrentSlots(nextUpgrade.getSlots());
         profile.setUpgradeTier(nextUpgrade.getTier());
+        markDirty(player.getUniqueId());
 
         // Execute upgrade commands
         for (String command : nextUpgrade.getCommands()) {
             String processed = command.replace("{player}", player.getName());
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), processed);
+            CommandDispatchUtil.dispatchConsole(plugin, processed);
         }
 
         // Notify player
@@ -282,6 +287,7 @@ public class StorageManager {
         StorageProfile profile = getStorage(playerId, profileId, type);
         if (profile != null) {
             profile.setLocked(true);
+            markDirty(playerId);
         }
     }
 
@@ -301,6 +307,7 @@ public class StorageManager {
         StorageProfile profile = getStorage(playerId, profileId, type);
         if (profile != null) {
             profile.setLocked(false);
+            markDirty(playerId);
         }
     }
 
@@ -337,6 +344,7 @@ public class StorageManager {
         StorageProfile profile = getStorage(player, type);
         if (profile != null) {
             profile.setCustomName(name);
+            markDirty(player.getUniqueId());
             player.sendMessage("§aStorage renamed to §e" + name);
             savePlayerData(player.getUniqueId());
         }
@@ -515,21 +523,11 @@ public class StorageManager {
         YamlConfiguration config = YamlConfiguration.loadConfiguration(upgradesConfigFile);
 
         for (StorageType type : StorageType.values()) {
-            List<StorageUpgrade> upgrades = new ArrayList<>();
-            ConfigurationSection typeSection = config.getConfigurationSection("upgrades." + type.name().toLowerCase());
-
-            if (typeSection != null) {
-                ConfigurationSection tiersSection = typeSection.getConfigurationSection("tiers");
-                if (tiersSection != null) {
-                    for (String key : tiersSection.getKeys(false)) {
-                        StorageUpgrade upgrade = StorageUpgrade.fromConfig(
-                            key,
-                            tiersSection.getConfigurationSection(key)
-                        );
-                        if (upgrade != null) {
-                            upgrades.add(upgrade);
-                        }
-                    }
+            List<StorageUpgrade> upgrades = loadConfiguredUpgrades(config, type);
+            if (upgrades.isEmpty()) {
+                upgrades = defaultUpgrades(type);
+                if (!upgrades.isEmpty()) {
+                    plugin.getLogger().warning("No upgrade tiers found for " + type.name() + "; using built-in defaults.");
                 }
             }
 
@@ -537,6 +535,47 @@ public class StorageManager {
             upgrades.sort(Comparator.comparingInt(StorageUpgrade::getTier));
             upgradeTrees.put(type, upgrades);
         }
+    }
+
+    private List<StorageUpgrade> loadConfiguredUpgrades(YamlConfiguration config, StorageType type) {
+        List<StorageUpgrade> upgrades = new ArrayList<>();
+        ConfigurationSection typeSection = config.getConfigurationSection("upgrades." + type.name().toLowerCase(Locale.ROOT));
+        if (typeSection == null) {
+            return upgrades;
+        }
+
+        ConfigurationSection tiersSection = typeSection.getConfigurationSection("tiers");
+        if (tiersSection == null) {
+            return upgrades;
+        }
+
+        for (String key : tiersSection.getKeys(false)) {
+            StorageUpgrade upgrade = StorageUpgrade.fromConfig(
+                    key,
+                    tiersSection.getConfigurationSection(key)
+            );
+            if (upgrade != null) {
+                upgrades.add(upgrade);
+            }
+        }
+        return upgrades;
+    }
+
+    private List<StorageUpgrade> defaultUpgrades(StorageType type) {
+        if (type != StorageType.ACCESSORY_BAG) {
+            return new ArrayList<>();
+        }
+
+        return new ArrayList<>(List.of(
+                new StorageUpgrade(1, 9, 0, List.of(), "&7Small Accessory Bag"),
+                new StorageUpgrade(2, 18, 2500, List.of(), "&aAccessory Bag I"),
+                new StorageUpgrade(3, 27, 7500, List.of(), "&bAccessory Bag II"),
+                new StorageUpgrade(4, 36, 15000, List.of(), "&6Accessory Bag III"),
+                new StorageUpgrade(5, 45, 30000, List.of(), "&dAccessory Bag IV"),
+                new StorageUpgrade(6, 54, 50000, List.of(), "&5Accessory Bag V"),
+                new StorageUpgrade(7, 63, 85000, List.of(), "&cAccessory Bag VI"),
+                new StorageUpgrade(8, 72, 125000, List.of(), "&4Accessory Bag VII")
+        ));
     }
 
     /**
@@ -638,6 +677,7 @@ public class StorageManager {
 
         try {
             config.save(storageDataFile);
+            dirtyPlayerIds.remove(playerId);
         } catch (IOException e) {
             plugin.getLogger().severe("Failed to save player storage data: " + e.getMessage());
         }
@@ -666,6 +706,7 @@ public class StorageManager {
         storageDataFile.getParentFile().mkdirs();
         try {
             config.save(storageDataFile);
+            dirtyPlayerIds.clear();
         } catch (IOException e) {
             plugin.getLogger().severe("Failed to save all player storage data: " + e.getMessage());
         }
@@ -675,9 +716,9 @@ public class StorageManager {
      * Start auto-save task.
      */
     private void startAutoSave() {
-        autoSaveTaskId = Bukkit.getScheduler().runTaskTimerAsynchronously(
+        autoSaveTaskId = Bukkit.getScheduler().runTaskTimer(
             plugin,
-            this::saveAllPlayerData,
+            this::saveDirtyPlayerData,
             autoSaveIntervalTicks,
             autoSaveIntervalTicks
         ).getTaskId();
@@ -690,6 +731,7 @@ public class StorageManager {
      */
     public void clearPlayerData(UUID playerId) {
         playerProfileStorages.remove(playerId);
+        dirtyPlayerIds.remove(playerId);
         saveAllPlayerData();
     }
 
@@ -716,6 +758,7 @@ public class StorageManager {
                 StorageProfile storageProfile = storages.get(type);
                 if (storageProfile != null) {
                     storageProfile.clear();
+                    markDirty(playerId);
                     savePlayerData(playerId);
                 }
             }
@@ -743,6 +786,24 @@ public class StorageManager {
      */
     public File getUpgradesConfigFile() {
         return upgradesConfigFile;
+    }
+
+    public void markDirty(UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        dirtyPlayerIds.add(playerId);
+    }
+
+    private void saveDirtyPlayerData() {
+        if (dirtyPlayerIds.isEmpty()) {
+            return;
+        }
+
+        Set<UUID> toSave = Set.copyOf(dirtyPlayerIds);
+        for (UUID playerId : toSave) {
+            savePlayerData(playerId);
+        }
     }
 
 }

@@ -292,6 +292,7 @@ public class RecipeRegistry {
                 .collectionTierRequired(2)
                 .requiredSkyblockLevel(0) // Set to 0 to remove Skyblock Level requirement
                 .build());
+        // Arcane Weaver (Mage) - Crafting Material: Mana Infused Fabric (Material.PURPUR_BLOCK)
         register(SkyblockRecipe.builder()
                 .key(new NamespacedKey(plugin, "arcane_boots"))
                 .name("Arcane Boots")
@@ -305,19 +306,94 @@ public class RecipeRegistry {
                 .requiredSkyblockLevel(0) // Set to 0 to remove Skyblock Level requirement
                 .build());
 
-
-        // --- Previous placeholder recipes with updated unlock conditions ---
+        // Refined Titanium Block (Shaped 3x3)
         register(SkyblockRecipe.builder()
-                .key(new NamespacedKey(plugin, "enchanted_diamond_block"))
-                .name("Enchanted Diamond Block")
-                .result(new ItemStack(Material.DIAMOND_BLOCK))
+                .key(new NamespacedKey(plugin, "enchanted_titanium_block"))
+                .name("Refined Titanium Block")
+                .result(new ItemStack(Material.DIAMOND_BLOCK, 1)) // Represents custom:enchanted_titanium_block
                 .category(RecipeCategory.MINING)
                 .shape(RecipeShape.SHAPED_3X3)
-                .shapeLines("DDD", "DDD", "DDD")
-                .ingredient('D', new ItemStack(Material.DIAMOND))
-                .collectionId("DIAMOND")
-                .collectionTierRequired(3) // Example
-                .requiredSkyblockLevel(0) // Set to 0 to remove Skyblock Level requirement
+                .shapeLines("RRR", "RRR", "RRR")
+                .ingredient('R', new ItemStack(Material.PLAYER_HEAD)) // Refined Titanium
+                .collectionId("TITANIUM")
+                .collectionTierRequired(8)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // --- Personal Compactor Recipes (Collection Discovery) ---
+
+        // Personal Compactor 3000
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "personal_compactor_3000_recipe"))
+                .name("Personal Compactor 3000")
+                .result(new ItemStack(Material.DROPPER))
+                .category(RecipeCategory.MINING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("CCC", "CRC", "CCC")
+                .ingredient('C', new ItemStack(Material.COBBLESTONE)) // Enchanted Cobblestone
+                .ingredient('R', new ItemStack(Material.REDSTONE)) // Enchanted Redstone
+                .collectionId("cobblestone")
+                .collectionTierRequired(4)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Personal Compactor 4000
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "personal_compactor_4000_recipe"))
+                .name("Personal Compactor 4000")
+                .result(new ItemStack(Material.DROPPER))
+                .category(RecipeCategory.MINING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("RRR", "R R", "RRR")
+                .ingredient('R', new ItemStack(Material.REDSTONE)) // Enchanted Redstone
+                .collectionId("redstone")
+                .collectionTierRequired(7)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Personal Compactor 5000
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "personal_compactor_5000_recipe"))
+                .name("Personal Compactor 5000")
+                .result(new ItemStack(Material.DROPPER))
+                .category(RecipeCategory.MINING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("BBB", "BMB", "BBB")
+                .ingredient('B', new ItemStack(Material.REDSTONE_BLOCK)) // Enchanted Redstone Block
+                .ingredient('M', new ItemStack(Material.DROPPER)) // Personal Compactor 4000
+                .collectionId("redstone")
+                .collectionTierRequired(9)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Personal Compactor 6000
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "personal_compactor_6000_recipe"))
+                .name("Personal Compactor 6000")
+                .result(new ItemStack(Material.DROPPER))
+                .category(RecipeCategory.MINING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("BBB", "BMB", "BBB")
+                .ingredient('B', new ItemStack(Material.REDSTONE_BLOCK)) // Enchanted Redstone Block
+                .ingredient('M', new ItemStack(Material.DROPPER)) // Personal Compactor 5000
+                .collectionId("redstone")
+                .collectionTierRequired(11)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Personal Compactor 7000
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "personal_compactor_7000_recipe"))
+                .name("Personal Compactor 7000")
+                .result(new ItemStack(Material.DROPPER))
+                .category(RecipeCategory.MINING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("BBB", "BMB", "BBB")
+                .ingredient('B', new ItemStack(Material.REDSTONE_BLOCK)) // Enchanted Redstone Block
+                .ingredient('M', new ItemStack(Material.DROPPER)) // Personal Compactor 6000
+                .collectionId("redstone")
+                .collectionTierRequired(13)
+                .requiredSkyblockLevel(0)
                 .build());
     }
 
@@ -335,9 +411,15 @@ public class RecipeRegistry {
         // Convert SkyblockRecipe to Bukkit Recipe and add to Bukkit
         Recipe bukkitRecipe = toBukkitRecipe(skyblockRecipe);
         if (bukkitRecipe != null) {
-            Bukkit.addRecipe(bukkitRecipe);
-            RECIPES.put(skyblockRecipe.getKey(), skyblockRecipe);
-            plugin.getLogger().info("Registered recipe: " + skyblockRecipe.getName() + " (" + skyblockRecipe.getKey() + ")");
+            // Replace by key first so recipes remain craftable across reloads.
+            Bukkit.removeRecipe(skyblockRecipe.getKey());
+            boolean added = Bukkit.addRecipe(bukkitRecipe);
+            if (added) {
+                RECIPES.put(skyblockRecipe.getKey(), skyblockRecipe);
+                plugin.getLogger().info("Registered recipe: " + skyblockRecipe.getName() + " (" + skyblockRecipe.getKey() + ")");
+            } else {
+                plugin.getLogger().warning("Bukkit rejected recipe registration: " + skyblockRecipe.getName() + " (" + skyblockRecipe.getKey() + ")");
+            }
         } else {
             plugin.getLogger().warning("Failed to convert SkyblockRecipe to Bukkit Recipe for: " + skyblockRecipe.getName());
         }

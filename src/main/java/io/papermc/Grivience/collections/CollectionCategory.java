@@ -1,5 +1,6 @@
 package io.papermc.Grivience.collections;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 
 /**
@@ -7,14 +8,14 @@ import org.bukkit.Material;
  * Each category groups related collections together.
  */
 public enum CollectionCategory {
-    FARMING("§eFarming", Material.WHEAT, "Farming items and animal products"),
-    MINING("§6Mining", Material.COAL_ORE, "Ores, gems, and mining resources"),
-    COMBAT("§cCombat", Material.DIAMOND_SWORD, "Mob drops and combat materials"),
-    FORAGING("§2Foraging", Material.OAK_LOG, "Wood and foraging resources"),
-    FISHING("§bFishing", Material.FISHING_ROD, "Fish and fishing treasures"),
-    BOSS("§4Boss", Material.NETHER_STAR, "Dungeon boss and Kuudra drops"),
-    SPECIAL("§dSpecial", Material.ENCHANTED_BOOK, "Special and event items"),
-    SKILL("§aSkill", Material.EXPERIENCE_BOTTLE, "Skill-specific items");
+    FARMING(ChatColor.YELLOW + "Farming", Material.WHEAT, "Farming items and animal products"),
+    MINING(ChatColor.GOLD + "Mining", Material.COAL_ORE, "Ores, gems, and mining resources"),
+    COMBAT(ChatColor.RED + "Combat", Material.DIAMOND_SWORD, "Mob drops and combat materials"),
+    FORAGING(ChatColor.DARK_GREEN + "Foraging", Material.OAK_LOG, "Wood and foraging resources"),
+    FISHING(ChatColor.AQUA + "Fishing", Material.FISHING_ROD, "Fish and fishing treasures"),
+    BOSS(ChatColor.DARK_RED + "Boss", Material.NETHER_STAR, "Dungeon boss and Kuudra drops"),
+    SPECIAL(ChatColor.LIGHT_PURPLE + "Special", Material.ENCHANTED_BOOK, "Special and event items"),
+    SKILL(ChatColor.GREEN + "Skill", Material.EXPERIENCE_BOTTLE, "Skill-specific items");
 
     private final String displayName;
     private final Material icon;
@@ -27,7 +28,7 @@ public enum CollectionCategory {
     }
 
     public String getDisplayName() {
-        return displayName;
+        return CollectionTextUtil.sanitizeDisplayText(displayName);
     }
 
     public Material getIcon() {
@@ -35,7 +36,6 @@ public enum CollectionCategory {
     }
 
     public String getDescription() {
-        return description;
+        return CollectionTextUtil.sanitizeDisplayText(description);
     }
 }
-

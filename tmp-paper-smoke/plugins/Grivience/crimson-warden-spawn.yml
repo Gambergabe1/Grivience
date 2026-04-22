@@ -1,0 +1,4 @@
+enabled: true
+leash-radius: 32.0
+respawn-interval-ms: 5400000
+next-respawn-at-ms: 0

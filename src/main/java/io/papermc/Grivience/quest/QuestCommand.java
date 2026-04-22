@@ -85,7 +85,7 @@ public final class QuestCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GOLD + "=== Conversation Quests ===");
         if (sender instanceof Player player) {
             for (ConversationQuest quest : questManager.questsSorted()) {
-                sender.sendMessage(ChatColor.AQUA + "- " + quest.id() + ChatColor.GRAY + " (" + questManager.progressLabel(player.getUniqueId(), quest) + ChatColor.GRAY + ")");
+                sender.sendMessage(ChatColor.AQUA + "- " + quest.id() + ChatColor.GRAY + " (" + questManager.progressLabel(player, quest) + ChatColor.GRAY + ")");
                 sender.sendMessage(ChatColor.DARK_GRAY + "  " + ChatColor.stripColor(questManager.color(quest.displayName())) + ChatColor.GRAY + " -> target npc: " + ChatColor.AQUA + quest.targetNpcId());
             }
             return;
@@ -106,7 +106,7 @@ public final class QuestCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        List<ConversationQuest> active = questManager.activeQuests(player.getUniqueId());
+        List<ConversationQuest> active = questManager.activeQuests(player);
         if (active.isEmpty()) {
             player.sendMessage(ChatColor.YELLOW + "No active quests.");
             return;

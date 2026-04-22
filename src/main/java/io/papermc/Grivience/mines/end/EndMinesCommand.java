@@ -7,6 +7,7 @@ import io.papermc.Grivience.mines.end.mob.EndMinesMobType;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -29,6 +30,8 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
             "generate",
             "status",
             "access",
+            "heart",
+            "convergence",
             "mobs",
             "mineables",
             "help"
@@ -64,6 +67,8 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
                 case "generate" -> handleGenerate(sender);
                 case "status" -> handleStatus(sender);
                 case "access" -> handleAccess(sender, label, slice(args, 1));
+                case "heart" -> handleHeart(sender, label, slice(args, 1));
+                case "convergence" -> handleConvergence(sender, label, slice(args, 1));
                 case "mobs" -> handleMobs(sender, label, slice(args, 1));
                 case "mineables" -> handleMineables(sender, label, slice(args, 1));
                 case "help" -> {
@@ -131,6 +136,22 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GRAY + "Generating: " + ChatColor.AQUA + endMinesManager.isGenerating());
         sender.sendMessage(ChatColor.GRAY + "Access op-only: " + ChatColor.AQUA + plugin.getConfig().getBoolean("end-mines.access.operator-only", false));
         sender.sendMessage(ChatColor.GRAY + "Mob spawn mode: " + ChatColor.AQUA + plugin.getConfig().getString("end-mines.mobs.spawn-mode", "around_players"));
+        sender.sendMessage(ChatColor.GRAY + "Heart system: " + ChatColor.AQUA + plugin.getConfig().getBoolean("end-mines.heart.enabled", true));
+        sender.sendMessage(ChatColor.GRAY + "Convergence: " + ChatColor.AQUA + plugin.getConfig().getBoolean("end-mines.convergence.enabled", true));
+        sender.sendMessage(ChatColor.GRAY + "Kunzite world: " + ChatColor.AQUA + plugin.getConfig().getString(
+                "end-hub.kunzite.world-name",
+                plugin.getConfig().getString("skyblock.portal-routing.end.world-name", "world_the_end")
+        ));
+        EndMinesConvergenceManager convergenceManager = plugin.getEndMinesConvergenceManager();
+        if (convergenceManager != null) {
+            Location altar = convergenceManager.getAltarLocation();
+            if (altar != null && altar.getWorld() != null) {
+                sender.sendMessage(ChatColor.GRAY + "Convergence altar: " + ChatColor.AQUA + altar.getWorld().getName()
+                        + ChatColor.GRAY + " (" + fmt(altar.getX()) + ", " + fmt(altar.getY()) + ", " + fmt(altar.getZ()) + ")");
+            } else {
+                sender.sendMessage(ChatColor.GRAY + "Convergence altar: " + ChatColor.RED + "Not configured");
+            }
+        }
         EndMinesMobManager mobManager = plugin.getEndMinesMobManager();
         if (mobManager != null) {
             sender.sendMessage(ChatColor.GRAY + "Mob spawn points: " + ChatColor.AQUA + mobManager.getSpawnPoints().size());
@@ -199,6 +220,11 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " set" + ChatColor.DARK_GRAY + " (OP)" + ChatColor.GRAY + " - Set End Mines spawn");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " generate" + ChatColor.DARK_GRAY + " (OP)" + ChatColor.GRAY + " - (Re)generate the layout");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " access <on|off|status>" + ChatColor.DARK_GRAY + " (OP)" + ChatColor.GRAY + " - Toggle op-only access");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " heart [open|stats]" + ChatColor.GRAY + " - Open or inspect Heart of the End Mines");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " heart reset <player|profileId>" + ChatColor.DARK_GRAY + " (OP)" + ChatColor.GRAY + " - Reset Heart progress");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " convergence [status|claim]" + ChatColor.GRAY + " - View or complete End Convergence");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " convergence setaltar" + ChatColor.DARK_GRAY + " (OP)" + ChatColor.GRAY + " - Set the altar to the block you are looking at");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " convergence resetcooldown <player|profileId>" + ChatColor.DARK_GRAY + " (OP)" + ChatColor.GRAY + " - Clear a Convergence cooldown");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " mobs ..." + ChatColor.DARK_GRAY + " (OP)" + ChatColor.GRAY + " - Configure mob spawn points");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " mineables ..." + ChatColor.DARK_GRAY + " (OP)" + ChatColor.GRAY + " - Configure mineable blocks");
     }
@@ -248,6 +274,140 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
         plugin.saveConfig();
         sender.sendMessage(ChatColor.GREEN + "End Mines access op-only set to " + ChatColor.AQUA + enabled + ChatColor.GREEN + ".");
         return true;
+    }
+
+    private boolean handleHeart(CommandSender sender, String label, String[] args) {
+        HeartOfTheEndMinesManager heartManager = plugin.getHeartOfTheEndMinesManager();
+        if (heartManager == null || !heartManager.isEnabled()) {
+            sender.sendMessage(ChatColor.RED + "Heart of the End Mines is disabled.");
+            return true;
+        }
+
+        if (args.length > 0) {
+            String sub = args[0].trim().toLowerCase(Locale.ROOT);
+            if (sub.equals("reset")) {
+                if (!requireOperator(sender)) {
+                    return true;
+                }
+                if (args.length < 2) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /" + label + " heart reset <player|profileId>");
+                    return true;
+                }
+                HeartOfTheEndMinesManager.HeartProfileRef target = heartManager.resolveProfileTarget(args[1]);
+                if (target == null) {
+                    sender.sendMessage(ChatColor.RED + "Heart profile target not found.");
+                    return true;
+                }
+                boolean reset = heartManager.resetProfileProgress(target.profileId());
+                if (!reset) {
+                    sender.sendMessage(ChatColor.RED + "No Heart of the End Mines progress was found for " + target.displayName() + ChatColor.RED + ".");
+                    return true;
+                }
+                sender.sendMessage(ChatColor.GREEN + "Reset Heart of the End Mines progress for " + ChatColor.AQUA
+                        + target.displayName() + ChatColor.GREEN + ".");
+                return true;
+            }
+
+            Player player = requirePlayer(sender);
+            if (player == null) {
+                return true;
+            }
+            if (sub.equals("stats") || sub.equals("status")) {
+                heartManager.sendStats(player);
+                return true;
+            }
+            if (!sub.equals("open")) {
+                sender.sendMessage(ChatColor.RED + "Usage: /" + label + " heart [open|stats|reset <player|profileId>]");
+                return true;
+            }
+        }
+
+        Player player = requirePlayer(sender);
+        if (player == null) {
+            return true;
+        }
+        heartManager.openGui(player);
+        return true;
+    }
+
+    private boolean handleConvergence(CommandSender sender, String label, String[] args) {
+        EndMinesConvergenceManager convergenceManager = plugin.getEndMinesConvergenceManager();
+        if (convergenceManager == null || !convergenceManager.isEnabled()) {
+            sender.sendMessage(ChatColor.RED + "End Convergence is disabled.");
+            return true;
+        }
+
+        if (args.length == 0 || args[0].trim().equalsIgnoreCase("status")) {
+            Player player = requirePlayer(sender);
+            if (player == null) {
+                return true;
+            }
+            convergenceManager.sendStatus(player);
+            return true;
+        }
+
+        String sub = args[0].trim().toLowerCase(Locale.ROOT);
+        switch (sub) {
+            case "claim", "complete" -> {
+                Player player = requirePlayer(sender);
+                if (player == null) {
+                    return true;
+                }
+                convergenceManager.attempt(player);
+                return true;
+            }
+            case "setaltar" -> {
+                if (!requireOperator(sender)) {
+                    return true;
+                }
+                Player player = requirePlayerInEndMines(sender);
+                if (player == null) {
+                    return true;
+                }
+                Block target = player.getTargetBlockExact(8);
+                if (target == null || target.getType().isAir()) {
+                    sender.sendMessage(ChatColor.RED + "Look directly at the altar block you want to use and try again.");
+                    return true;
+                }
+                Material altarMaterial = convergenceManager.styleAltarBlock(target);
+                Location altar = target.getLocation().add(0.5D, 0.0D, 0.5D);
+                altar.setYaw(player.getLocation().getYaw());
+                altar.setPitch(player.getLocation().getPitch());
+                convergenceManager.setAltar(altar);
+                sender.sendMessage(ChatColor.GREEN + "End Convergence altar set to " + ChatColor.AQUA + altar.getWorld().getName()
+                        + ChatColor.GREEN + " (" + ChatColor.AQUA + fmt(altar.getX()) + ChatColor.GREEN + ", "
+                        + ChatColor.AQUA + fmt(altar.getY()) + ChatColor.GREEN + ", "
+                        + ChatColor.AQUA + fmt(altar.getZ()) + ChatColor.GREEN + ")"
+                        + ChatColor.GRAY + " using " + ChatColor.LIGHT_PURPLE + altarMaterial.name() + ChatColor.GRAY + ".");
+                return true;
+            }
+            case "resetcooldown" -> {
+                if (!requireOperator(sender)) {
+                    return true;
+                }
+                if (args.length < 2) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /" + label + " convergence resetcooldown <player|profileId>");
+                    return true;
+                }
+                EndMinesConvergenceManager.ConvergenceProfileRef target = convergenceManager.resolveProfileTarget(args[1]);
+                if (target == null) {
+                    sender.sendMessage(ChatColor.RED + "Convergence target not found.");
+                    return true;
+                }
+                boolean reset = convergenceManager.resetCooldown(target.profileId());
+                if (!reset) {
+                    sender.sendMessage(ChatColor.RED + "No End Convergence cooldown was found for " + target.displayName() + ChatColor.RED + ".");
+                    return true;
+                }
+                sender.sendMessage(ChatColor.GREEN + "Cleared End Convergence cooldown for " + ChatColor.AQUA
+                        + target.displayName() + ChatColor.GREEN + ".");
+                return true;
+            }
+            default -> {
+                sender.sendMessage(ChatColor.RED + "Usage: /" + label + " convergence [status|claim|setaltar|resetcooldown <player|profileId>]");
+                return true;
+            }
+        }
     }
 
     private boolean handleMineables(CommandSender sender, String label, String[] args) {
@@ -474,7 +634,9 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
 
         int radius = args.length >= 2 ? parseInt(args[1], 6, 1, 64) : 6;
         int delay = args.length >= 3 ? parseInt(args[2], 100, 1, 20_000) : 100;
-        int maxNearby = args.length >= 4 ? parseInt(args[3], 6, 0, 100) : 6;
+        int maxNearby = args.length >= 4
+                ? parseInt(args[3], 6, 0, EndMinesMobSpawnPoint.MAX_NEARBY_ENTITIES_LIMIT)
+                : 6;
 
         EndMinesMobSpawnPoint point = mobManager.createSpawnPoint(player.getLocation(), type, radius, delay, maxNearby);
         if (point == null) {
@@ -583,7 +745,9 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
 
         int radius = args.length >= 3 ? parseInt(args[2], existing.spawnRadius(), 1, 64) : existing.spawnRadius();
         int delay = args.length >= 4 ? parseInt(args[3], existing.spawnDelayTicks(), 1, 20_000) : existing.spawnDelayTicks();
-        int maxNearby = args.length >= 5 ? parseInt(args[4], existing.maxNearbyEntities(), 0, 100) : existing.maxNearbyEntities();
+        int maxNearby = args.length >= 5
+                ? parseInt(args[4], existing.maxNearbyEntities(), 0, EndMinesMobSpawnPoint.MAX_NEARBY_ENTITIES_LIMIT)
+                : existing.maxNearbyEntities();
 
         mobManager.updateSpawnPoint(id, point -> {
             point.setMobTypeId(type.id());
@@ -685,11 +849,33 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
         String root = args[0] == null ? "" : args[0].trim().toLowerCase(Locale.ROOT);
         if (args.length == 2) {
             return switch (root) {
+                case "heart" -> filter(sender != null && requireTabOperator(sender)
+                        ? List.of("open", "stats", "reset")
+                        : List.of("open", "stats"), args[1]);
+                case "convergence" -> filter(sender != null && requireTabOperator(sender)
+                        ? List.of("status", "claim", "setaltar", "resetcooldown")
+                        : List.of("status", "claim"), args[1]);
                 case "mobs" -> filter(List.of("types", "mode", "list", "add", "move", "set", "toggle", "remove"), args[1]);
                 case "mineables" -> filter(List.of("list", "add", "remove", "reset"), args[1]);
                 case "access" -> filter(List.of("on", "off", "status"), args[1]);
                 default -> List.of();
             };
+        }
+
+        if (root.equals("heart") && args.length == 3 && args[1] != null && args[1].trim().equalsIgnoreCase("reset")) {
+            List<String> playerNames = new ArrayList<>();
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                playerNames.add(player.getName());
+            }
+            return filter(playerNames, args[2]);
+        }
+
+        if (root.equals("convergence") && args.length == 3 && args[1] != null && args[1].trim().equalsIgnoreCase("resetcooldown")) {
+            List<String> playerNames = new ArrayList<>();
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                playerNames.add(player.getName());
+            }
+            return filter(playerNames, args[2]);
         }
 
         if (root.equals("mobs")) {
@@ -714,6 +900,10 @@ public final class EndMinesCommand implements CommandExecutor, TabCompleter {
             return filter(getMineableBlockNames(), args[2]);
         }
         return List.of();
+    }
+
+    private boolean requireTabOperator(CommandSender sender) {
+        return sender instanceof ConsoleCommandSender || sender.isOp();
     }
 
     private List<String> spawnPointIdPrefixes() {

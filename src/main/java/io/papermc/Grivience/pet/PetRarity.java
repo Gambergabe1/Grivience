@@ -25,4 +25,8 @@ public enum PetRarity {
     public ChatColor color() {
         return color;
     }
+
+    public net.kyori.adventure.text.format.TextColor adventureColor() {
+        return net.kyori.adventure.text.format.TextColor.color(color.asBungee().getColor().getRGB());
+    }
 }

@@ -8,7 +8,9 @@ softdepend:
   - EcoEnchants
   - AuroraCollections
   - LuckPerms
+  - PlaceholderAPI
   - ZNPCs
+  - FastAsyncWorldEdit
   - WorldEdit
   - ZNPCsPlus
 
@@ -46,6 +48,10 @@ commands:
     description: Open your pets menu.
     usage: /pets
     aliases: [pet]
+  ah:
+    description: Open the Auction House menu.
+    usage: /ah
+    aliases: [auction, auctions, auctionhouse]
   bazaar:
     description: Open the Bazaar shop menu.
     usage: /bazaar [menu|custom|vanilla|help]
@@ -95,32 +101,53 @@ commands:
     description: Set your island spawn location.
     usage: /setspawn
   hub:
-    description: Teleport to the Hub/Spawn. Use /hub set to set the location.
-    usage: /hub [set]
+    description: Teleport to the Hub/Spawn and configure hub farming features.
+    usage: /hub [set|setpos1|setpos2|setarea|info]
     aliases: [spawn, lobby]
   minehub:
     description: Teleport to the Minehub. Use /minehub set to set the location.
     usage: /minehub [set]
     aliases: [mh]
+  viewprofile:
+    description: View another player's Skyblock profile.
+    usage: /viewprofile <player>
+    aliases: [profileview, vp, checkprofile]
+  hotm:
+    description: Open the Heart of the Minehub progression GUI.
+    usage: /hotm [commissions|frenzy|help]
+    aliases: [heart, heartoftheminehub]
   endmine:
     description: Teleport to the End Mines. Use /endmine set to set the location.
-    usage: /endmine [help|status|set|generate|access|mobs|mineables]
+    usage: /endmine [help|status|set|generate|access|heart [open|stats|reset <player|profileId>]|convergence [status|claim|setaltar|resetcooldown <player|profileId>]|mobs|mineables]
     aliases: [endmines, em]
+  dragonwatcher:
+    description: Open the Dragon Ascension hub and manage the altar.
+    usage: /dragonwatcher [status|codex|rewards|summary|forcesummon <type> <tier> [mutation]|setaltar|setpoint <1-8>]
+    aliases: [dwatcher, dragonascension]
   farmhub:
-    description: Teleport to the Farm Hub and configure crop regeneration area.
+    description: Teleport to the Hub and configure crop regeneration area.
     usage: /farmhub [set|setpos1|setpos2|setarea|info]
     aliases: [fh]
   dungeonhub:
     description: Teleport to the Dungeon Hub or set its location.
     usage: /dungeonhub [set <world> <x> <y> <z> [yaw] [pitch]]
     aliases: [dhub]
+  portalroute:
+    description: Configure End and Nether portal routing targets.
+    usage: /portalroute set [nether|end] <hub|minehub|farmhub|dungeonhub|island|world ...> | /portalroute disable [nether|end] | /portalroute info [nether|end]
+    aliases: [setportal, portals]
+    permission: grivience.admin
   skyblockadmin:
     description: Admin commands for Skyblock management.
     usage: /skyblockadmin <sethub|reload|goto|help>
     permission: grivience.admin
   mobspawn:
     description: Admin commands for custom monster spawn management.
-    usage: /mobspawn <create|remove|list|info|toggle|monsters|help>
+    usage: /mobspawn <create|set|remove|list|info|toggle|spawn|monsters|help>
+    permission: grivience.admin
+  crimsonwarden:
+    description: Admin commands for the Crimson Warden boss spawn system.
+    usage: /crimsonwarden <status|setspawn|setradius|spawn|respawn|despawn|enable|disable|reload|help>
     permission: grivience.admin
   grivience:
     description: Reload Grivience plugin systems.
@@ -134,8 +161,12 @@ commands:
     usage: /admintp <player>|<x> <y> <z> [world]
     permission: grivience.admin
   jumppad:
-    description: Create and link jump pads.
-    usage: /jumppad <create|target|corner1|corner2|remove|list> [id]
+    description: Create, inspect, and link jump pads.
+    usage: /jumppad <create|pos1|pos2|target|targetpos|remove|list> [id]
+    permission: grivience.admin
+  mountain:
+    description: Generate a centered mountain inside your FAWE/WorldEdit selection.
+    usage: /mountain [seed]
     permission: grivience.admin
   blacksmith:
     description: Open the blacksmith reforge menu.
@@ -189,7 +220,7 @@ commands:
 
   craft:
     description: Open the Skyblock crafting menu.
-    usage: /craft [recipe_name]
+    usage: /craft [recipe_or_material]
     aliases: [crafting, recipe]
   welcome:
     description: Open the welcome event GUI and claim starter rewards.
@@ -203,6 +234,20 @@ commands:
     description: Open and manage your storage systems.
     usage: /storage [open|upgrade|status|rename|lock|unlock|top|rank|help]
     aliases: [storages]
+  accessory:
+    description: Open your Accessory Bag and view active accessory bonuses.
+    usage: /accessory [open|upgrade|stats|help]
+    aliases: [acc, accessories]
+    permission: storage.accessory
+  compactor:
+    description: Open and manage your Personal Compactor slots.
+    usage: /compactor [open|stats|clear|compact|help]
+    aliases: [pc, personalcompactor]
+    permission: grivience.personalcompactor
+  farmcontest:
+    description: View farming contest status and manage admin contest controls.
+    usage: /farmcontest [status|schedule|check|start|stop|cancel|set|add|setscore|addscore|reload]
+    aliases: [farmingcontest, cletus]
   fasttravel:
     description: Open the fast travel menu.
     usage: /fasttravel [destination]
@@ -215,8 +260,16 @@ commands:
     description: Open the Skyblock bank menu.
     usage: /bank [balance|deposit|withdraw]
     aliases: [bnk]
+  wizardtower:
+    description: Open the Wizard Tower GUI and unlock permanent, stackable blessings.
+    usage: /wizardtower [gui|buy <tier>|status|list|setznpc <npcId>|reload]
+    aliases: [wt, wizard]
+  drillforge:
+    description: Open the Thermal Drill Forge for refueling, timed forge projects, and overdrive tuning.
+    usage: /drillforge [open|projects|overdrive|status|parts|help]
+    aliases: [df, drillmechanic]
   mineevent:
-    description: Admin commands for managing mining events and the drill mechanic.
+    description: Admin commands for managing mining events and mining NPC shortcuts.
     usage: /mineevent <start|stop|status|shop|mechanic|npcshop>
     permission: grivience.admin.mineevent
   globalevent:
@@ -230,6 +283,26 @@ commands:
   unnick:
     description: Remove your current nickname.
     usage: /unnick
+  discord:
+    description: Join the official Grivience Discord community for updates, support, and discussion.
+    usage: /discord
+    aliases: [dc, community]
+  slayer:
+    description: Start and manage slayer quests.
+    usage: /slayer start <type>
+  mayor:
+    description: Vote for a Mayor and view the active election.
+    usage: /mayor <vote|status|elect|setspawn>
+  shop:
+    description: Open various NPC item shops.
+    usage: /shop <shop_id>
+  elevator:
+    description: Manage and use elevators.
+    usage: /elevator <create|addfloor|remove|open>
+  soul:
+    description: Manage hidden fairy souls.
+    usage: /soul <add|remove|list>
+    permission: grivience.admin
 
 permissions:
   grivience.admin:
@@ -237,22 +310,34 @@ permissions:
     default: op
     children:
       grivience.admin.globalevent: true
+      grivience.admin.farmingcontest: true
       grivience.admin.mineevent: true
       grivience.announce: true
       grivience.collections.admin: true
       grivience.endmines.build: true
+      grivience.farmhub.build: true
       grivience.fasttravel.admin: true
+      grivience.hub.build: true
       grivience.island.bypass: true
       grivience.island.bypass.admin: true
+      grivience.minehub.build: true
       grivience.minion.bypass: true
+      grivience.pluginhider.bypass: true
       grivience.storage.admin: true
       grivience.storage.admin.other: true
       grivience.visit.bypass: true
+      grivience.wizardtower.admin: true
   grivience.admin.globalevent:
     description: Allows managing global XP boost events.
     default: op
+  grivience.admin.farmingcontest:
+    description: Allows managing Farming Contest schedules, rewards, and scores.
+    default: op
   grivience.admin.mineevent:
     description: Allows managing mining events and NPC controls.
+    default: op
+  grivience.wizardtower.admin:
+    description: Allows managing Wizard Tower ZNPC binding and reloads.
     default: op
   grivience.island.bypass:
     description: Allows bypassing island build restrictions.
@@ -278,17 +363,35 @@ permissions:
   grivience.endmines.build:
     description: Allows building and block interaction bypasses in End Mines.
     default: op
+  grivience.farmhub.build:
+    description: Allows building and block interaction bypasses in protected hub farming areas.
+    default: op
+  grivience.hub.build:
+    description: Allows building and block interaction bypasses in Hub protected farming areas.
+    default: op
+  grivience.minehub.build:
+    description: Allows building and block interaction bypasses in the Mine Hub mining world.
+    default: op
   grivience.minion.bypass:
     description: Bypasses minion placement and ownership limits.
     default: op
   grivience.visit.bypass:
     description: Bypasses island visiting restrictions.
     default: op
+  grivience.pluginhider.bypass:
+    description: Bypasses plugin-hider blocking for plugin discovery commands.
+    default: false
   grivience.visit.guestlimit.unlimited:
     description: Sets island guest limit to unlimited.
     default: false
   grivience.visit.guestlimit.vip:
     description: Increases island guest limit to VIP tier.
+    default: false
+  grivience.visit.guestlimit.vipplus:
+    description: Increases island guest limit to VIP+ tier.
+    default: false
+  grivience.visit.guestlimit.vipplusplus:
+    description: Increases island guest limit to VIP++ tier.
     default: false
   grivience.visit.guestlimit.mvp:
     description: Increases island guest limit to MVP tier.
@@ -296,8 +399,47 @@ permissions:
   grivience.visit.guestlimit.mvpplus:
     description: Increases island guest limit to MVP+ tier.
     default: false
+  grivience.visit.guestlimit.mvpplusplus:
+    description: Increases island guest limit to MVP++ tier.
+    default: false
   grivience.visit.guestlimit.youtuber:
     description: Increases island guest limit to YouTuber tier.
+    default: false
+  grivience.wardrobe.slots.vip:
+    description: Grants the VIP wardrobe slot cap of 5 sets.
+    default: false
+  grivience.wardrobe.slots.vipplus:
+    description: Grants the VIP+ wardrobe slot cap of 7 sets.
+    default: false
+  grivience.wardrobe.slots.vipplusplus:
+    description: Grants the VIP++ wardrobe slot cap of 9 sets.
+    default: false
+  grivience.wardrobe.slots.mvp:
+    description: Grants the MVP wardrobe slot cap of 11 sets.
+    default: false
+  grivience.wardrobe.slots.mvpplus:
+    description: Grants the MVP+ wardrobe slot cap of 14 sets.
+    default: false
+  grivience.wardrobe.slots.mvpplusplus:
+    description: Grants the MVP++ wardrobe slot cap of 18 sets.
+    default: false
+  grivience.bazaar.limit.vip:
+    description: Increases bazaar order limit by 1.
+    default: false
+  grivience.bazaar.limit.vipplus:
+    description: Increases bazaar order limit by 2.
+    default: false
+  grivience.bazaar.limit.vipplusplus:
+    description: Increases bazaar order limit by 4.
+    default: false
+  grivience.bazaar.limit.mvp:
+    description: Increases bazaar order limit by 7.
+    default: false
+  grivience.bazaar.limit.mvpplus:
+    description: Increases bazaar order limit by 10.
+    default: false
+  grivience.bazaar.limit.mvpplusplus:
+    description: Increases bazaar order limit by 14.
     default: false
   storage.personal:
     description: Allows accessing personal storage.
@@ -340,5 +482,29 @@ permissions:
     default: true
   storage.potion.upgrade:
     description: Allows upgrading potion bag storage.
+    default: true
+  grivience.profiles.limit.vip:
+    description: Allows up to 2 profiles.
+    default: false
+  grivience.profiles.limit.vipplus:
+    description: Allows up to 2 profiles.
+    default: false
+  grivience.profiles.limit.vipplusplus:
+    description: Allows up to 3 profiles.
+    default: false
+  grivience.profiles.limit.mvp:
+    description: Allows up to 4 profiles.
+    default: false
+  grivience.profiles.limit.mvpplus:
+    description: Allows up to 5 profiles.
+    default: false
+  grivience.profiles.limit.mvpplusplus:
+    description: Allows up to 7 profiles.
+    default: false
+  grivience.nick:
+    description: Allows using the /nick command (MVP++).
+    default: false
+  grivience.personalcompactor:
+    description: Allows using the Personal Compactor menu and auto-compaction.
     default: true
 

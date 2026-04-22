@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * This data is stored per player account (UUID), not per SkyBlock profile.
  */
 public final class BazaarAccountUpgrades {
-    public static final int MAX_BAZAAR_FLIPPER_TIER = 2;
+    public static final int MAX_BAZAAR_FLIPPER_TIER = 5;
 
     private final File file;
     private final Map<UUID, Integer> bazaarFlipperTierByPlayer = new ConcurrentHashMap<>();
@@ -107,14 +107,16 @@ public final class BazaarAccountUpgrades {
     }
 
     public static int maxOrdersForTier(int tier) {
-        // Tier 0: 14, Tier I: 21, Tier II: 28
+        // Tier 0: 14, Tier I: 21, Tier II: 28, Tier III: 35, Tier IV: 42, Tier V: 56
         int clamped = clampBazaarFlipperTier(tier);
+        if (clamped >= 5) return 56;
         return 14 + (7 * clamped);
     }
 
     public static double sellTaxRateForTier(int tier) {
-        // Tier 0: 1.25%, Tier I: 1.125%, Tier II: 1%
+        // Tier 0: 1.25%, Tier I: 1.125%, Tier II: 1%, Tier III: 0.875%, Tier IV: 0.75%, Tier V: 0.5%
         int clamped = clampBazaarFlipperTier(tier);
+        if (clamped >= 5) return 0.005D;
         return 0.0125D - (0.00125D * clamped);
     }
 

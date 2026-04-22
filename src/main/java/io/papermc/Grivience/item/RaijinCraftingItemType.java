@@ -6,12 +6,17 @@ public enum RaijinCraftingItemType {
     STORM_SIGIL,
     THUNDER_ESSENCE,
     RAIJIN_CORE,
+    SUMMONING_EYE,
+    ASCENSION_SHARD,
+    DRAGON_HEART,
+    DRAGONS_SPINE,
     DRAGON_SCALE,
     BLOSSOM_FIBER,
     ARCANE_CLOTH,
     SOULTHREAD,
     STAR_PEARL,
-    GUARDIAN_FRAGMENT;
+    GUARDIAN_FRAGMENT,
+    GOD_POTION;
 
     public static RaijinCraftingItemType parse(String input) {
         if (input == null || input.isBlank()) {

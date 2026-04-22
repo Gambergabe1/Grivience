@@ -23,8 +23,17 @@ public final class SkyblockSkillTest {
     }
 
     @Test
-    void perkValue_isClampedForSpecialCases() {
-        assertEquals(1.0D, SkyblockSkill.HUNTING.getPerkValue(30), 1e-9);
-        assertEquals(5.0D, SkyblockSkill.FISHING.getPerkValue(200), 1e-9);
+    void perkValueScalingIsAccurate() {
+        // Combat: 0.5 per level
+        assertEquals(0.5D, SkyblockSkill.COMBAT.getPerkValue(1), 1e-9);
+        assertEquals(25.0D, SkyblockSkill.COMBAT.getPerkValue(50), 1e-9);
+
+        // Mining: 2.0 per level
+        assertEquals(2.0D, SkyblockSkill.MINING.getPerkValue(1), 1e-9);
+        assertEquals(120.0D, SkyblockSkill.MINING.getPerkValue(60), 1e-9);
+
+        // Fishing: Starts at 0.2, ends at 12.0 (Level 60)
+        assertEquals(0.2D, SkyblockSkill.FISHING.getPerkValue(1), 1e-9);
+        assertEquals(12.0D, SkyblockSkill.FISHING.getPerkValue(60), 1e-9);
     }
 }

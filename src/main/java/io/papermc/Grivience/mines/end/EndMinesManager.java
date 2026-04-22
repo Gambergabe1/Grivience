@@ -21,6 +21,30 @@ public final class EndMinesManager {
         this.plugin = plugin;
     }
 
+    public String getZoneName(Location loc) {
+        if (loc == null || loc.getWorld() == null || endMinesWorld == null || !loc.getWorld().equals(endMinesWorld)) {
+            return null;
+        }
+
+        Location anchor = getSpawnLocation(endMinesWorld);
+        if (anchor == null) return "Unknown";
+
+        double dx = loc.getX() - anchor.getX();
+        double dz = loc.getZ() - anchor.getZ();
+        double distSq = dx * dx + dz * dz;
+
+        // Hub Area
+        if (distSq < 15 * 15) return "End Hub";
+
+        // Zone Rooms (Approximate based on LayoutGenerator offsets of 34)
+        if (dz < -25 && Math.abs(dx) < 15) return "Chorus Grove";
+        if (dz > 25 && Math.abs(dx) < 15) return "Obsidian Quarry";
+        if (dx > 25 && Math.abs(dz) < 15) return "Crystal Cavern";
+        if (dx < -25 && Math.abs(dz) < 15) return "Rift Gallery";
+
+        return "Deep Mines";
+    }
+
     public boolean isEnabled() {
         return plugin.getConfig().getBoolean("end-mines.enabled", true);
     }
@@ -46,6 +70,7 @@ public final class EndMinesManager {
         if (endMinesWorld != null) {
             configureWorld(endMinesWorld);
             ensureSpawnPlatform(endMinesWorld, getSpawnLocation(endMinesWorld));
+            ensureSpawnZone(endMinesWorld);
             maybeAutoGenerate(endMinesWorld);
             plugin.getLogger().info("End Mines world loaded: " + worldName);
             return;
@@ -68,6 +93,7 @@ public final class EndMinesManager {
         Location spawn = getSpawnLocation(endMinesWorld);
         endMinesWorld.setSpawnLocation(spawn);
         ensureSpawnPlatform(endMinesWorld, spawn);
+        ensureSpawnZone(endMinesWorld);
         maybeAutoGenerate(endMinesWorld);
 
         plugin.getLogger().info("End Mines world configured: " + worldName + " spawn=(" +
@@ -174,6 +200,39 @@ public final class EndMinesManager {
         // Ensure air at spawn position.
         world.getBlockAt(baseX, baseY + 1, baseZ).setType(Material.AIR, false);
         world.getBlockAt(baseX, baseY + 2, baseZ).setType(Material.AIR, false);
+    }
+
+    private void ensureSpawnZone(World world) {
+        if (world == null || plugin.getZoneManager() == null) {
+            return;
+        }
+
+        String zoneId = "endmines_spawn";
+        io.papermc.Grivience.zone.Zone zone = plugin.getZoneManager().getZone(zoneId);
+        
+        if (zone == null) {
+            zone = plugin.getZoneManager().createZone(zoneId, "Endmines Spawn Area", "§bEndmines Spawn");
+        }
+
+        if (zone != null) {
+            // User requested: X-cord:56 Y-cord:62 Z-cord: -38 To X-cord: 56 Y-cord: 87 Z-cord: 41
+            // Using 56.0 to 57.0 for X to cover the block at 56.
+            Location pos1 = new Location(world, 56.0, 62.0, -38.0);
+            Location pos2 = new Location(world, 57.0, 87.0, 41.0);
+            
+            zone.setWorld(world.getName());
+            zone.setPos1(pos1);
+            zone.setPos2(pos2);
+            zone.setPriority(100);
+            zone.setColor(org.bukkit.ChatColor.AQUA);
+            
+            // Apply requested protections
+            zone.setCanPvP(false);
+            zone.setCanSpawnMobs(false);
+            zone.setCanBreakBlocks(false);
+            
+            plugin.getZoneManager().saveZones();
+        }
     }
 
     public boolean teleportToEndMines(org.bukkit.entity.Player player) {

@@ -3,21 +3,26 @@ package io.papermc.Grivience.mines;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.item.CustomItemService;
 import io.papermc.Grivience.item.MiningItemType;
+import io.papermc.Grivience.util.DropDeliveryUtil;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +33,7 @@ public final class MiningItemListener implements Listener {
     private final MiningSystemManager miningSystemManager;
     private final NamespacedKey customItemIdKey;
     private final Map<UUID, Long> drillCooldowns = new HashMap<>();
+    private final Map<UUID, Long> drillWarningCooldowns = new HashMap<>();
 
     // Drill persistence keys and tuning
     private final NamespacedKey drillFuelKey;
@@ -39,6 +45,9 @@ public final class MiningItemListener implements Listener {
     private static final int FUEL_FROM_OIL_BARREL = 10000;
 
     private final CustomItemService itemService;
+
+    private record FuelLoad(String label, int itemsUsed, int fuelAdded) {
+    }
 
     public MiningItemListener(GriviencePlugin plugin, MiningSystemManager miningSystemManager, CustomItemService itemService) {
         this.plugin = plugin;
@@ -107,11 +116,10 @@ public final class MiningItemListener implements Listener {
         player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 1.0f, 1.0f);
         player.sendMessage(ChatColor.GREEN + "You opened an Ore Fragment Bundle!");
         int amount = 5 + new java.util.Random().nextInt(11); // 5 to 15
-        for (int i = 0; i < amount; i++) {
-            Map<Integer, ItemStack> leftovers = player.getInventory().addItem(itemService.createEndMinesMaterial(io.papermc.Grivience.item.EndMinesMaterialType.ORE_FRAGMENT));
-            for (ItemStack leftover : leftovers.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), leftover);
-            }
+        ItemStack reward = itemService.createEndMinesMaterial(io.papermc.Grivience.item.EndMinesMaterialType.ORE_FRAGMENT);
+        if (reward != null && !reward.getType().isAir()) {
+            reward.setAmount(Math.max(1, amount));
+            DropDeliveryUtil.giveToInventoryOrDrop(player, reward, player.getLocation());
         }
     }
 
@@ -128,7 +136,7 @@ public final class MiningItemListener implements Listener {
         player.sendMessage(ChatColor.YELLOW + "Mining Speed Boost activated for " + minutes + " minutes!");
     }
 
-    @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(org.bukkit.event.block.BlockBreakEvent event) {
         Player player = event.getPlayer();
         if (player == null) return;
@@ -139,39 +147,90 @@ public final class MiningItemListener implements Listener {
         String id = meta.getPersistentDataContainer().get(customItemIdKey, org.bukkit.persistence.PersistentDataType.STRING);
         if (!isDrillId(id)) return;
 
-        int fuel = meta.getPersistentDataContainer().getOrDefault(drillFuelKey, PersistentDataType.INTEGER, 0);
-        int max = meta.getPersistentDataContainer().getOrDefault(drillFuelMaxKey, PersistentDataType.INTEGER, 20000);
-        if (fuel < DRILL_FUEL_PER_BLOCK) {
-            event.setCancelled(true);
-            player.sendMessage(ChatColor.RED + "Your drill has no fuel! " + ChatColor.GRAY + "Shift-right-click with Coal to refuel.");
-            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.5f);
+        DrillStatProfile.Profile profile = drillProfile(meta);
+        if (profile == null) {
             return;
         }
-        int newFuel = Math.max(0, fuel - DRILL_FUEL_PER_BLOCK);
+        int fuel = meta.getPersistentDataContainer().getOrDefault(drillFuelKey, PersistentDataType.INTEGER, 0);
+        int max = meta.getPersistentDataContainer().getOrDefault(drillFuelMaxKey, PersistentDataType.INTEGER, 20000);
+        DrillMechanicGui drillForgeGui = plugin.getDrillMechanicGui();
+        int baseFuelCost = profile.fuelCostPerBlock();
+        int fuelCost = drillForgeGui == null ? baseFuelCost : drillForgeGui.adjustedFuelCostPerBlock(player, baseFuelCost);
+        if (fuel < fuelCost) {
+            event.setCancelled(true);
+            player.sendActionBar(ChatColor.RED + "Drill Fuel Empty" + ChatColor.DARK_GRAY + " | " + ChatColor.GRAY + "Sneak-right-click to refuel");
+            if (shouldSendDrillWarning(player, 1_500L)) {
+                player.sendMessage(ChatColor.RED + "Your drill is out of fuel. " + ChatColor.GRAY + "Sneak-right-click to auto-refuel with Coal, Volta, or Oil Barrels.");
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.5f);
+            }
+            return;
+        }
+        int newFuel = Math.max(0, fuel - fuelCost);
         var pdc = meta.getPersistentDataContainer();
         pdc.set(drillFuelKey, PersistentDataType.INTEGER, newFuel);
         
         // Dynamic stats update on use
         itemService.updateDrillLore(meta);
-        
         hand.setItemMeta(meta);
+        sendDrillTelemetry(player, hand, newFuel, max, fuelCost);
+    }
 
-        // Show fuel in action bar
-        String fuelColor = newFuel > (max * 0.2) ? ChatColor.YELLOW.toString() : ChatColor.RED.toString();
-        player.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-                new net.md_5.bungee.api.chat.TextComponent(ChatColor.GRAY + "Drill Fuel: " + fuelColor + formatInt(newFuel) + ChatColor.GRAY + "/" + ChatColor.YELLOW + formatInt(max)));
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDrillItemDamage(PlayerItemDamageEvent event) {
+        if (event == null || event.getItem() == null || !event.getItem().hasItemMeta()) {
+            return;
+        }
+
+        ItemStack item = event.getItem();
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return;
+        }
+
+        String id = meta.getPersistentDataContainer().get(customItemIdKey, PersistentDataType.STRING);
+        if (!isDrillId(id)) {
+            return;
+        }
+
+        event.setCancelled(true);
+
+        boolean changed = false;
+        if (!meta.isUnbreakable()) {
+            meta.setUnbreakable(true);
+            changed = true;
+        }
+        if (meta instanceof Damageable damageable && damageable.getDamage() > 0) {
+            damageable.setDamage(0);
+            changed = true;
+        }
+        if (changed) {
+            item.setItemMeta(meta);
+        }
     }
 
     private void handleDrillAbility(Player player, ItemStack drill) {
         long now = System.currentTimeMillis();
+        ItemMeta drillMeta = drill == null ? null : drill.getItemMeta();
+        DrillStatProfile.Profile profile = drillProfile(drillMeta);
+        if (profile == null) {
+            return;
+        }
+        DrillMechanicGui drillForgeGui = plugin.getDrillMechanicGui();
+        long baseCooldownMillis = profile.abilityCooldownMillis();
+        long cooldownMillis = drillForgeGui == null ? baseCooldownMillis : drillForgeGui.adjustedAbilityCooldownMillis(player, baseCooldownMillis);
         long lastUsed = drillCooldowns.getOrDefault(player.getUniqueId(), 0L);
-        if (now - lastUsed < 30000) { // 30s cooldown
-            player.sendMessage(ChatColor.RED + "Drill ability is on cooldown! (" + (30 - (now - lastUsed) / 1000) + "s)");
+        if (now - lastUsed < cooldownMillis) {
+            long remainingMillis = cooldownMillis - (now - lastUsed);
+            player.sendActionBar(ChatColor.YELLOW + "Drill Burst" + ChatColor.DARK_GRAY + " | " + ChatColor.RED + "Ready in " + formatSeconds(remainingMillis));
             return;
         }
 
         drillCooldowns.put(player.getUniqueId(), now);
-        player.addPotionEffect(new PotionEffect(PotionEffectType.HASTE, 100, 2)); // Haste III for 5s
+        int baseDurationTicks = profile.abilityDurationTicks();
+        int baseAmplifier = profile.abilityAmplifier();
+        int durationTicks = drillForgeGui == null ? baseDurationTicks : drillForgeGui.adjustedAbilityDurationTicks(player, baseDurationTicks);
+        int amplifier = drillForgeGui == null ? baseAmplifier : drillForgeGui.adjustedAbilityAmplifier(player, baseAmplifier);
+        player.addPotionEffect(new PotionEffect(PotionEffectType.HASTE, durationTicks, amplifier));
         String name = ChatColor.GOLD + "Drill";
         if (drill != null && drill.hasItemMeta()) {
             ItemMeta meta = drill.getItemMeta();
@@ -179,8 +238,11 @@ public final class MiningItemListener implements Listener {
                 name = meta.getDisplayName();
             }
         }
-        player.sendMessage(name + ChatColor.GRAY + ": Mining speed boost activated!");
+        player.sendMessage(name + ChatColor.GRAY + ": Drill Burst active for " + ChatColor.AQUA + (durationTicks / 20) + "s"
+                + ChatColor.GRAY + " (" + ChatColor.AQUA + "Haste " + toRoman(amplifier + 1) + ChatColor.GRAY + ")"
+                + (drillForgeGui != null && drillForgeGui.isOverdriveActive(player) ? ChatColor.DARK_GRAY + " | " + ChatColor.AQUA + "Overdrive empowered" : ""));
         player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 1.0f, 1.5f);
+        sendDrillTelemetry(player, drill, drillFuel(drill), drillFuelMax(drill), currentFuelCost(player, drill));
     }
 
     private boolean isDrillId(String id) {
@@ -200,35 +262,41 @@ public final class MiningItemListener implements Listener {
         }
         int needed = max - fuel;
         int added = 0;
-        // Consume coal blocks first
-        added += consumeFuel(player, Material.COAL_BLOCK, FUEL_FROM_COAL_BLOCK, needed - added);
+        List<FuelLoad> loads = new ArrayList<>();
+        added += consumeFuel(player, Material.COAL, "Coal", FUEL_FROM_COAL, needed - added, loads);
         if (added < needed) {
-            added += consumeFuel(player, Material.COAL, FUEL_FROM_COAL, needed - added);
+            added += consumeFuel(player, Material.COAL_BLOCK, "Coal Block", FUEL_FROM_COAL_BLOCK, needed - added, loads);
         }
         if (added < needed) {
-            added += consumeCustomFuel(player, "VOLTA", FUEL_FROM_VOLTA, needed - added);
+            added += consumeCustomFuel(player, "VOLTA", "Volta", FUEL_FROM_VOLTA, needed - added, loads);
         }
         if (added < needed) {
-            added += consumeCustomFuel(player, "OIL_BARREL", FUEL_FROM_OIL_BARREL, needed - added);
+            added += consumeCustomFuel(player, "OIL_BARREL", "Oil Barrel", FUEL_FROM_OIL_BARREL, needed - added, loads);
         }
         if (added <= 0) {
-            player.sendMessage(ChatColor.RED + "You don't have any fuel (Coal) to refuel your drill.");
+            player.sendMessage(ChatColor.RED + "You do not have any drill fuel. " + ChatColor.GRAY + "Auto-refuel uses Coal, Coal Blocks, Volta, then Oil Barrels.");
             return;
         }
         int newFuel = Math.min(max, fuel + added);
         pdc.set(drillFuelKey, PersistentDataType.INTEGER, newFuel);
-        
         itemService.updateDrillLore(meta);
         item.setItemMeta(meta);
-        
+
+        int gainedFuel = newFuel - fuel;
         player.playSound(player.getLocation(), Sound.ITEM_BUCKET_FILL, 1.0f, 1.8f);
-        player.sendMessage(ChatColor.YELLOW + "Refueled drill: " + ChatColor.GREEN + "+" + added + ChatColor.GRAY + " (" + newFuel + "/" + max + ")");
+        player.sendMessage(ChatColor.YELLOW + "Refueled drill: " + ChatColor.GREEN + "+" + formatInt(gainedFuel)
+                + ChatColor.GRAY + " (" + formatInt(newFuel) + "/" + formatInt(max) + ")");
+        if (!loads.isEmpty()) {
+            player.sendMessage(ChatColor.DARK_GRAY + "Loaded: " + formatFuelLoads(loads));
+        }
+        sendDrillTelemetry(player, item, newFuel, max, currentFuelCost(player, item));
     }
 
-    private int consumeFuel(Player player, Material mat, int fuelPerItem, int fuelNeeded) {
+    private int consumeFuel(Player player, Material mat, String label, int fuelPerItem, int fuelNeeded, List<FuelLoad> loads) {
         if (fuelNeeded <= 0) return 0;
         var inv = player.getInventory();
         int toAdd = 0;
+        int itemsUsed = 0;
         for (int slot = 0; slot < inv.getSize(); slot++) {
             ItemStack stack = inv.getItem(slot);
             if (stack == null || stack.getType() != mat) continue;
@@ -238,17 +306,22 @@ public final class MiningItemListener implements Listener {
             while (stack.getAmount() > 0 && toAdd < fuelNeeded) {
                 stack.setAmount(stack.getAmount() - 1);
                 toAdd += fuelPerItem;
+                itemsUsed++;
             }
             if (stack.getAmount() <= 0) inv.setItem(slot, null);
             if (toAdd >= fuelNeeded) break;
         }
+        if (itemsUsed > 0) {
+            loads.add(new FuelLoad(label, itemsUsed, toAdd));
+        }
         return toAdd;
     }
 
-    private int consumeCustomFuel(Player player, String id, int fuelPerItem, int fuelNeeded) {
+    private int consumeCustomFuel(Player player, String id, String label, int fuelPerItem, int fuelNeeded, List<FuelLoad> loads) {
         if (fuelNeeded <= 0) return 0;
         var inv = player.getInventory();
         int toAdd = 0;
+        int itemsUsed = 0;
         for (int slot = 0; slot < inv.getSize(); slot++) {
             ItemStack stack = inv.getItem(slot);
             if (stack == null || !id.equals(itemService.itemId(stack))) continue;
@@ -256,19 +329,137 @@ public final class MiningItemListener implements Listener {
             while (stack.getAmount() > 0 && toAdd < fuelNeeded) {
                 stack.setAmount(stack.getAmount() - 1);
                 toAdd += fuelPerItem;
+                itemsUsed++;
             }
             if (stack.getAmount() <= 0) inv.setItem(slot, null);
             if (toAdd >= fuelNeeded) break;
         }
+        if (itemsUsed > 0) {
+            loads.add(new FuelLoad(label, itemsUsed, toAdd));
+        }
         return toAdd;
     }
 
-    private void updateDrillFuelLore(ItemStack item, int fuel, int max) {
-        if (item == null || !item.hasItemMeta()) return;
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return;
-        itemService.updateDrillLore(meta);
-        item.setItemMeta(meta);
+    private DrillStatProfile.Profile drillProfile(ItemMeta meta) {
+        if (meta == null) {
+            return null;
+        }
+        String drillId = meta.getPersistentDataContainer().get(customItemIdKey, PersistentDataType.STRING);
+        if (!DrillStatProfile.isDrillId(drillId)) {
+            return null;
+        }
+        String engineId = meta.getPersistentDataContainer().get(itemService.getDrillEngineKey(), PersistentDataType.STRING);
+        String tankId = meta.getPersistentDataContainer().get(itemService.getDrillTankKey(), PersistentDataType.STRING);
+        return DrillStatProfile.resolve(drillId, engineId, tankId);
+    }
+
+    private int currentFuelCost(Player player, ItemStack drill) {
+        ItemMeta meta = drill == null ? null : drill.getItemMeta();
+        DrillStatProfile.Profile profile = drillProfile(meta);
+        if (profile == null) {
+            return DRILL_FUEL_PER_BLOCK;
+        }
+        DrillMechanicGui drillForgeGui = plugin.getDrillMechanicGui();
+        return drillForgeGui == null ? profile.fuelCostPerBlock() : drillForgeGui.adjustedFuelCostPerBlock(player, profile.fuelCostPerBlock());
+    }
+
+    private void sendDrillTelemetry(Player player, ItemStack drill, int fuel, int maxFuel, int fuelCost) {
+        if (player == null || drill == null) {
+            return;
+        }
+        DrillMechanicGui drillForgeGui = plugin.getDrillMechanicGui();
+        long cooldownMillis = currentAbilityCooldown(player, drill);
+        long remainingMillis = Math.max(0L, cooldownMillis - (System.currentTimeMillis() - drillCooldowns.getOrDefault(player.getUniqueId(), 0L)));
+        String burstStatus = remainingMillis <= 0L ? ChatColor.GREEN + "Ready" : ChatColor.RED + formatSeconds(remainingMillis);
+        ChatColor fuelColor = fuelPercentColor(fuel, maxFuel);
+        player.sendActionBar(ChatColor.GRAY + "Fuel " + fuelColor + formatInt(Math.max(0, fuel)) + ChatColor.GRAY + "/" + ChatColor.YELLOW + formatInt(Math.max(0, maxFuel))
+                + ChatColor.DARK_GRAY + " | " + ChatColor.GRAY + "Burn " + ChatColor.YELLOW + fuelCost + "/blk"
+                + ChatColor.DARK_GRAY + " | " + ChatColor.GRAY + "Burst " + burstStatus
+                + (drillForgeGui == null ? "" : drillForgeGui.overdriveActionBarSuffix(player)));
+    }
+
+    private long currentAbilityCooldown(Player player, ItemStack drill) {
+        ItemMeta meta = drill == null ? null : drill.getItemMeta();
+        DrillStatProfile.Profile profile = drillProfile(meta);
+        if (profile == null) {
+            return DrillStatProfile.BASE_ABILITY_COOLDOWN_MILLIS;
+        }
+        DrillMechanicGui drillForgeGui = plugin.getDrillMechanicGui();
+        return drillForgeGui == null ? profile.abilityCooldownMillis() : drillForgeGui.adjustedAbilityCooldownMillis(player, profile.abilityCooldownMillis());
+    }
+
+    private int drillFuel(ItemStack drill) {
+        if (drill == null || !drill.hasItemMeta()) {
+            return 0;
+        }
+        ItemMeta meta = drill.getItemMeta();
+        if (meta == null) {
+            return 0;
+        }
+        return meta.getPersistentDataContainer().getOrDefault(drillFuelKey, PersistentDataType.INTEGER, 0);
+    }
+
+    private int drillFuelMax(ItemStack drill) {
+        if (drill == null || !drill.hasItemMeta()) {
+            return 20_000;
+        }
+        ItemMeta meta = drill.getItemMeta();
+        if (meta == null) {
+            return 20_000;
+        }
+        return meta.getPersistentDataContainer().getOrDefault(drillFuelMaxKey, PersistentDataType.INTEGER, 20_000);
+    }
+
+    private boolean shouldSendDrillWarning(Player player, long cooldownMillis) {
+        if (player == null) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        long lastWarning = drillWarningCooldowns.getOrDefault(player.getUniqueId(), 0L);
+        if (now - lastWarning < cooldownMillis) {
+            return false;
+        }
+        drillWarningCooldowns.put(player.getUniqueId(), now);
+        return true;
+    }
+
+    private ChatColor fuelPercentColor(int fuel, int maxFuel) {
+        if (maxFuel <= 0) {
+            return ChatColor.RED;
+        }
+        double ratio = fuel / (double) maxFuel;
+        if (ratio >= 0.6D) {
+            return ChatColor.GREEN;
+        }
+        if (ratio >= 0.25D) {
+            return ChatColor.YELLOW;
+        }
+        return ChatColor.RED;
+    }
+
+    private String formatFuelLoads(List<FuelLoad> loads) {
+        List<String> parts = new ArrayList<>();
+        for (FuelLoad load : loads) {
+            parts.add(ChatColor.GRAY + load.label() + ChatColor.DARK_GRAY + " x" + ChatColor.YELLOW + load.itemsUsed());
+        }
+        return String.join(ChatColor.DARK_GRAY + ", ", parts);
+    }
+
+    private String formatSeconds(long millis) {
+        long seconds = Math.max(1L, (millis + 999L) / 1000L);
+        return seconds + "s";
+    }
+
+    private String toRoman(int value) {
+        return switch (Math.max(1, value)) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            case 4 -> "IV";
+            case 5 -> "V";
+            case 6 -> "VI";
+            default -> Integer.toString(value);
+        };
     }
 
     private static String formatInt(int value) {

@@ -137,7 +137,7 @@ public final class TradeListener implements Listener {
         }
 
         // Click in the bottom inventory
-        if (event.isShiftClick()) {
+        if (shouldMirrorBottomShiftClick(event.isCancelled(), event.isShiftClick())) {
             // Shift-click would place into arbitrary top slots; force into the offer slots.
             event.setCancelled(true);
             moveToOfferSlots(player, top, event.getCurrentItem(), event.getClickedInventory(), event.getSlot());
@@ -317,6 +317,10 @@ public final class TradeListener implements Listener {
 
         tradeInventory.setItem(dest, stack.clone());
         clickedInventory.setItem(clickedSlot, null);
+    }
+
+    static boolean shouldMirrorBottomShiftClick(boolean cancelled, boolean shiftClick) {
+        return shiftClick && !cancelled;
     }
 
     private record CoinInput(UUID sessionId, long expiresAtMs) {}

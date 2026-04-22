@@ -2,7 +2,6 @@ package io.papermc.Grivience.listener;
 
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.item.CustomItemService;
-import io.papermc.Grivience.item.ItemRarity;
 import io.papermc.Grivience.item.ReforgeStoneType;
 import io.papermc.Grivience.item.ReforgeType;
 import io.papermc.Grivience.skyblock.economy.ProfileEconomyService;
@@ -15,6 +14,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -30,15 +31,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 
 public final class ReforgeAnvilGuiListener implements Listener {
-    private static final String TITLE = ChatColor.DARK_AQUA + "Reforge Anvil";
+    private static final String TITLE_MENU = ChatColor.DARK_AQUA + "Reforge Anvil";
+    private static final String TITLE_ADVANCED = ChatColor.DARK_AQUA + "Apply Reforge Stone";
+
+    private static final int MENU_INFO_SLOT = 4;
+    private static final int MENU_BASIC_SLOT = 11;
+    private static final int MENU_ADVANCED_SLOT = 15;
+    private static final int MENU_CLOSE_SLOT = 26;
+
     private static final int WEAPON_SLOT = 11;
     private static final int PREVIEW_SLOT = 13;
     private static final int STONE_SLOT = 15;
+    private static final int BACK_SLOT = 18;
     private static final int CONFIRM_SLOT = 22;
     private static final int INFO_SLOT = 4;
     private static final int CLOSE_SLOT = 26;
@@ -65,17 +71,13 @@ public final class ReforgeAnvilGuiListener implements Listener {
             return;
         }
 
-        Player player = event.getPlayer();
         Material type = event.getClickedBlock().getType();
         if (type != Material.ANVIL && type != Material.CHIPPED_ANVIL && type != Material.DAMAGED_ANVIL) {
             return;
         }
-        if (!shouldOpenReforgeUi(player)) {
-            return;
-        }
 
         event.setCancelled(true);
-        openReforgeUi(player);
+        openReforgeUi(event.getPlayer());
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -83,20 +85,36 @@ public final class ReforgeAnvilGuiListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        
-        // If the top inventory is a Reforge menu, cancel ALL clicks
-        if (event.getInventory().getHolder() instanceof ReforgeHolder) {
-            event.setCancelled(true);
-            
-            if (event.getClickedInventory() == null) {
-                return;
-            }
 
-            if (event.getClickedInventory().equals(event.getInventory())) {
-                handleTopClick(player, event.getInventory(), event.getRawSlot(), event.getCurrentItem());
-            } else {
-                handleBottomClick(player, event.getInventory(), event.getClickedInventory(), event.getSlot(), event.getCurrentItem());
+        Inventory top = event.getView().getTopInventory();
+        if (!(top.getHolder() instanceof ReforgeHolder holder)) {
+            return;
+        }
+
+        // Lock all movement while this GUI is open.
+        event.setCancelled(true);
+
+        // Extra hard-block for known extraction vectors.
+        if (event.getClick() == ClickType.DOUBLE_CLICK || event.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
+            return;
+        }
+
+        Inventory clickedInventory = event.getClickedInventory();
+        if (clickedInventory == null) {
+            return;
+        }
+
+        if (holder.viewType == ReforgeView.MENU) {
+            if (clickedInventory.equals(top)) {
+                handleMenuTopClick(player, event.getCurrentItem());
             }
+            return;
+        }
+
+        if (clickedInventory.equals(top)) {
+            handleAdvancedTopClick(player, top, event.getRawSlot(), event.getCurrentItem());
+        } else {
+            handleAdvancedBottomClick(player, top, clickedInventory, event.getSlot(), event.getCurrentItem());
         }
     }
 
@@ -113,7 +131,10 @@ public final class ReforgeAnvilGuiListener implements Listener {
             return;
         }
         Inventory top = event.getView().getTopInventory();
-        if (!(top.getHolder() instanceof ReforgeHolder)) {
+        if (!(top.getHolder() instanceof ReforgeHolder holder)) {
+            return;
+        }
+        if (holder.viewType != ReforgeView.ADVANCED) {
             return;
         }
 
@@ -123,24 +144,134 @@ public final class ReforgeAnvilGuiListener implements Listener {
         top.setItem(STONE_SLOT, stonePlaceholder());
     }
 
-    private void handleTopClick(Player player, Inventory top, int rawSlot, ItemStack clicked) {
+    public void openReforgeUi(Player player) {
+        openMainMenu(player);
+    }
+
+    public void openAdvancedUi(Player player) {
+        ReforgeHolder holder = new ReforgeHolder(ReforgeView.ADVANCED);
+        Inventory inventory = Bukkit.createInventory(holder, 27, TITLE_ADVANCED);
+        holder.inventory = inventory;
+
+        ItemStack filler = taggedItem(Material.BLACK_STAINED_GLASS_PANE, " ", List.of(), "filler");
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, filler);
+        }
+
+        inventory.setItem(INFO_SLOT, taggedItem(
+                Material.ENCHANTED_BOOK,
+                ChatColor.AQUA + "Advanced Reforging",
+                List.of(
+                        ChatColor.GRAY + "Insert a custom dungeon weapon",
+                        ChatColor.GRAY + "and a matching Reforge Stone.",
+                        ChatColor.GRAY + "Stone reforges apply directly."
+                ),
+                "info"
+        ));
+        inventory.setItem(BACK_SLOT, taggedItem(
+                Material.ARROW,
+                ChatColor.YELLOW + "Go Back",
+                List.of(ChatColor.GRAY + "Return to Reforge Anvil."),
+                "back"
+        ));
+        inventory.setItem(CLOSE_SLOT, taggedItem(
+                Material.BARRIER,
+                ChatColor.RED + "Close",
+                List.of(ChatColor.GRAY + "Return inserted items."),
+                "close"
+        ));
+        inventory.setItem(WEAPON_SLOT, weaponPlaceholder());
+        inventory.setItem(STONE_SLOT, stonePlaceholder());
+        refreshAdvancedUi(player, inventory);
+        player.openInventory(inventory);
+    }
+
+    private void openMainMenu(Player player) {
+        ReforgeHolder holder = new ReforgeHolder(ReforgeView.MENU);
+        Inventory inventory = Bukkit.createInventory(holder, 27, TITLE_MENU);
+        holder.inventory = inventory;
+
+        ItemStack filler = taggedItem(Material.BLACK_STAINED_GLASS_PANE, " ", List.of(), "filler");
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, filler);
+        }
+
+        inventory.setItem(MENU_INFO_SLOT, taggedItem(
+                Material.ANVIL,
+                ChatColor.AQUA + "Reforging",
+                List.of(
+                        ChatColor.GRAY + "Basic: random reforge (Blacksmith).",
+                        ChatColor.GRAY + "Advanced: apply a Reforge Stone."
+                ),
+                "info"
+        ));
+        inventory.setItem(MENU_BASIC_SLOT, taggedItem(
+                Material.SMITHING_TABLE,
+                ChatColor.YELLOW + "Basic Reforging",
+                List.of(
+                        ChatColor.GRAY + "Randomly apply a basic reforge.",
+                        ChatColor.GRAY + "Uses Blacksmith mechanics."
+                ),
+                "open_basic"
+        ));
+        inventory.setItem(MENU_ADVANCED_SLOT, taggedItem(
+                Material.AMETHYST_SHARD,
+                ChatColor.LIGHT_PURPLE + "Advanced Reforging",
+                List.of(
+                        ChatColor.GRAY + "Apply a specific reforge",
+                        ChatColor.GRAY + "using a Reforge Stone."
+                ),
+                "open_advanced"
+        ));
+        inventory.setItem(MENU_CLOSE_SLOT, taggedItem(
+                Material.BARRIER,
+                ChatColor.RED + "Close",
+                List.of(ChatColor.GRAY + "Close the reforge menu."),
+                "close"
+        ));
+
+        player.openInventory(inventory);
+    }
+
+    private void handleMenuTopClick(Player player, ItemStack clicked) {
+        String action = actionOf(clicked);
+        switch (action) {
+            case "open_basic" -> {
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (!player.performCommand("blacksmith")) {
+                        player.sendMessage(ChatColor.RED + "Unable to open Blacksmith right now.");
+                    }
+                });
+            }
+            case "open_advanced" -> openAdvancedUi(player);
+            case "close" -> player.closeInventory();
+            default -> {
+            }
+        }
+    }
+
+    private void handleAdvancedTopClick(Player player, Inventory top, int rawSlot, ItemStack clicked) {
         if (rawSlot == WEAPON_SLOT) {
             returnInputToPlayer(player, top.getItem(WEAPON_SLOT), true);
             top.setItem(WEAPON_SLOT, weaponPlaceholder());
-            refreshUi(player, top);
+            refreshAdvancedUi(player, top);
             return;
         }
         if (rawSlot == STONE_SLOT) {
             returnInputToPlayer(player, top.getItem(STONE_SLOT), false);
             top.setItem(STONE_SLOT, stonePlaceholder());
-            refreshUi(player, top);
+            refreshAdvancedUi(player, top);
             return;
         }
 
         String action = actionOf(clicked);
         if ("confirm".equals(action)) {
-            applyReforge(player, top);
-            refreshUi(player, top);
+            applyStoneReforge(player, top);
+            refreshAdvancedUi(player, top);
+            return;
+        }
+        if ("back".equals(action)) {
+            openMainMenu(player);
             return;
         }
         if ("close".equals(action)) {
@@ -148,7 +279,7 @@ public final class ReforgeAnvilGuiListener implements Listener {
         }
     }
 
-    private void handleBottomClick(
+    private void handleAdvancedBottomClick(
             Player player,
             Inventory top,
             Inventory clickedInventory,
@@ -165,7 +296,7 @@ public final class ReforgeAnvilGuiListener implements Listener {
                 return;
             }
             moveSingleItem(clickedInventory, clickedSlot, clicked, top, WEAPON_SLOT);
-            refreshUi(player, top);
+            refreshAdvancedUi(player, top);
             return;
         }
 
@@ -178,7 +309,7 @@ public final class ReforgeAnvilGuiListener implements Listener {
             return;
         }
         moveSingleItem(clickedInventory, clickedSlot, clicked, top, STONE_SLOT);
-        refreshUi(player, top);
+        refreshAdvancedUi(player, top);
     }
 
     private void moveSingleItem(
@@ -200,24 +331,25 @@ public final class ReforgeAnvilGuiListener implements Listener {
         }
     }
 
-    private void applyReforge(Player player, Inventory top) {
+    private void applyStoneReforge(Player player, Inventory top) {
         ItemStack weapon = top.getItem(WEAPON_SLOT);
-        ItemStack stone = top.getItem(STONE_SLOT);
         if (!customItemService.isCustomDungeonWeapon(weapon)) {
             player.sendMessage(ChatColor.RED + "Insert a dungeon weapon first.");
             return;
         }
 
+        ItemStack stone = top.getItem(STONE_SLOT);
         ReforgeStoneType stoneType = ReforgeStoneType.parse(customItemService.itemId(stone));
-        ReforgeCost cost = resolveCost(stoneType, weapon);
+        if (stoneType == null) {
+            player.sendMessage(ChatColor.RED + "Insert a reforge stone first.");
+            return;
+        }
+
+        ReforgeCost cost = resolveStoneCost(stoneType);
         if (!chargeCost(player, cost)) {
             return;
         }
 
-        if (stoneType == null) {
-            player.sendMessage(ChatColor.RED + "Insert a reforge stone. Use /blacksmith for random reforges.");
-            return;
-        }
         ReforgeType targetReforge = stoneType.reforgeType();
         ItemStack result = customItemService.applyReforge(weapon, targetReforge);
         result = customItemService.syncWeaponEnchantLore(result);
@@ -226,48 +358,10 @@ public final class ReforgeAnvilGuiListener implements Listener {
         top.setItem(WEAPON_SLOT, weaponPlaceholder());
         top.setItem(STONE_SLOT, stonePlaceholder());
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0F, 1.1F);
-
-        if (stoneType == null) {
-            player.sendMessage(ChatColor.GREEN + "Rolled random reforge: " + targetReforge.color() + targetReforge.displayName() + ChatColor.GREEN + ".");
-        } else {
-            player.sendMessage(ChatColor.GREEN + "Applied " + targetReforge.displayName() + " reforge.");
-        }
+        player.sendMessage(ChatColor.GREEN + "Applied " + targetReforge.displayName() + " reforge.");
     }
 
-    public void openReforgeUi(Player player) {
-        ReforgeHolder holder = new ReforgeHolder();
-        Inventory inventory = Bukkit.createInventory(holder, 27, TITLE);
-        holder.inventory = inventory;
-
-        ItemStack filler = taggedItem(Material.BLACK_STAINED_GLASS_PANE, " ", List.of(), "filler");
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            inventory.setItem(slot, filler);
-        }
-
-        inventory.setItem(INFO_SLOT, taggedItem(
-                Material.ANVIL,
-                ChatColor.AQUA + "Skyblock-Style Reforge",
-                List.of(
-                        ChatColor.GRAY + "Insert a custom dungeon weapon.",
-                        ChatColor.GRAY + "No stone = Blacksmith pool roll.",
-                        ChatColor.GRAY + "Stone = targeted reforge (incl. stone-only).",
-                        ChatColor.GRAY + "Cost scales with weapon rarity."
-                ),
-                "info"
-        ));
-        inventory.setItem(WEAPON_SLOT, weaponPlaceholder());
-        inventory.setItem(STONE_SLOT, stonePlaceholder());
-        inventory.setItem(CLOSE_SLOT, taggedItem(
-                Material.BARRIER,
-                ChatColor.RED + "Close",
-                List.of(ChatColor.GRAY + "Return inserted items."),
-                "close"
-        ));
-        refreshUi(player, inventory);
-        player.openInventory(inventory);
-    }
-
-    private void refreshUi(Player player, Inventory inventory) {
+    private void refreshAdvancedUi(Player player, Inventory inventory) {
         ItemStack weapon = inventory.getItem(WEAPON_SLOT);
         ItemStack stone = inventory.getItem(STONE_SLOT);
         boolean validWeapon = customItemService.isCustomDungeonWeapon(weapon);
@@ -289,28 +383,24 @@ public final class ReforgeAnvilGuiListener implements Listener {
             return;
         }
 
-        ItemRarity rarity = customItemService.rarityOf(weapon);
-        ReforgeCost cost = resolveCost(stoneType, weapon);
-        boolean affordable = canAfford(player, cost);
-
         if (stoneType == null) {
             inventory.setItem(PREVIEW_SLOT, taggedItem(
                     Material.REDSTONE,
                     ChatColor.RED + "No Reforge Stone",
-                    List.of(
-                            ChatColor.GRAY + "Insert a reforge stone for targeted reforges.",
-                            ChatColor.YELLOW + "Use /blacksmith for random reforges."
-                    ),
+                    List.of(ChatColor.GRAY + "Insert a reforge stone."),
                     "preview"
             ));
             inventory.setItem(CONFIRM_SLOT, taggedItem(
                     Material.RED_STAINED_GLASS_PANE,
                     ChatColor.RED + "Cannot Reforge",
-                    List.of(ChatColor.GRAY + "Insert a reforge stone."),
+                    List.of(ChatColor.GRAY + "Stone slot is empty."),
                     "confirm"
             ));
             return;
         }
+
+        ReforgeCost cost = resolveStoneCost(stoneType);
+        boolean affordable = canAfford(player, cost);
 
         ItemStack preview = customItemService.applyReforge(weapon, stoneType.reforgeType());
         preview = customItemService.syncWeaponEnchantLore(preview);
@@ -319,8 +409,7 @@ public final class ReforgeAnvilGuiListener implements Listener {
                 ? new ArrayList<>(previewMeta.getLore())
                 : new ArrayList<>();
         previewLore.add("");
-        previewLore.add(ChatColor.GRAY + "Mode: " + ChatColor.YELLOW + "Stone Reforge");
-        previewLore.add(ChatColor.GRAY + "Weapon Rarity: " + rarity.color() + rarity.displayName());
+        previewLore.add(ChatColor.GRAY + "Mode: " + ChatColor.YELLOW + "Advanced Reforging");
         previewLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GREEN + formatCost(cost));
         previewLore.add(ChatColor.GRAY + customItemService.reforgeBonusLine(stoneType.reforgeType(), weapon));
         previewMeta.setLore(previewLore);
@@ -328,8 +417,7 @@ public final class ReforgeAnvilGuiListener implements Listener {
         inventory.setItem(PREVIEW_SLOT, preview);
 
         List<String> confirmLore = new ArrayList<>();
-        confirmLore.add(ChatColor.GRAY + "Mode: " + ChatColor.YELLOW + "Stone Reforge");
-        confirmLore.add(ChatColor.GRAY + "Weapon Rarity: " + rarity.color() + rarity.displayName());
+        confirmLore.add(ChatColor.GRAY + "Mode: " + ChatColor.YELLOW + "Advanced Reforging");
         confirmLore.add(ChatColor.GRAY + "Cost: " + ChatColor.GREEN + formatCost(cost));
         confirmLore.add(balanceLine(player, cost));
         confirmLore.add(ChatColor.GRAY + customItemService.reforgeBonusLine(stoneType.reforgeType(), weapon));
@@ -363,41 +451,14 @@ public final class ReforgeAnvilGuiListener implements Listener {
         leftovers.values().forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
     }
 
-    private boolean shouldOpenReforgeUi(Player player) {
-        return isReforgeContextItem(player.getInventory().getItemInMainHand())
-                || isReforgeContextItem(player.getInventory().getItemInOffHand());
-    }
-
-    private boolean isReforgeContextItem(ItemStack item) {
-        if (item == null || item.getType().isAir()) {
-            return false;
+    private ReforgeCost resolveStoneCost(ReforgeStoneType stoneType) {
+        if (stoneType == null) {
+            return ReforgeCost.coins(0.0D);
         }
-        if (customItemService.isCustomDungeonWeapon(item)) {
-            return true;
-        }
-        String itemId = customItemService.itemId(item);
-        if (itemId == null) {
-            return false;
-        }
-        return ReforgeStoneType.parse(itemId) != null;
-    }
-
-    private ReforgeType randomBasicReforge() {
-        List<ReforgeType> pool = ReforgeType.blacksmithPool();
-        if (pool.isEmpty()) {
-            return ReforgeType.GENTLE;
-        }
-        return pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
-    }
-
-    private ReforgeCost resolveCost(ReforgeStoneType stoneType, ItemStack weapon) {
-        double rarityMultiplier = rarityCostMultiplier(customItemService.rarityOf(weapon));
         if (useVaultEconomy()) {
-            double coins = stoneType == null ? basicCoinCost() : stoneType.levelCost() * stoneCoinMultiplier();
-            return ReforgeCost.coins(Math.max(1.0D, Math.round(coins * rarityMultiplier)));
+            return ReforgeCost.coins(stoneCoinCost(stoneType));
         }
-        int levels = stoneType == null ? basicLevelCost() : stoneType.levelCost();
-        return ReforgeCost.levels(Math.max(1, (int) Math.round(levels * rarityMultiplier)));
+        return ReforgeCost.levels(Math.max(1, stoneType.levelCost()));
     }
 
     private boolean canAfford(Player player, ReforgeCost cost) {
@@ -446,47 +507,22 @@ public final class ReforgeAnvilGuiListener implements Listener {
         return ChatColor.GRAY + "Your Levels: " + ChatColor.YELLOW + player.getLevel();
     }
 
-    private int basicLevelCost() {
-        return Math.max(1, plugin.getConfig().getInt("custom-items.reforge.basic-level-cost", 5));
+    private double stoneCoinCost(ReforgeStoneType stoneType) {
+        String path = "custom-items.reforge.stone-cost-coins." + stoneType.name();
+        return Math.max(1.0D, plugin.getConfig().getDouble(path, defaultStoneCoinCost(stoneType)));
     }
 
-    private double basicCoinCost() {
-        return Math.max(1.0D, plugin.getConfig().getDouble("custom-items.reforge.basic-cost-coins", 2500.0D));
-    }
-
-    private double stoneCoinMultiplier() {
-        return Math.max(1.0D, plugin.getConfig().getDouble("custom-items.reforge.stone-cost-multiplier", 1200.0D));
-    }
-
-    private double rarityCostMultiplier(ItemRarity rarity) {
-        ItemRarity effectiveRarity = rarity == null ? ItemRarity.RARE : rarity;
-        String path = "custom-items.reforge.rarity-cost-multipliers." + effectiveRarity.name();
-        return Math.max(0.10D, plugin.getConfig().getDouble(path, defaultRarityMultiplier(effectiveRarity)));
-    }
-
-    private double defaultRarityMultiplier(ItemRarity rarity) {
-        return switch (rarity) {
-            case COMMON -> 0.75D;
-            case UNCOMMON -> 0.90D;
-            case RARE -> 1.00D;
-            case EPIC -> 1.30D;
-            case LEGENDARY -> 1.70D;
-            case MYTHIC -> 2.20D;
+    private double defaultStoneCoinCost(ReforgeStoneType stoneType) {
+        return switch (stoneType) {
+            case GENTLE_STONE -> 500.0D;
+            case ODD_STONE, FAST_STONE, SHARP_STONE -> 1_000.0D;
+            case FAIR_STONE, EPIC_STONE, HEROIC_STONE -> 2_500.0D;
+            case SPICY_STONE, LEGENDARY_STONE -> 5_000.0D;
         };
     }
 
     private boolean useVaultEconomy() {
         return plugin.getConfig().getBoolean("custom-items.reforge.use-vault-economy", true);
-    }
-
-    private String blacksmithPoolDisplay() {
-        List<ReforgeType> pool = ReforgeType.blacksmithPool();
-        if (pool.isEmpty()) {
-            return ChatColor.DARK_GRAY + "None";
-        }
-        return pool.stream()
-                .map(type -> type.color() + type.displayName())
-                .collect(Collectors.joining(ChatColor.GRAY + ", "));
     }
 
     private ItemStack weaponPlaceholder() {
@@ -502,10 +538,7 @@ public final class ReforgeAnvilGuiListener implements Listener {
         return taggedItem(
                 Material.AMETHYST_SHARD,
                 ChatColor.YELLOW + "Stone Slot",
-                List.of(
-                        ChatColor.GRAY + "Insert a Reforge Stone for target reforge,",
-                        ChatColor.GRAY + "or leave empty for random basic roll."
-                ),
+                List.of(ChatColor.GRAY + "Insert a Reforge Stone."),
                 "slot_stone"
         );
     }
@@ -538,8 +571,18 @@ public final class ReforgeAnvilGuiListener implements Listener {
         }
     }
 
+    private enum ReforgeView {
+        MENU,
+        ADVANCED
+    }
+
     private static final class ReforgeHolder implements InventoryHolder {
         private Inventory inventory;
+        private final ReforgeView viewType;
+
+        private ReforgeHolder(ReforgeView viewType) {
+            this.viewType = viewType;
+        }
 
         @Override
         public Inventory getInventory() {
@@ -547,4 +590,3 @@ public final class ReforgeAnvilGuiListener implements Listener {
         }
     }
 }
-

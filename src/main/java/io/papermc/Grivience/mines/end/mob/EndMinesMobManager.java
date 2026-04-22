@@ -5,6 +5,7 @@ import io.papermc.Grivience.collections.CollectionsManager;
 import io.papermc.Grivience.item.CustomItemService;
 import io.papermc.Grivience.item.EndMinesMaterialType;
 import io.papermc.Grivience.mines.end.EndMinesManager;
+import io.papermc.Grivience.util.EndMinesSpawnSafetyUtil;
 import io.papermc.Grivience.util.MobHealthDisplay;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -19,6 +20,7 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
@@ -55,6 +57,8 @@ public final class EndMinesMobManager implements Listener {
     private final NamespacedKey mobTypeKey;
     private final NamespacedKey healthBaseNameKey;
     private final NamespacedKey projectileKey;
+    private final NamespacedKey monsterLevelKey;
+    private final NamespacedKey empoweredKey;
     private final Random random = new Random();
     private final Map<UUID, MobState> mobs = new HashMap<>();
     private final File spawnPointsFile;
@@ -118,10 +122,12 @@ public final class EndMinesMobManager implements Listener {
     private static final class MobState {
         private final EndMinesMobType type;
         private int abilityCooldownTicks;
+        private boolean empowered;
 
         private MobState(EndMinesMobType type, int abilityCooldownTicks) {
             this.type = type;
             this.abilityCooldownTicks = abilityCooldownTicks;
+            this.empowered = false;
         }
     }
 
@@ -138,6 +144,8 @@ public final class EndMinesMobManager implements Listener {
         this.mobTypeKey = new NamespacedKey(plugin, "end_mines_mob_type");
         this.healthBaseNameKey = new NamespacedKey(plugin, "health_base_name");
         this.projectileKey = new NamespacedKey(plugin, "end_mines_projectile");
+        this.monsterLevelKey = new NamespacedKey(plugin, "monster_level");
+        this.empoweredKey = new NamespacedKey(plugin, "end_mines_empowered");
         plugin.getDataFolder().mkdirs();
         this.spawnPointsFile = new File(plugin.getDataFolder(), "end-mines-mob-spawns.yml");
         loadSpawnPoints();
@@ -150,6 +158,7 @@ public final class EndMinesMobManager implements Listener {
 
         // Refresh configured spawn points on (re)enable so edits via commands apply cleanly.
         loadSpawnPoints();
+        runImmediateSafetySweep();
 
         long spawnInterval = Math.max(10L, plugin.getConfig().getLong("end-mines.mobs.spawn-interval-ticks", 40L));
         spawnTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::spawnTick, spawnInterval, spawnInterval);
@@ -158,6 +167,10 @@ public final class EndMinesMobManager implements Listener {
     }
 
     public void shutdown() {
+        World world = endMinesManager == null ? null : endMinesManager.getWorld();
+        if (world != null) {
+            clearManagedMobs(collectManagedMobs(world));
+        }
         if (spawnTask != null) {
             spawnTask.cancel();
             spawnTask = null;
@@ -273,6 +286,27 @@ public final class EndMinesMobManager implements Listener {
         }
     }
 
+    private void runImmediateSafetySweep() {
+        if (!isEnabled()) {
+            return;
+        }
+        World world = endMinesManager.getWorld();
+        if (world == null) {
+            return;
+        }
+        List<LivingEntity> managedMobs = collectManagedMobs(world);
+        syncTrackedMobs(managedMobs);
+
+        List<Player> players = eligibleSpawningPlayers(world);
+        if (players.isEmpty()) {
+            clearManagedMobs(managedMobs);
+            return;
+        }
+
+        int despawnDistance = Math.max(24, plugin.getConfig().getInt("end-mines.mobs.despawn-distance", 72));
+        pruneManagedMobs(managedMobs, players, despawnDistance, getGlobalMobCap());
+    }
+
     private void saveSpawnPoints() {
         YamlConfiguration config = new YamlConfiguration();
         for (EndMinesMobSpawnPoint point : spawnPoints.values()) {
@@ -312,8 +346,25 @@ public final class EndMinesMobManager implements Listener {
         if (world == null) {
             return;
         }
-        List<Player> players = world.getPlayers();
+        List<LivingEntity> managedMobs = collectManagedMobs(world);
+        syncTrackedMobs(managedMobs);
+
+        List<Player> players = eligibleSpawningPlayers(world);
         if (players.isEmpty()) {
+            clearManagedMobs(managedMobs);
+            return;
+        }
+
+        int despawnDistance = Math.max(24, plugin.getConfig().getInt("end-mines.mobs.despawn-distance", 72));
+        int globalMobCap = getGlobalMobCap();
+        managedMobs = new ArrayList<>(pruneManagedMobs(managedMobs, players, despawnDistance, globalMobCap));
+        int remainingSpawnBudget = Math.max(0, globalMobCap - managedMobs.size());
+        remainingSpawnBudget = effectiveSpawnBudget(remainingSpawnBudget);
+        if (remainingSpawnBudget <= 0) {
+            return;
+        }
+        if (plugin.getServerPerformanceMonitor() != null
+                && !plugin.getServerPerformanceMonitor().shouldProcess("end-mines-spawn-cycle", 2, 4)) {
             return;
         }
 
@@ -323,21 +374,27 @@ public final class EndMinesMobManager implements Listener {
         String normalized = mode == null ? "around_players" : mode.trim().toLowerCase(Locale.ROOT);
 
         switch (normalized) {
-            case "spawn_points" -> spawnFromSpawnPoints(world, players, spawnInterval);
+            case "spawn_points" -> spawnFromSpawnPoints(world, players, managedMobs, spawnInterval, remainingSpawnBudget);
             case "mixed" -> {
-                spawnFromSpawnPoints(world, players, spawnInterval);
-                spawnAroundPlayers(world, players);
+                int spawnedFromPoints = spawnFromSpawnPoints(world, players, managedMobs, spawnInterval, remainingSpawnBudget);
+                remainingSpawnBudget = Math.max(0, remainingSpawnBudget - spawnedFromPoints);
+                if (remainingSpawnBudget > 0) {
+                    spawnAroundPlayers(world, players, managedMobs, remainingSpawnBudget);
+                }
             }
-            default -> spawnAroundPlayers(world, players);
+            default -> spawnAroundPlayers(world, players, managedMobs, remainingSpawnBudget);
         }
     }
 
-    private void spawnFromSpawnPoints(World world, List<Player> players, int spawnInterval) {
+    private int spawnFromSpawnPoints(World world, List<Player> players, List<LivingEntity> managedMobs, int spawnInterval, int remainingSpawnBudget) {
         if (world == null || players == null || players.isEmpty()) {
-            return;
+            return 0;
         }
         if (spawnPoints.isEmpty()) {
-            return;
+            return 0;
+        }
+        if (remainingSpawnBudget <= 0) {
+            return 0;
         }
 
         int despawnDistance = Math.max(24, plugin.getConfig().getInt("end-mines.mobs.despawn-distance", 72));
@@ -345,8 +402,12 @@ public final class EndMinesMobManager implements Listener {
 
         int minY = plugin.getConfig().getInt("end-mines.generation.min-y", 60);
         int maxY = plugin.getConfig().getInt("end-mines.generation.max-y", 78);
+        int spawned = 0;
 
         for (EndMinesMobSpawnPoint point : spawnPoints.values()) {
+            if (spawned >= remainingSpawnBudget) {
+                break;
+            }
             if (point == null || !point.active()) {
                 continue;
             }
@@ -368,7 +429,7 @@ public final class EndMinesMobManager implements Listener {
                 continue;
             }
 
-            int nearby = countNearbyEndMinesMobsAt(base, Math.max(6, point.spawnRadius()));
+            int nearby = countManagedMobsNear(managedMobs, base, Math.max(6, point.spawnRadius()), 12.0D);
             if (nearby >= point.maxNearbyEntities()) {
                 spawnPointCooldownTicks.put(id, Math.max(spawnInterval, 1));
                 continue;
@@ -381,11 +442,16 @@ public final class EndMinesMobManager implements Listener {
 
             Location spawn = findSpawnNearPoint(base, point.spawnRadius(), minY, maxY);
             if (spawn != null) {
-                spawnMob(world, spawn, type);
+                LivingEntity entity = spawnMob(world, spawn, type);
+                if (entity != null) {
+                    managedMobs.add(entity);
+                    spawned++;
+                }
             }
 
             spawnPointCooldownTicks.put(id, point.spawnDelayTicks());
         }
+        return spawned;
     }
 
     private Location findSpawnNearPoint(Location base, int radius, int minY, int maxY) {
@@ -409,23 +475,10 @@ public final class EndMinesMobManager implements Listener {
         return resolveFloor(world, bx, by, bz, minY, maxY);
     }
 
-    private int countNearbyEndMinesMobsAt(Location location, int radius) {
-        if (location == null || location.getWorld() == null) {
-            return 0;
+    private void spawnAroundPlayers(World world, List<Player> players, List<LivingEntity> managedMobs, int remainingSpawnBudget) {
+        if (remainingSpawnBudget <= 0) {
+            return;
         }
-        int count = 0;
-        for (Entity nearby : location.getWorld().getNearbyEntities(location, radius, 12, radius)) {
-            if (!(nearby instanceof LivingEntity living)) {
-                continue;
-            }
-            if (living.getPersistentDataContainer().has(mobTypeKey, PersistentDataType.STRING)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private void spawnAroundPlayers(World world, List<Player> players) {
         int spawnRadius = Math.max(8, plugin.getConfig().getInt("end-mines.mobs.spawn-radius", 28));
         int maxNearPlayer = Math.max(0, plugin.getConfig().getInt("end-mines.mobs.max-near-player", 12));
         int safeRadiusFromSpawn = Math.max(0, plugin.getConfig().getInt("end-mines.mobs.safe-radius-from-spawn", 12));
@@ -436,8 +489,12 @@ public final class EndMinesMobManager implements Listener {
 
         int minY = plugin.getConfig().getInt("end-mines.generation.min-y", 60);
         int maxY = plugin.getConfig().getInt("end-mines.generation.max-y", 78);
+        int remainingGlobalBudget = remainingSpawnBudget;
 
         for (Player player : players) {
+            if (remainingGlobalBudget <= 0) {
+                break;
+            }
             if (player == null || player.isDead()) {
                 continue;
             }
@@ -448,34 +505,61 @@ public final class EndMinesMobManager implements Listener {
                 continue;
             }
 
-            int nearby = countNearbyEndMinesMobs(player, spawnRadius);
+            int nearby = countManagedMobsNear(managedMobs, player.getLocation(), spawnRadius, 12.0D);
             if (nearby >= maxNearPlayer) {
                 continue;
             }
 
             int toSpawn = Math.min(2, Math.max(0, maxNearPlayer - nearby));
             for (int i = 0; i < toSpawn; i++) {
+                if (remainingGlobalBudget <= 0) {
+                    return;
+                }
                 EndMinesMobType type = rollType();
                 Location spawn = findSpawnLocation(world, player.getLocation(), spawnRadius, minY, maxY, mineSpawn, safeRadiusSq, spawnAttempts);
                 if (spawn == null) {
                     break;
                 }
-                spawnMob(world, spawn, type);
+                LivingEntity entity = spawnMob(world, spawn, type);
+                if (entity != null) {
+                    managedMobs.add(entity);
+                    remainingGlobalBudget--;
+                }
             }
         }
     }
 
-    private int countNearbyEndMinesMobs(Player player, int radius) {
+    private int countManagedMobsNear(Collection<LivingEntity> managedMobs, Location origin, double horizontalRadius, double verticalRadius) {
+        if (managedMobs == null || managedMobs.isEmpty() || origin == null || origin.getWorld() == null) {
+            return 0;
+        }
+        double horizontalRadiusSq = horizontalRadius * horizontalRadius;
         int count = 0;
-        for (Entity nearby : player.getNearbyEntities(radius, 12, radius)) {
-            if (!(nearby instanceof LivingEntity living)) {
+        for (LivingEntity living : managedMobs) {
+            if (living == null || living.isDead()) {
                 continue;
             }
-            if (living.getPersistentDataContainer().has(mobTypeKey, PersistentDataType.STRING)) {
+            Location other = living.getLocation();
+            if (!Objects.equals(other.getWorld(), origin.getWorld())) {
+                continue;
+            }
+            if (Math.abs(other.getY() - origin.getY()) > verticalRadius) {
+                continue;
+            }
+            double dx = other.getX() - origin.getX();
+            double dz = other.getZ() - origin.getZ();
+            if ((dx * dx) + (dz * dz) <= horizontalRadiusSq) {
                 count++;
             }
         }
         return count;
+    }
+
+    private int effectiveSpawnBudget(int baseBudget) {
+        if (plugin.getServerPerformanceMonitor() == null) {
+            return baseBudget;
+        }
+        return plugin.getServerPerformanceMonitor().scaleBudget(baseBudget, 60, 35, 0);
     }
 
     private EndMinesMobType rollType() {
@@ -544,6 +628,9 @@ public final class EndMinesMobManager implements Listener {
     }
 
     private Location resolveFloor(World world, int x, int startY, int z, int minY, int maxY) {
+        if (world == null || !world.isChunkLoaded(x >> 4, z >> 4)) {
+            return null;
+        }
         int y = Math.max(minY + 2, Math.min(maxY - 2, startY));
         for (int scan = 0; scan < 12; scan++) {
             int yy = y - scan;
@@ -571,29 +658,40 @@ public final class EndMinesMobManager implements Listener {
         return null;
     }
 
-    private void spawnMob(World world, Location location, EndMinesMobType type) {
+    private LivingEntity spawnMob(World world, Location location, EndMinesMobType type) {
         if (world == null || location == null || type == null) {
-            return;
+            return null;
         }
+
+        // Check zone restrictions
+        if (plugin.getZoneManager() != null) {
+            io.papermc.Grivience.zone.Zone zone = plugin.getZoneManager().getZoneAt(location);
+            if (zone != null && !zone.canSpawnMobs()) {
+                return null;
+            }
+        }
+
         Entity raw = world.spawnEntity(location, type.entityType());
         if (!(raw instanceof LivingEntity living)) {
             raw.remove();
-            return;
+            return null;
         }
 
         living.setRemoveWhenFarAway(true);
+        living.setPersistent(false);
         living.setCanPickupItems(false);
 
         PersistentDataContainer pdc = living.getPersistentDataContainer();
         pdc.set(mobTypeKey, PersistentDataType.STRING, type.id());
 
-        applyAttributes(living, type);
+        applyAttributes(living, type, false);
         equipMob(living, type);
 
         // Keep health nameplates consistent with the rest of the plugin.
-        MobHealthDisplay.setBaseName(living, healthBaseNameKey, ChatColor.RED + type.displayName());
+        updateMobDisplay(living, type, false);
 
         mobs.put(living.getUniqueId(), new MobState(type, initialCooldown(type)));
+        return living;
     }
 
     private void equipMob(LivingEntity living, EndMinesMobType type) {
@@ -613,15 +711,39 @@ public final class EndMinesMobManager implements Listener {
         }
     }
 
-    private void applyAttributes(LivingEntity living, EndMinesMobType type) {
+    private void applyAttributes(LivingEntity living, EndMinesMobType type, boolean empowered) {
+        if (living == null || type == null) {
+            return;
+        }
+
         int y = living.getLocation().getBlockY();
         double scaleFactor = 1.0 + Math.max(0, (64 - y) / 64.0); // Deeper = stronger
+        double oldMax = Math.max(1.0D, living.getAttribute(Attribute.MAX_HEALTH) == null ? 20.0D : living.getAttribute(Attribute.MAX_HEALTH).getValue());
+        double oldCurrent = Math.max(0.0D, living.getHealth());
+        double oldRatio = oldMax <= 0.0D ? 1.0D : Math.min(1.0D, Math.max(0.0D, oldCurrent / oldMax));
+
+        double scale = 5.0;
+        if (plugin.getSkyblockCombatEngine() != null) {
+            scale = plugin.getSkyblockCombatEngine().getHealthScale();
+        }
+
+        FileConfiguration config = plugin.getConfig();
+        double healthMultiplier = empowered ? Math.max(1.0D, config.getDouble("end-mines.mobs.proximity-upgrade.health-multiplier", 1.75D)) : 1.0D;
+        double empoweredDamageMultiplier = empowered ? Math.max(1.0D, config.getDouble("end-mines.mobs.proximity-upgrade.damage-multiplier", 1.35D)) : 1.0D;
+        double speedMultiplier = empowered ? Math.max(1.0D, config.getDouble("end-mines.mobs.proximity-upgrade.speed-multiplier", 1.06D)) : 1.0D;
+        double armorBonus = empowered ? Math.max(0.0D, config.getDouble("end-mines.mobs.proximity-upgrade.armor-bonus", 8.0D)) : 0.0D;
 
         AttributeInstance maxHealth = living.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealth != null) {
-            maxHealth.setBaseValue(Math.max(1.0D, type.maxHealth() * scaleFactor));
+            double newMax = Math.max(1.0D, (type.maxHealth() * scaleFactor * healthMultiplier) / scale);
+            maxHealth.setBaseValue(newMax);
             try {
-                living.setHealth(maxHealth.getValue());
+                if (empowered) {
+                    double empoweredHealthFloor = Math.max(oldCurrent + ((newMax - oldMax) * 0.65D), newMax * 0.60D);
+                    living.setHealth(Math.min(newMax, Math.max(1.0D, empoweredHealthFloor)));
+                } else {
+                    living.setHealth(Math.max(1.0D, Math.min(newMax, newMax * oldRatio)));
+                }
             } catch (IllegalArgumentException ignored) {
                 living.setHealth(Math.max(1.0D, Math.min(living.getHealth(), maxHealth.getValue())));
             }
@@ -629,15 +751,20 @@ public final class EndMinesMobManager implements Listener {
 
         AttributeInstance attack = living.getAttribute(Attribute.ATTACK_DAMAGE);
         if (attack != null) {
-            double damageMultiplier = Math.max(0.0D, plugin.getConfig().getDouble("end-mines.mobs.damage-multiplier", 1.0D));
-            attack.setBaseValue(Math.max(0.0D, type.attackDamage() * scaleFactor * damageMultiplier));
+            double baseDamageMultiplier = Math.max(0.0D, plugin.getConfig().getDouble("end-mines.mobs.damage-multiplier", 1.0D));
+            attack.setBaseValue(Math.max(0.0D, (type.attackDamage() * scaleFactor * baseDamageMultiplier * empoweredDamageMultiplier) / scale));
         }
 
         AttributeInstance speed = living.getAttribute(Attribute.MOVEMENT_SPEED);
         double speedMod = 1.0;
         if (type == EndMinesMobType.CAVE_SPIDER_SWARM) speedMod = 1.5;
         if (speed != null && type.moveSpeed() > 0.0D) {
-            speed.setBaseValue(type.moveSpeed() * speedMod);
+            speed.setBaseValue(type.moveSpeed() * speedMod * speedMultiplier);
+        }
+
+        AttributeInstance armor = living.getAttribute(Attribute.ARMOR);
+        if (armor != null) {
+            armor.setBaseValue(armorBonus);
         }
     }
 
@@ -659,15 +786,10 @@ public final class EndMinesMobManager implements Listener {
         if (world == null) {
             return;
         }
-        if (world.getPlayers().isEmpty()) {
+        List<Player> players = eligibleSpawningPlayers(world);
+        if (players.isEmpty()) {
             // Keep the world clean when no one is around.
-            for (UUID uuid : new ArrayList<>(mobs.keySet())) {
-                Entity raw = Bukkit.getEntity(uuid);
-                if (raw != null && raw.getWorld() != null && isInEndMines(raw.getWorld())) {
-                    raw.remove();
-                }
-            }
-            mobs.clear();
+            clearManagedMobs(collectManagedMobs(world));
             return;
         }
 
@@ -690,10 +812,15 @@ public final class EndMinesMobManager implements Listener {
                 continue;
             }
 
-            if (!hasNearbyPlayer(living.getLocation(), world.getPlayers(), despawnSq)) {
+            if (!hasNearbyPlayer(living.getLocation(), players, despawnSq)) {
                 living.remove();
                 it.remove();
                 continue;
+            }
+
+            updateProximityUpgrade(living, state);
+            if (state.empowered && random.nextDouble() < 0.20D) {
+                living.getWorld().spawnParticle(Particle.PORTAL, living.getLocation().add(0.0D, 1.1D, 0.0D), 4, 0.25D, 0.45D, 0.25D, 0.02D);
             }
 
             state.abilityCooldownTicks -= 10;
@@ -722,6 +849,219 @@ public final class EndMinesMobManager implements Listener {
             }
         }
         return false;
+    }
+
+    private List<Player> eligibleSpawningPlayers(World world) {
+        if (world == null) {
+            return List.of();
+        }
+
+        Location mineSpawn = endMinesManager == null ? null : endMinesManager.getSpawnLocation(world);
+        int activationSafeRadius = Math.max(0, plugin.getConfig().getInt("end-mines.mobs.activation-safe-radius-from-spawn", 40));
+        double activationSafeRadiusSq = activationSafeRadius <= 0 ? 0.0D : (double) activationSafeRadius * activationSafeRadius;
+
+        List<Player> players = new ArrayList<>();
+        for (Player player : world.getPlayers()) {
+            if (!EndMinesSpawnSafetyUtil.isEligibleActivityPlayer(player, mineSpawn, activationSafeRadiusSq)) {
+                continue;
+            }
+            players.add(player);
+        }
+        return players;
+    }
+
+    private int getGlobalMobCap() {
+        return Math.max(1, plugin.getConfig().getInt("end-mines.mobs.global-max", 120));
+    }
+
+    private List<LivingEntity> collectManagedMobs(World world) {
+        if (world == null) {
+            return List.of();
+        }
+        List<LivingEntity> managed = new ArrayList<>();
+        for (LivingEntity living : world.getLivingEntities()) {
+            if (living == null || living.isDead()) {
+                continue;
+            }
+            if (!living.getPersistentDataContainer().has(mobTypeKey, PersistentDataType.STRING)) {
+                continue;
+            }
+            managed.add(living);
+        }
+        return managed;
+    }
+
+    private void syncTrackedMobs(Collection<LivingEntity> managedMobs) {
+        Set<UUID> seen = new HashSet<>();
+        if (managedMobs != null) {
+            for (LivingEntity living : managedMobs) {
+                if (living == null || living.isDead()) {
+                    continue;
+                }
+                EndMinesMobType type = getMobType(living);
+                if (type == null) {
+                    continue;
+                }
+                UUID uuid = living.getUniqueId();
+                seen.add(uuid);
+                mobs.computeIfAbsent(uuid, ignored -> restoreMobState(living, type));
+            }
+        }
+        mobs.entrySet().removeIf(entry -> !seen.contains(entry.getKey()));
+    }
+
+    private MobState restoreMobState(LivingEntity living, EndMinesMobType type) {
+        MobState state = new MobState(type, initialCooldown(type));
+        Byte empowered = living.getPersistentDataContainer().get(empoweredKey, PersistentDataType.BYTE);
+        state.empowered = empowered != null && empowered == (byte) 1;
+        return state;
+    }
+
+    private List<LivingEntity> pruneManagedMobs(List<LivingEntity> managedMobs, List<Player> players, int despawnDistance, int globalMobCap) {
+        if (managedMobs == null || managedMobs.isEmpty()) {
+            return List.of();
+        }
+
+        double despawnSq = (double) despawnDistance * despawnDistance;
+        List<LivingEntity> remaining = new ArrayList<>(managedMobs.size());
+        for (LivingEntity living : managedMobs) {
+            if (living == null || living.isDead()) {
+                continue;
+            }
+            if (!hasNearbyPlayer(living.getLocation(), players, despawnSq)) {
+                mobs.remove(living.getUniqueId());
+                living.remove();
+                continue;
+            }
+            remaining.add(living);
+        }
+
+        if (remaining.size() <= globalMobCap) {
+            return remaining;
+        }
+
+        remaining.sort(Comparator.comparingDouble((LivingEntity living) -> nearestEligiblePlayerDistanceSquared(living.getLocation(), players)).reversed());
+        while (remaining.size() > globalMobCap) {
+            LivingEntity removed = remaining.remove(0);
+            mobs.remove(removed.getUniqueId());
+            removed.remove();
+        }
+        return remaining;
+    }
+
+    private double nearestEligiblePlayerDistanceSquared(Location location, List<Player> players) {
+        if (location == null || players == null || players.isEmpty()) {
+            return Double.MAX_VALUE;
+        }
+        double best = Double.MAX_VALUE;
+        for (Player player : players) {
+            if (player == null || player.isDead()) {
+                continue;
+            }
+            if (!Objects.equals(player.getWorld(), location.getWorld())) {
+                continue;
+            }
+            best = Math.min(best, player.getLocation().distanceSquared(location));
+        }
+        return best;
+    }
+
+    private void clearManagedMobs(Collection<LivingEntity> managedMobs) {
+        if (managedMobs != null) {
+            for (LivingEntity living : managedMobs) {
+                if (living == null || living.isDead()) {
+                    continue;
+                }
+                mobs.remove(living.getUniqueId());
+                living.remove();
+            }
+        }
+        for (UUID uuid : new ArrayList<>(mobs.keySet())) {
+            Entity raw = Bukkit.getEntity(uuid);
+            if (raw != null && raw.getWorld() != null && isInEndMines(raw.getWorld())) {
+                raw.remove();
+            }
+            mobs.remove(uuid);
+        }
+    }
+
+    private void updateProximityUpgrade(LivingEntity living, MobState state) {
+        if (living == null || state == null) {
+            return;
+        }
+        if (!isProximityUpgradeEnabled()) {
+            if (state.empowered) {
+                setEmpowered(living, state, false);
+            }
+            return;
+        }
+        if (!isEligibleForUpgrade(state.type)) {
+            if (state.empowered) {
+                setEmpowered(living, state, false);
+            }
+            return;
+        }
+
+        Player nearby = nearestPlayer(living.getLocation(), getProximityUpgradeRadius());
+        boolean shouldEmpower = nearby != null;
+        if (state.empowered != shouldEmpower) {
+            setEmpowered(living, state, shouldEmpower);
+        }
+    }
+
+    private boolean isProximityUpgradeEnabled() {
+        return plugin.getConfig().getBoolean("end-mines.mobs.proximity-upgrade.enabled", true);
+    }
+
+    private double getProximityUpgradeRadius() {
+        return Math.max(1.5D, plugin.getConfig().getDouble("end-mines.mobs.proximity-upgrade.radius", 7.5D));
+    }
+
+    private boolean isEligibleForUpgrade(EndMinesMobType type) {
+        if (type == null) {
+            return false;
+        }
+        List<String> configured = plugin.getConfig().getStringList("end-mines.mobs.proximity-upgrade.eligible-types");
+        if (configured == null || configured.isEmpty()) {
+            return type == EndMinesMobType.RIFTWALKER
+                    || type == EndMinesMobType.ENDERMAN_EXCAVATOR
+                    || type == EndMinesMobType.CRYSTAL_SENTRY;
+        }
+        for (String entry : configured) {
+            if (entry != null && entry.trim().equalsIgnoreCase(type.id())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void setEmpowered(LivingEntity living, MobState state, boolean empowered) {
+        if (living == null || state == null) {
+            return;
+        }
+        state.empowered = empowered;
+        living.getPersistentDataContainer().set(empoweredKey, PersistentDataType.BYTE, empowered ? (byte) 1 : (byte) 0);
+        applyAttributes(living, state.type, empowered);
+        updateMobDisplay(living, state.type, empowered);
+
+        if (empowered) {
+            living.getWorld().spawnParticle(Particle.REVERSE_PORTAL, living.getLocation().add(0.0D, 1.0D, 0.0D), 18, 0.35D, 0.55D, 0.35D, 0.02D);
+            living.getWorld().playSound(living.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.65F, 0.55F);
+        } else {
+            living.getWorld().spawnParticle(Particle.SMOKE, living.getLocation().add(0.0D, 1.0D, 0.0D), 8, 0.25D, 0.4D, 0.25D, 0.01D);
+        }
+    }
+
+    private void updateMobDisplay(LivingEntity living, EndMinesMobType type, boolean empowered) {
+        if (living == null || type == null) {
+            return;
+        }
+        int level = empowered ? Math.max(type.baseLevel() + 5, plugin.getConfig().getInt("end-mines.mobs.proximity-upgrade.level", 15)) : type.baseLevel();
+        living.getPersistentDataContainer().set(monsterLevelKey, PersistentDataType.INTEGER, level);
+        String baseName = empowered
+                ? ChatColor.DARK_PURPLE + "Empowered " + ChatColor.LIGHT_PURPLE + ChatColor.stripColor(type.displayName())
+                : type.displayName();
+        MobHealthDisplay.setBaseName(living, healthBaseNameKey, baseName);
     }
 
     private void triggerAbility(LivingEntity living, EndMinesMobType type) {
@@ -890,12 +1230,12 @@ public final class EndMinesMobManager implements Listener {
         return null;
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOW)
     public void onDamageByMob(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player player)) {
             return;
         }
-        
+
         Entity rawDamager = event.getDamager();
         if (rawDamager instanceof Projectile proj && proj.getShooter() instanceof LivingEntity shooter) {
             rawDamager = shooter;
@@ -915,8 +1255,10 @@ public final class EndMinesMobManager implements Listener {
         }
 
         // Ironcrest Guard Bonus: Reduced damage from mine mobs
+        // Apply to BASE damage only to avoid conflicts with defense system
         if (hasIroncrestGuardFullSet(player)) {
-            event.setDamage(event.getDamage() * 0.70); // 30% reduction
+            double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+            event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, baseDamage * 0.70); // 30% reduction
         }
 
         if (type == EndMinesMobType.RIFTWALKER) {

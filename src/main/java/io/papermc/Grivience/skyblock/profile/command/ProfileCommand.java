@@ -81,7 +81,7 @@ public final class ProfileCommand implements CommandExecutor, TabCompleter {
         
         player.sendMessage("");
         player.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "=== Your Profiles (" + profiles.size() + "/" + 
-            profileManager.getMaxProfilesPerPlayer() + ") ===");
+            profileManager.getMaxProfiles(player) + ") ===");
         
         for (SkyBlockProfile profile : profiles) {
             String prefix = profile.equals(selected) ? ChatColor.GREEN + "● " : ChatColor.GRAY + "○ ";
@@ -200,16 +200,20 @@ public final class ProfileCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        SkyBlockProfile bankProfile = profileManager.resolveSharedProfile(profile);
+        double bankBalance = bankProfile != null ? bankProfile.getBankBalance() : profile.getBankBalance();
+
         player.sendMessage("");
         player.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "=== Profile: " + profile.getProfileName() + " ===");
         player.sendMessage(ChatColor.GREEN + "Owner: " + ChatColor.WHITE + Bukkit.getOfflinePlayer(profile.getOwnerId()).getName());
+        player.sendMessage(ChatColor.GREEN + "Type: " + ChatColor.WHITE + (profile.isCoopMemberProfile() ? "Co-op Member" : "Solo/Shared"));
         player.sendMessage(ChatColor.GREEN + "Created: " + ChatColor.WHITE + profile.getFormattedCreationDate());
         player.sendMessage(ChatColor.GREEN + "Last Save: " + ChatColor.WHITE + profile.getFormattedCreationDate()); // Would need actual last save
         player.sendMessage(ChatColor.GREEN + "Playtime: " + ChatColor.YELLOW + profile.getFormattedPlaytime());
         player.sendMessage("");
         player.sendMessage(ChatColor.AQUA + "" + ChatColor.BOLD + "Statistics:");
         player.sendMessage(ChatColor.GRAY + "Purse: " + ChatColor.GOLD + String.format("%.1f", profile.getPurse()) + " coins");
-        player.sendMessage(ChatColor.GRAY + "Bank: " + ChatColor.GOLD + String.format("%.1f", profile.getBankBalance()) + " coins");
+        player.sendMessage(ChatColor.GRAY + "Bank: " + ChatColor.GOLD + String.format("%.1f", bankBalance) + " coins");
         player.sendMessage(ChatColor.GRAY + "Deaths: " + ChatColor.RED + profile.getDeaths());
         player.sendMessage(ChatColor.GRAY + "Kills: " + ChatColor.RED + profile.getKills());
         player.sendMessage(ChatColor.GRAY + "Coins Earned: " + ChatColor.GOLD + profile.getCoinsEarned());

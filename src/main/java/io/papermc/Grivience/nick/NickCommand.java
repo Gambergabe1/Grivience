@@ -26,6 +26,11 @@ public final class NickCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (!player.hasPermission("grivience.nick")) {
+            player.sendMessage(ChatColor.RED + "You must have " + ChatColor.GOLD + "MVP++" + ChatColor.RED + " to use this feature!");
+            return true;
+        }
+
         if (label.equalsIgnoreCase("unnick")) {
             nickManager.removeNick(player);
             return true;

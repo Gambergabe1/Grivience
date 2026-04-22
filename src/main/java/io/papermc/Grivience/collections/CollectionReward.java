@@ -1,6 +1,6 @@
 package io.papermc.Grivience.collections;
 
-import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.ChatColor;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Represents a reward for reaching a collection milestone.
  * Skyblock accurate reward system.
- * 
+ *
  * Reward Types:
  * - SKYBLOCK_XP: Grants Skyblock XP (typically +4 per tier)
  * - SKILL_XP: Grants skill-specific XP (Farming, Mining, Combat, etc.)
@@ -33,12 +33,12 @@ public class CollectionReward {
     private CollectionReward(Builder builder) {
         this.type = builder.type;
         this.amount = builder.amount;
-        this.skillType = builder.skillType;
+        this.skillType = CollectionTextUtil.sanitizeDisplayText(builder.skillType);
         this.item = builder.item;
         this.commands = builder.commands;
-        this.statBonus = builder.statBonus;
+        this.statBonus = CollectionTextUtil.sanitizeDisplayText(builder.statBonus);
         this.statValue = builder.statValue;
-        this.description = builder.description;
+        this.description = CollectionTextUtil.sanitizeDisplayText(builder.description);
         this.skyblockXp = builder.skyblockXp;
     }
 
@@ -83,14 +83,18 @@ public class CollectionReward {
      */
     public String getFormattedLore() {
         return switch (type) {
-            case SKYBLOCK_XP -> "§7+§b" + skyblockXp + " §3Skyblock XP";
-            case SKILL_XP -> "§7+§a" + (int) amount + " §a" + skillType + " XP";
-            case ITEM -> "§eUnlock: §7" + (description != null ? description : "Item");
-            case COMMAND -> "§d" + (description != null ? description : "Custom Reward");
-            case STAT_BONUS -> "§7" + statBonus + ": §a-" + (int) statValue + "% EXP Cost";
-            case TRADE_UNLOCK -> "§6Unlock Trade: §7" + (description != null ? description : "NPC Trade");
-            case RECIPE_UNLOCK -> "§eUnlock Recipe: §7" + (description != null ? description : "Crafting Recipe");
+            case SKYBLOCK_XP -> ChatColor.GRAY + "+" + ChatColor.AQUA + skyblockXp + " " + ChatColor.DARK_AQUA + "Skyblock XP";
+            case SKILL_XP -> ChatColor.GRAY + "+" + ChatColor.GREEN + (int) amount + " " + ChatColor.GREEN + skillType + " XP";
+            case ITEM -> ChatColor.YELLOW + "Unlock: " + ChatColor.GRAY + fallbackDescription("Item");
+            case COMMAND -> ChatColor.LIGHT_PURPLE + fallbackDescription("Custom Reward");
+            case STAT_BONUS -> ChatColor.GRAY + statBonus + ": " + ChatColor.GREEN + "-" + (int) statValue + "% EXP Cost";
+            case TRADE_UNLOCK -> ChatColor.GOLD + "Unlock Trade: " + ChatColor.GRAY + fallbackDescription("NPC Trade");
+            case RECIPE_UNLOCK -> ChatColor.YELLOW + "Unlock Recipe: " + ChatColor.GRAY + fallbackDescription("Crafting Recipe");
         };
+    }
+
+    private String fallbackDescription(String fallback) {
+        return (description == null || description.isBlank()) ? fallback : description;
     }
 
     public static Builder builder() {
@@ -168,4 +172,3 @@ public class CollectionReward {
         RECIPE_UNLOCK
     }
 }
-

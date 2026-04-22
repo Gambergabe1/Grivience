@@ -31,3 +31,14 @@ quests:
       - "xp add {player} 5 levels"
     repeatable: true
     enabled: true
+
+  mining_apprentice:
+    display-name: "&7Mining Apprentice"
+    description: "Reach Mining Level 20 to unlock drill technology."
+    starter-npc: "none"
+    target-npc: "none"
+    rewards:
+      - "give {player} grivience:MITHRIL_DRILL 1"
+      - "tellraw {player} [\"\\n\",{\"text\":\"[Quest Complete] \",\"color\":\"gold\",\"bold\":true},{\"text\":\"Mining Apprentice\",\"color\":\"yellow\"},{\"text\":\"\\n\\nYou've reached Mining Level 20! Here's your starter drill.\\n\",\"color\":\"gray\"},{\"text\":\"\\nHead to the Minehub to start mining Titanium ore!\",\"color\":\"aqua\"}]"
+    repeatable: false
+    enabled: true

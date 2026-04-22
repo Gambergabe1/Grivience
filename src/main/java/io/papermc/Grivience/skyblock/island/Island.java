@@ -63,6 +63,16 @@ public final class Island implements ConfigurationSerializable {
     private Location guestSpawnPoint;
     private int level;
     private int size;
+    private int memberLimitUpgrade;
+    private int guestLimitUpgrade;
+    private int minionLimitUpgrade;
+    private int endMinesLuckUpgrade;
+    private int mobSpawnUpgrade;
+    private int bankInterestUpgrade;
+    private int bazaarFlipperUpgrade;
+    private int islandSpeedUpgrade;
+    private int magicFindUpgrade;
+    private int petLuckUpgrade;
     private String name;
     private String profileName;
     private String description;
@@ -83,6 +93,9 @@ public final class Island implements ConfigurationSerializable {
         this.guestSpawnPoint = null;
         this.level = 1;
         this.size = 32;
+        this.memberLimitUpgrade = 0;
+        this.guestLimitUpgrade = 0;
+        this.minionLimitUpgrade = 0;
         this.name = ownerName + "'s Island";
         this.profileName = "Default";
         this.description = "A humble island home.";
@@ -111,6 +124,16 @@ public final class Island implements ConfigurationSerializable {
         }
         this.level = (int) data.getOrDefault("level", 1);
         this.size = (int) data.getOrDefault("size", 32);
+        this.memberLimitUpgrade = ((Number) data.getOrDefault("memberLimitUpgrade", data.getOrDefault("member-limit-upgrade", 0))).intValue();
+        this.guestLimitUpgrade = ((Number) data.getOrDefault("guestLimitUpgrade", data.getOrDefault("guest-limit-upgrade", 0))).intValue();
+        this.minionLimitUpgrade = ((Number) data.getOrDefault("minionLimitUpgrade", data.getOrDefault("minion-limit-upgrade", 0))).intValue();
+        this.endMinesLuckUpgrade = ((Number) data.getOrDefault("endMinesLuckUpgrade", data.getOrDefault("end-mines-luck-upgrade", 0))).intValue();
+        this.mobSpawnUpgrade = ((Number) data.getOrDefault("mobSpawnUpgrade", data.getOrDefault("mob-spawn-upgrade", 0))).intValue();
+        this.bankInterestUpgrade = ((Number) data.getOrDefault("bankInterestUpgrade", data.getOrDefault("bank-interest-upgrade", 0))).intValue();
+        this.bazaarFlipperUpgrade = ((Number) data.getOrDefault("bazaarFlipperUpgrade", data.getOrDefault("bazaar-flipper-upgrade", 0))).intValue();
+        this.islandSpeedUpgrade = ((Number) data.getOrDefault("islandSpeedUpgrade", data.getOrDefault("island-speed-upgrade", 0))).intValue();
+        this.magicFindUpgrade = ((Number) data.getOrDefault("magicFindUpgrade", data.getOrDefault("magic-find-upgrade", 0))).intValue();
+        this.petLuckUpgrade = ((Number) data.getOrDefault("petLuckUpgrade", data.getOrDefault("pet-luck-upgrade", 0))).intValue();
         this.name = (String) data.getOrDefault("name", "Unknown Island");
         this.profileName = (String) data.getOrDefault("profileName", "Default");
         this.description = (String) data.getOrDefault("description", "");
@@ -210,6 +233,16 @@ public final class Island implements ConfigurationSerializable {
         }
         data.put("level", level);
         data.put("size", size);
+        data.put("memberLimitUpgrade", memberLimitUpgrade);
+        data.put("guestLimitUpgrade", guestLimitUpgrade);
+        data.put("minionLimitUpgrade", minionLimitUpgrade);
+        data.put("endMinesLuckUpgrade", endMinesLuckUpgrade);
+        data.put("mobSpawnUpgrade", mobSpawnUpgrade);
+        data.put("bankInterestUpgrade", bankInterestUpgrade);
+        data.put("bazaarFlipperUpgrade", bazaarFlipperUpgrade);
+        data.put("islandSpeedUpgrade", islandSpeedUpgrade);
+        data.put("magicFindUpgrade", magicFindUpgrade);
+        data.put("petLuckUpgrade", petLuckUpgrade);
         data.put("name", name);
         data.put("profileName", profileName);
         data.put("description", description);
@@ -301,6 +334,20 @@ public final class Island implements ConfigurationSerializable {
         return getSpawnPoint();
     }
 
+    /**
+     * Internal raw spawn location without menu/teleport offset adjustments.
+     */
+    public Location getRawSpawnPoint() {
+        return spawnPoint == null ? null : spawnPoint.clone();
+    }
+
+    /**
+     * Internal raw guest spawn location without menu/teleport offset adjustments.
+     */
+    public Location getRawGuestSpawnPoint() {
+        return guestSpawnPoint == null ? null : guestSpawnPoint.clone();
+    }
+
     public int getLevel() {
         return level;
     }
@@ -351,6 +398,90 @@ public final class Island implements ConfigurationSerializable {
 
     public void setLevel(int level) {
         this.level = level;
+    }
+
+    public int getMemberLimitUpgrade() {
+        return memberLimitUpgrade;
+    }
+
+    public void setMemberLimitUpgrade(int memberLimitUpgrade) {
+        this.memberLimitUpgrade = memberLimitUpgrade;
+    }
+
+    public int getGuestLimitUpgrade() {
+        return guestLimitUpgrade;
+    }
+
+    public void setGuestLimitUpgrade(int guestLimitUpgrade) {
+        this.guestLimitUpgrade = guestLimitUpgrade;
+    }
+
+    public int getMinionLimitUpgrade() {
+        return minionLimitUpgrade;
+    }
+
+    public int getEndMinesLuckUpgrade() {
+        return endMinesLuckUpgrade;
+    }
+
+    public void setEndMinesLuckUpgrade(int endMinesLuckUpgrade) {
+        this.endMinesLuckUpgrade = endMinesLuckUpgrade;
+    }
+
+    public int getMobSpawnUpgrade() {
+        return mobSpawnUpgrade;
+    }
+
+    public void setMobSpawnUpgrade(int mobSpawnUpgrade) {
+        this.mobSpawnUpgrade = mobSpawnUpgrade;
+    }
+
+    public int getBankInterestUpgrade() {
+        return bankInterestUpgrade;
+    }
+
+    public void setBankInterestUpgrade(int bankInterestUpgrade) {
+        this.bankInterestUpgrade = bankInterestUpgrade;
+    }
+
+    public int getBazaarFlipperUpgrade() {
+        return bazaarFlipperUpgrade;
+    }
+
+    public void setBazaarFlipperUpgrade(int bazaarFlipperUpgrade) {
+        this.bazaarFlipperUpgrade = bazaarFlipperUpgrade;
+    }
+
+    public int getIslandSpeedUpgrade() {
+        return islandSpeedUpgrade;
+    }
+
+    public void setIslandSpeedUpgrade(int islandSpeedUpgrade) {
+        this.islandSpeedUpgrade = islandSpeedUpgrade;
+    }
+
+    public int getMagicFindUpgrade() {
+        return magicFindUpgrade;
+    }
+
+    public void setMagicFindUpgrade(int magicFindUpgrade) {
+        this.magicFindUpgrade = magicFindUpgrade;
+    }
+
+    public int getPetLuckUpgrade() {
+        return petLuckUpgrade;
+    }
+
+    public void setPetLuckUpgrade(int petLuckUpgrade) {
+        this.petLuckUpgrade = petLuckUpgrade;
+    }
+
+    public int getMaxMembers() {
+        return 2 + memberLimitUpgrade;
+    }
+
+    public void setMinionLimitUpgrade(int minionLimitUpgrade) {
+        this.minionLimitUpgrade = minionLimitUpgrade;
     }
 
     public Set<UUID> getMembers() {
@@ -435,11 +566,15 @@ public final class Island implements ConfigurationSerializable {
 
     public boolean isWithinIsland(Location location) {
         if (center == null || location == null) return false;
-        if (!center.getWorld().equals(location.getWorld())) return false;
+        if (!center.getWorld().getName().equalsIgnoreCase(location.getWorld().getName())) return false;
 
+        // Island boundaries should be based on block coordinates to be consistent
         int halfSize = size / 2;
-        double dx = Math.abs(location.getX() - center.getX());
-        double dz = Math.abs(location.getZ() - center.getZ());
+        int centerX = center.getBlockX();
+        int centerZ = center.getBlockZ();
+        
+        int dx = Math.abs(location.getBlockX() - centerX);
+        int dz = Math.abs(location.getBlockZ() - centerZ);
 
         return dx <= halfSize && dz <= halfSize;
     }

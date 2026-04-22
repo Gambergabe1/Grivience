@@ -12,18 +12,43 @@ import java.util.List;
 import java.util.Set;
 
 public final class DungeonBuilder {
-    private static final int ROOM_INTERIOR_HEIGHT = 6;
-    private static final int ROOM_WING_DEPTH = 2;
-    private static final int ROOM_WING_HALF_WIDTH = 2;
-    private static final int ROOM_DETAIL_OFFSET = 4;
+    private static final int ROOM_INTERIOR_HEIGHT = 14;
+    private static final int ROOM_WING_DEPTH = 5;
+    private static final int ROOM_WING_HALF_WIDTH = 4;
+    private static final int ROOM_DETAIL_OFFSET = 6;
+    private static final int ROOM_PERSPECTIVE_BAY_DEPTH = 3;
+    private static final int ROOM_PERSPECTIVE_BAY_HALF_WIDTH = 2;
     private static final int CEILING_BEAM_SPACING = 4;
-    private static final int CORRIDOR_HALF_WIDTH = 3;
-    private static final int CORRIDOR_INTERIOR_HEIGHT = 5;
+    private static final int CORRIDOR_HALF_WIDTH = 5;
+    private static final int CORRIDOR_INTERIOR_HEIGHT = 8;
     private static final int CORRIDOR_LIGHT_SPACING = 4;
-    private static final int CORRIDOR_ARCH_SPACING = 4;
-    private static final int GATE_HALF_WIDTH = 2;
+    private static final int CORRIDOR_ARCH_SPACING = 3;
+    private static final int GATE_HALF_WIDTH = 4;
+    private static final Material DUNGEON_SOLID_ACCENT = Material.BLACK_CONCRETE;
+    private static final Material SECRET_CHEST = Material.CHEST;
+    private static final Material BLESSING_ALTAR = Material.ENCHANTING_TABLE;
 
     private DungeonBuilder() {
+    }
+
+    static Material solidAccentMaterial() {
+        return DUNGEON_SOLID_ACCENT;
+    }
+
+    static Material gateBarrierMaterial(FloorConfig floor) {
+        return themeForFloor(floor).gateBarrier();
+    }
+
+    static int spawnRadius(int roomSize) {
+        return Math.max(4, (roomSize / 2) - 3 + (ROOM_WING_DEPTH - 1));
+    }
+
+    static int perimeterFeatureOffset(int roomSize) {
+        return Math.max(3, (roomSize / 2) - 4);
+    }
+
+    static int encounterPillarOffset(int roomSize) {
+        return Math.max(3, (roomSize / 2) - 3);
     }
 
     public static ArenaLayout buildArena(World world, Location anchor, FloorConfig floor, List<RoomType> encounterPlan) {
@@ -46,11 +71,11 @@ public final class DungeonBuilder {
             Material wallMaterial;
 
             if (roomIndex == 0) {
-                floorMaterial = Material.CHERRY_PLANKS;
-                wallMaterial = Material.DARK_OAK_PLANKS;
+                floorMaterial = Material.STONE_BRICKS;
+                wallMaterial = Material.MOSSY_STONE_BRICKS;
             } else if (roomIndex == totalRooms - 1) {
-                floorMaterial = Material.POLISHED_BLACKSTONE;
-                wallMaterial = Material.POLISHED_BLACKSTONE_BRICKS;
+                floorMaterial = Material.DEEPSLATE_TILES;
+                wallMaterial = Material.DEEPSLATE_BRICKS;
             } else {
                 RoomType roomType = encounterPlan.get(roomIndex - 1);
                 floorMaterial = floorMaterialFor(roomType, floor);
@@ -232,8 +257,10 @@ public final class DungeonBuilder {
         carveRoomWing(world, centerX, baseY, centerZ, radius, wallTop, floorMaterial, wallMaterial, roofMaterial, CorridorDirection.SOUTH);
         carveRoomWing(world, centerX, baseY, centerZ, radius, wallTop, floorMaterial, wallMaterial, roofMaterial, CorridorDirection.EAST);
         carveRoomWing(world, centerX, baseY, centerZ, radius, wallTop, floorMaterial, wallMaterial, roofMaterial, CorridorDirection.WEST);
+        carvePerspectiveBays(world, centerX, baseY, centerZ, radius, wallTop, floorMaterial, wallMaterial, roofMaterial);
         addRoomPerimeterFraming(world, centerX, baseY, centerZ, radius, wallTop, wallMaterial);
         applyRoomDetailing(world, centerX, baseY, centerZ, radius, wallTop, floorMaterial, wallMaterial);
+        carveVaultedCeiling(world, centerX, centerZ, radius, wallTop, wallMaterial, roofMaterial);
         placeRoomLights(world, baseY + ROOM_INTERIOR_HEIGHT, centerX, centerZ, radius);
     }
 
@@ -387,7 +414,7 @@ public final class DungeonBuilder {
         }
         world.getBlockAt(centerX, baseY + 2 + (CORRIDOR_INTERIOR_HEIGHT / 2), gateZ).setType(theme.gateRune(), false);
         world.getBlockAt(centerX, topY + 2, gateZ).setType(theme.gateLantern(), false);
-        world.getBlockAt(centerX, topY + 1, gateZ).setType(Material.IRON_BARS, false);
+        world.getBlockAt(centerX, topY + 1, gateZ).setType(solidAccentMaterial(), false);
         return barrier;
     }
 
@@ -415,7 +442,7 @@ public final class DungeonBuilder {
         }
         world.getBlockAt(gateX, baseY + 2 + (CORRIDOR_INTERIOR_HEIGHT / 2), centerZ).setType(theme.gateRune(), false);
         world.getBlockAt(gateX, topY + 2, centerZ).setType(theme.gateLantern(), false);
-        world.getBlockAt(gateX, topY + 1, centerZ).setType(Material.IRON_BARS, false);
+        world.getBlockAt(gateX, topY + 1, centerZ).setType(solidAccentMaterial(), false);
         return barrier;
     }
 
@@ -450,10 +477,20 @@ public final class DungeonBuilder {
         int minZ = centerZ - radius;
         int maxZ = centerZ + radius;
         Material trim = detailAccentFor(wallMaterial);
+        int galleryY = baseY + 4;
+        int crownY = wallTop - 2;
+        java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
 
         for (int x = minX; x <= maxX; x++) {
             world.getBlockAt(x, baseY + 1, minZ).setType(trim, false);
             world.getBlockAt(x, baseY + 1, maxZ).setType(trim, false);
+            
+            // Add moss/cracked variety
+            if (random.nextDouble() < 0.2) {
+                world.getBlockAt(x, baseY + 2, minZ).setType(Material.MOSSY_STONE_BRICK_WALL, false);
+                world.getBlockAt(x, baseY + 2, maxZ).setType(Material.MOSSY_STONE_BRICK_WALL, false);
+            }
+
             world.getBlockAt(x, wallTop - 1, minZ).setType(trim, false);
             world.getBlockAt(x, wallTop - 1, maxZ).setType(trim, false);
         }
@@ -462,6 +499,32 @@ public final class DungeonBuilder {
             world.getBlockAt(maxX, baseY + 1, z).setType(trim, false);
             world.getBlockAt(minX, wallTop - 1, z).setType(trim, false);
             world.getBlockAt(maxX, wallTop - 1, z).setType(trim, false);
+        }
+
+        // Add hanging chains and decorations
+        for (int i = 0; i < 4; i++) {
+            int cx = centerX + random.nextInt(-radius + 1, radius);
+            int cz = centerZ + random.nextInt(-radius + 1, radius);
+            int chainLen = random.nextInt(2, 5);
+            for (int y = 0; y < chainLen; y++) {
+                world.getBlockAt(cx, wallTop - 1 - y, cz).setType(Material.CHAIN, false);
+            }
+            if (random.nextBoolean()) {
+                world.getBlockAt(cx, wallTop - 1 - chainLen, cz).setType(Material.LANTERN, false);
+            }
+        }
+
+        for (int x = minX + 2; x <= maxX - 2; x += 3) {
+            world.getBlockAt(x, galleryY, minZ).setType(trim, false);
+            world.getBlockAt(x, galleryY, maxZ).setType(trim, false);
+            world.getBlockAt(x, crownY, minZ).setType(trim, false);
+            world.getBlockAt(x, crownY, maxZ).setType(trim, false);
+        }
+        for (int z = minZ + 2; z <= maxZ - 2; z += 3) {
+            world.getBlockAt(minX, galleryY, z).setType(trim, false);
+            world.getBlockAt(maxX, galleryY, z).setType(trim, false);
+            world.getBlockAt(minX, crownY, z).setType(trim, false);
+            world.getBlockAt(maxX, crownY, z).setType(trim, false);
         }
 
         placePillar(world, minX, baseY + 1, minZ, ROOM_INTERIOR_HEIGHT - 1, trim);
@@ -475,6 +538,101 @@ public final class DungeonBuilder {
             world.getBlockAt(minX, baseY + 2, centerZ + offset).setType(trim, false);
             world.getBlockAt(maxX, baseY + 2, centerZ + offset).setType(trim, false);
         }
+    }
+
+    private static void carvePerspectiveBays(
+            World world,
+            int centerX,
+            int baseY,
+            int centerZ,
+            int radius,
+            int wallTop,
+            Material floorMaterial,
+            Material wallMaterial,
+            Material roofMaterial
+    ) {
+        int bayOffset = Math.max(4, radius - 6);
+        int[] offsets = {-bayOffset, bayOffset};
+        for (int offset : offsets) {
+            carvePerspectiveBay(world, centerX + offset, baseY, centerZ - radius, wallTop, floorMaterial, wallMaterial, roofMaterial, CorridorDirection.NORTH);
+            carvePerspectiveBay(world, centerX + offset, baseY, centerZ + radius, wallTop, floorMaterial, wallMaterial, roofMaterial, CorridorDirection.SOUTH);
+            carvePerspectiveBay(world, centerX - radius, baseY, centerZ + offset, wallTop, floorMaterial, wallMaterial, roofMaterial, CorridorDirection.WEST);
+            carvePerspectiveBay(world, centerX + radius, baseY, centerZ + offset, wallTop, floorMaterial, wallMaterial, roofMaterial, CorridorDirection.EAST);
+        }
+    }
+
+    private static void carvePerspectiveBay(
+            World world,
+            int anchorX,
+            int baseY,
+            int anchorZ,
+            int wallTop,
+            Material floorMaterial,
+            Material wallMaterial,
+            Material roofMaterial,
+            CorridorDirection direction
+    ) {
+        Material trim = detailAccentFor(wallMaterial);
+        Material floorAccent = detailSecondaryAccentFor(floorMaterial);
+        Material lantern = nicheLanternFor(wallMaterial);
+        int lateralStepX = direction == CorridorDirection.NORTH || direction == CorridorDirection.SOUTH ? 1 : 0;
+        int lateralStepZ = direction == CorridorDirection.NORTH || direction == CorridorDirection.SOUTH ? 0 : 1;
+
+        for (int depth = 0; depth <= ROOM_PERSPECTIVE_BAY_DEPTH; depth++) {
+            for (int lateral = -ROOM_PERSPECTIVE_BAY_HALF_WIDTH; lateral <= ROOM_PERSPECTIVE_BAY_HALF_WIDTH; lateral++) {
+                int x = anchorX + (direction.stepX() * depth) + (lateralStepX * lateral);
+                int z = anchorZ + (direction.stepZ() * depth) + (lateralStepZ * lateral);
+                boolean backWall = depth == ROOM_PERSPECTIVE_BAY_DEPTH;
+                boolean sideWall = depth > 0 && Math.abs(lateral) == ROOM_PERSPECTIVE_BAY_HALF_WIDTH;
+
+                world.getBlockAt(x, baseY, z).setType(depth == ROOM_PERSPECTIVE_BAY_DEPTH ? floorAccent : floorMaterial, false);
+                for (int y = baseY + 1; y <= wallTop - 1; y++) {
+                    Block block = world.getBlockAt(x, y, z);
+                    if (backWall) {
+                        if (lateral == 0 && y == baseY + 2) {
+                            block.setType(lantern, false);
+                        } else if (lateral == 0 && y == baseY + 4) {
+                            block.setType(solidAccentMaterial(), false);
+                        } else if (y == baseY + 1 || y == wallTop - 2 || Math.abs(lateral) == ROOM_PERSPECTIVE_BAY_HALF_WIDTH) {
+                            block.setType(trim, false);
+                        } else {
+                            block.setType(wallMaterial, false);
+                        }
+                    } else if (sideWall) {
+                        block.setType(y == baseY + 3 ? trim : wallMaterial, false);
+                    } else {
+                        block.setType(Material.AIR, false);
+                    }
+                }
+                world.getBlockAt(x, wallTop, z).setType(roofMaterial, false);
+            }
+        }
+    }
+
+    private static void carveVaultedCeiling(
+            World world,
+            int centerX,
+            int centerZ,
+            int radius,
+            int wallTop,
+            Material wallMaterial,
+            Material roofMaterial
+    ) {
+        int inset = Math.max(3, radius - 4);
+        Material trim = detailAccentFor(wallMaterial);
+        for (int x = centerX - inset; x <= centerX + inset; x++) {
+            for (int z = centerZ - inset; z <= centerZ + inset; z++) {
+                boolean raisedEdge = Math.abs(x - centerX) == inset || Math.abs(z - centerZ) == inset;
+                world.getBlockAt(x, wallTop, z).setType(raisedEdge ? trim : Material.AIR, false);
+                world.getBlockAt(x, wallTop + 1, z).setType(roofMaterial, false);
+            }
+        }
+
+        placeLight(world, centerX, wallTop + 1, centerZ);
+        placeLight(world, centerX - inset + 1, wallTop + 1, centerZ);
+        placeLight(world, centerX + inset - 1, wallTop + 1, centerZ);
+        placeLight(world, centerX, wallTop + 1, centerZ - inset + 1);
+        placeLight(world, centerX, wallTop + 1, centerZ + inset - 1);
     }
 
     private static void carveFloorInlays(
@@ -559,10 +717,29 @@ public final class DungeonBuilder {
 
     private static void carveNiche(World world, int x, int baseY, int z, Material wallMaterial) {
         Material detail = detailAccentFor(wallMaterial);
+        Material lantern = nicheLanternFor(wallMaterial);
         world.getBlockAt(x, baseY + 1, z).setType(detail, false);
         world.getBlockAt(x, baseY + 3, z).setType(detail, false);
-        world.getBlockAt(x, baseY + 4, z).setType(Material.IRON_BARS, false);
-        world.getBlockAt(x, baseY + 2, z).setType(Material.LANTERN, false);
+        world.getBlockAt(x, baseY + 4, z).setType(solidAccentMaterial(), false);
+        world.getBlockAt(x, baseY + 2, z).setType(lantern, false);
+    }
+
+    private static Material nicheLanternFor(Material wallMaterial) {
+        return switch (wallMaterial) {
+            case BLACKSTONE,
+                    POLISHED_BLACKSTONE,
+                    POLISHED_BLACKSTONE_BRICKS,
+                    CHISELED_POLISHED_BLACKSTONE,
+                    CRACKED_POLISHED_BLACKSTONE_BRICKS,
+                    DEEPSLATE_BRICKS,
+                    DEEPSLATE_TILES,
+                    CHISELED_DEEPSLATE,
+                    REINFORCED_DEEPSLATE,
+                    OBSIDIAN,
+                    CRYING_OBSIDIAN,
+                    NETHER_BRICKS -> Material.SOUL_LANTERN;
+            default -> Material.LANTERN;
+        };
     }
 
     private static void addHangingLanternCluster(World world, int centerX, int baseY, int centerZ, int offset) {
@@ -598,12 +775,12 @@ public final class DungeonBuilder {
     }
 
     private static void hangLantern(World world, int x, int baseY, int z, Material lanternMaterial) {
-        world.getBlockAt(x, baseY + ROOM_INTERIOR_HEIGHT, z).setType(Material.IRON_BARS, false);
+        world.getBlockAt(x, baseY + ROOM_INTERIOR_HEIGHT, z).setType(solidAccentMaterial(), false);
         world.getBlockAt(x, baseY + ROOM_INTERIOR_HEIGHT - 1, z).setType(lanternMaterial, false);
     }
 
     private static void placeLight(World world, int x, int y, int z) {
-        placeLight(world, x, y, z, Material.SEA_LANTERN);
+        placeLight(world, x, y, z, Material.GLOWSTONE);
     }
 
     private static void placeLight(World world, int x, int y, int z, Material lightMaterial) {
@@ -614,16 +791,16 @@ public final class DungeonBuilder {
         int tier = floorTier(floor);
         return switch (tier) {
             case 1 -> switch (type) {
-                case COMBAT -> floor.floorMaterial();
-                case PUZZLE_SEQUENCE -> Material.CHERRY_PLANKS;
-                case PUZZLE_SYNC -> Material.BAMBOO_MOSAIC;
+                case COMBAT -> Material.STONE_BRICKS;
+                case PUZZLE_SEQUENCE -> Material.SMOOTH_STONE;
+                case PUZZLE_SYNC -> Material.MOSSY_STONE_BRICKS;
                 case PUZZLE_CHIME -> Material.SMOOTH_STONE;
-                case PUZZLE_SEAL -> Material.POLISHED_BLACKSTONE_BRICKS;
-                case TREASURE -> Material.RED_TERRACOTTA;
+                case PUZZLE_SEAL -> Material.POLISHED_ANDESITE;
+                case TREASURE -> Material.CRACKED_STONE_BRICKS;
             };
             case 2 -> switch (type) {
                 case COMBAT -> Material.BLACKSTONE;
-                case PUZZLE_SEQUENCE -> Material.CRIMSON_PLANKS;
+                case PUZZLE_SEQUENCE -> Material.POLISHED_BLACKSTONE_BRICKS;
                 case PUZZLE_SYNC -> Material.POLISHED_BLACKSTONE_BRICKS;
                 case PUZZLE_CHIME -> Material.CHISELED_POLISHED_BLACKSTONE;
                 case PUZZLE_SEAL -> Material.POLISHED_BLACKSTONE;
@@ -631,11 +808,11 @@ public final class DungeonBuilder {
             };
             case 3 -> switch (type) {
                 case COMBAT -> Material.POLISHED_DEEPSLATE;
-                case PUZZLE_SEQUENCE -> Material.TUFF_BRICKS;
+                case PUZZLE_SEQUENCE -> Material.COBBLED_DEEPSLATE;
                 case PUZZLE_SYNC -> Material.DEEPSLATE_TILES;
-                case PUZZLE_CHIME -> Material.SMOOTH_STONE;
-                case PUZZLE_SEAL -> Material.CHISELED_DEEPSLATE;
-                case TREASURE -> Material.CRACKED_DEEPSLATE_BRICKS;
+                case PUZZLE_CHIME -> Material.CHISELED_DEEPSLATE;
+                case PUZZLE_SEAL -> Material.DEEPSLATE_BRICKS;
+                case TREASURE -> Material.REINFORCED_DEEPSLATE;
             };
             default -> switch (type) {
                 case COMBAT -> Material.POLISHED_BLACKSTONE;
@@ -652,16 +829,16 @@ public final class DungeonBuilder {
         int tier = floorTier(floor);
         return switch (tier) {
             case 1 -> switch (type) {
-                case COMBAT -> floor.wallMaterial();
-                case PUZZLE_SEQUENCE -> Material.CHERRY_WOOD;
-                case PUZZLE_SYNC -> Material.BAMBOO_BLOCK;
-                case PUZZLE_CHIME -> Material.MOSSY_STONE_BRICKS;
-                case PUZZLE_SEAL -> Material.POLISHED_BLACKSTONE;
-                case TREASURE -> Material.DARK_OAK_PLANKS;
+                case COMBAT -> Material.MOSSY_STONE_BRICKS;
+                case PUZZLE_SEQUENCE -> Material.STONE_BRICKS;
+                case PUZZLE_SYNC -> Material.MOSSY_STONE_BRICKS;
+                case PUZZLE_CHIME -> Material.CRACKED_STONE_BRICKS;
+                case PUZZLE_SEAL -> Material.CHISELED_STONE_BRICKS;
+                case TREASURE -> Material.STONE_BRICKS;
             };
             case 2 -> switch (type) {
                 case COMBAT -> Material.POLISHED_BLACKSTONE_BRICKS;
-                case PUZZLE_SEQUENCE -> Material.CRIMSON_HYPHAE;
+                case PUZZLE_SEQUENCE -> Material.CRACKED_POLISHED_BLACKSTONE_BRICKS;
                 case PUZZLE_SYNC -> Material.CHISELED_POLISHED_BLACKSTONE;
                 case PUZZLE_CHIME -> Material.BLACKSTONE;
                 case PUZZLE_SEAL -> Material.CRYING_OBSIDIAN;
@@ -669,10 +846,10 @@ public final class DungeonBuilder {
             };
             case 3 -> switch (type) {
                 case COMBAT -> Material.DEEPSLATE_BRICKS;
-                case PUZZLE_SEQUENCE -> Material.TUFF_BRICKS;
+                case PUZZLE_SEQUENCE -> Material.CRACKED_DEEPSLATE_BRICKS;
                 case PUZZLE_SYNC -> Material.CHISELED_DEEPSLATE;
-                case PUZZLE_CHIME -> Material.COBBLED_DEEPSLATE;
-                case PUZZLE_SEAL -> Material.DEEPSLATE_TILES;
+                case PUZZLE_CHIME -> Material.DEEPSLATE_TILES;
+                case PUZZLE_SEAL -> Material.REINFORCED_DEEPSLATE;
                 case TREASURE -> Material.DEEPSLATE_BRICKS;
             };
             default -> switch (type) {
@@ -688,16 +865,21 @@ public final class DungeonBuilder {
 
     private static Material supportMaterialFor(RoomType type, FloorConfig floor) {
         return switch (floorTier(floor)) {
-            case 1 -> detailAccentFor(wallMaterialFor(type, floor));
+            case 1 -> switch (type) {
+                case COMBAT, PUZZLE_SYNC, PUZZLE_SEAL -> Material.STONE_BRICKS;
+                case PUZZLE_SEQUENCE -> Material.CHISELED_STONE_BRICKS;
+                case PUZZLE_CHIME -> Material.MOSSY_STONE_BRICKS;
+                case TREASURE -> Material.CRACKED_STONE_BRICKS;
+            };
             case 2 -> switch (type) {
                 case COMBAT, PUZZLE_SYNC, PUZZLE_SEAL -> Material.POLISHED_BLACKSTONE_BRICKS;
-                case PUZZLE_SEQUENCE -> Material.CRIMSON_STEM;
+                case PUZZLE_SEQUENCE -> Material.CRACKED_POLISHED_BLACKSTONE_BRICKS;
                 case PUZZLE_CHIME -> Material.CHISELED_POLISHED_BLACKSTONE;
                 case TREASURE -> Material.GILDED_BLACKSTONE;
             };
             case 3 -> switch (type) {
                 case COMBAT, PUZZLE_CHIME, TREASURE -> Material.DEEPSLATE_BRICKS;
-                case PUZZLE_SEQUENCE -> Material.TUFF_BRICKS;
+                case PUZZLE_SEQUENCE -> Material.CRACKED_DEEPSLATE_BRICKS;
                 case PUZZLE_SYNC, PUZZLE_SEAL -> Material.CHISELED_DEEPSLATE;
             };
             default -> switch (type) {
@@ -710,7 +892,7 @@ public final class DungeonBuilder {
     }
 
     private static Material lanternMaterialForFloor(FloorConfig floor) {
-        return floorTier(floor) == 1 ? Material.LANTERN : Material.SOUL_LANTERN;
+        return floorTier(floor) <= 2 ? Material.LANTERN : Material.SOUL_LANTERN;
     }
 
     private static void decorateEncounterRoom(
@@ -725,12 +907,31 @@ public final class DungeonBuilder {
         int radius = roomSize / 2;
         Material support = supportMaterialFor(type, floor);
         Material lanternMaterial = lanternMaterialForFloor(floor);
-        int pillarOffset = Math.max(2, radius - 2);
-        placePillar(world, centerX - pillarOffset, baseY + 1, centerZ - pillarOffset, 5, support);
-        placePillar(world, centerX - pillarOffset, baseY + 1, centerZ + pillarOffset, 5, support);
-        placePillar(world, centerX + pillarOffset, baseY + 1, centerZ - pillarOffset, 5, support);
-        placePillar(world, centerX + pillarOffset, baseY + 1, centerZ + pillarOffset, 5, support);
+        int pillarOffset = encounterPillarOffset(roomSize);
+        int pillarHeight = ROOM_INTERIOR_HEIGHT - 2;
+        placePillar(world, centerX - pillarOffset, baseY + 1, centerZ - pillarOffset, pillarHeight, support);
+        placePillar(world, centerX - pillarOffset, baseY + 1, centerZ + pillarOffset, pillarHeight, support);
+        placePillar(world, centerX + pillarOffset, baseY + 1, centerZ - pillarOffset, pillarHeight, support);
+        placePillar(world, centerX + pillarOffset, baseY + 1, centerZ + pillarOffset, pillarHeight, support);
+        addEncounterCanopyFrame(world, centerX, baseY, centerZ, pillarOffset, support, lanternMaterial);
         addEncounterLanternRing(world, centerX, baseY, centerZ, radius, lanternMaterial);
+
+        // Place 1-3 Secrets (Chests)
+        java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+        int secretCount = random.nextInt(1, 4);
+        for (int i = 0; i < secretCount; i++) {
+            int sx = centerX + random.nextInt(-radius + 2, radius - 1);
+            int sz = centerZ + random.nextInt(-radius + 2, radius - 1);
+            world.getBlockAt(sx, baseY + 1, sz).setType(SECRET_CHEST, false);
+        }
+
+        // 30% chance for a Blessing Altar
+        if (random.nextDouble() < 0.3) {
+            int ax = centerX + random.nextInt(-radius + 4, radius - 3);
+            int az = centerZ + random.nextInt(-radius + 4, radius - 3);
+            world.getBlockAt(ax, baseY + 1, az).setType(BLESSING_ALTAR, false);
+            world.getBlockAt(ax, baseY, az).setType(Material.GOLD_BLOCK, false);
+        }
 
         switch (type) {
             case COMBAT -> decorateCombatRoom(world, centerX, baseY, centerZ, radius, floor);
@@ -757,6 +958,37 @@ public final class DungeonBuilder {
         hangLantern(world, centerX + offset, baseY, centerZ + offset, lanternMaterial);
     }
 
+    private static void addEncounterCanopyFrame(
+            World world,
+            int centerX,
+            int baseY,
+            int centerZ,
+            int pillarOffset,
+            Material supportMaterial,
+            Material lanternMaterial
+    ) {
+        int beamY = baseY + ROOM_INTERIOR_HEIGHT - 2;
+        for (int x = centerX - pillarOffset; x <= centerX + pillarOffset; x++) {
+            world.getBlockAt(x, beamY, centerZ - pillarOffset).setType(supportMaterial, false);
+            world.getBlockAt(x, beamY, centerZ + pillarOffset).setType(supportMaterial, false);
+        }
+        for (int z = centerZ - pillarOffset; z <= centerZ + pillarOffset; z++) {
+            world.getBlockAt(centerX - pillarOffset, beamY, z).setType(supportMaterial, false);
+            world.getBlockAt(centerX + pillarOffset, beamY, z).setType(supportMaterial, false);
+        }
+        for (int x = centerX - pillarOffset + 1; x <= centerX + pillarOffset - 1; x++) {
+            world.getBlockAt(x, beamY, centerZ).setType(supportMaterial, false);
+        }
+        for (int z = centerZ - pillarOffset + 1; z <= centerZ + pillarOffset - 1; z++) {
+            world.getBlockAt(centerX, beamY, z).setType(supportMaterial, false);
+        }
+
+        world.getBlockAt(centerX, beamY - 1, centerZ - pillarOffset).setType(lanternMaterial, false);
+        world.getBlockAt(centerX, beamY - 1, centerZ + pillarOffset).setType(lanternMaterial, false);
+        world.getBlockAt(centerX - pillarOffset, beamY - 1, centerZ).setType(lanternMaterial, false);
+        world.getBlockAt(centerX + pillarOffset, beamY - 1, centerZ).setType(lanternMaterial, false);
+    }
+
     private static void decorateCombatRoom(World world, int centerX, int baseY, int centerZ, int radius, FloorConfig floor) {
         int trackZNorth = centerZ - radius + 1;
         int trackZSouth = centerZ + radius - 1;
@@ -773,13 +1005,13 @@ public final class DungeonBuilder {
 
         int tier = floorTier(floor);
         Material combatRelic = switch (tier) {
-            case 1 -> Material.STRIPPED_CHERRY_WOOD;
-            case 2 -> Material.GILDED_BLACKSTONE;
+            case 1 -> Material.CHISELED_STONE_BRICKS;
+            case 2 -> Material.CHISELED_POLISHED_BLACKSTONE;
             case 3 -> Material.CHISELED_DEEPSLATE;
-            default -> Material.CRYING_OBSIDIAN;
+            default -> Material.REINFORCED_DEEPSLATE;
         };
         world.getBlockAt(centerX, baseY + 1, centerZ).setType(combatRelic, false);
-        world.getBlockAt(centerX, baseY + 2, centerZ).setType(Material.IRON_BARS, false);
+        world.getBlockAt(centerX, baseY + 2, centerZ).setType(solidAccentMaterial(), false);
     }
 
     private static void decorateSequenceRoom(World world, int centerX, int baseY, int centerZ, int radius, FloorConfig floor) {
@@ -811,7 +1043,7 @@ public final class DungeonBuilder {
         world.getBlockAt(centerX, baseY + 1, centerZ).setType(Material.BELL, false);
         int altarOffset = Math.max(5, radius - 3);
         Material pillarMaterial = switch (floorTier(floor)) {
-            case 1 -> Material.BAMBOO_BLOCK;
+            case 1 -> Material.STONE_BRICKS;
             case 2 -> Material.POLISHED_BLACKSTONE_BRICKS;
             case 3 -> Material.DEEPSLATE_BRICKS;
             default -> Material.OBSIDIAN;
@@ -843,7 +1075,7 @@ public final class DungeonBuilder {
             int z = centerZ + offset[1];
             world.getBlockAt(x, baseY, z).setType(pedestal, false);
             world.getBlockAt(x, baseY + 1, z).setType(Material.BELL, false);
-            world.getBlockAt(x, baseY + 2, z).setType(Material.IRON_BARS, false);
+            world.getBlockAt(x, baseY + 2, z).setType(solidAccentMaterial(), false);
             world.getBlockAt(x, baseY + 3, z).setType(chimeLantern, false);
         }
 
@@ -870,7 +1102,7 @@ public final class DungeonBuilder {
             int z = centerZ + offset[1];
             world.getBlockAt(x, baseY, z).setType(sealPedestal, false);
             world.getBlockAt(x, baseY + 1, z).setType(Material.LEVER, false);
-            world.getBlockAt(x, baseY + 2, z).setType(Material.IRON_BARS, false);
+            world.getBlockAt(x, baseY + 2, z).setType(solidAccentMaterial(), false);
             world.getBlockAt(x, baseY + 3, z).setType(lanternMaterialForFloor(floor), false);
         }
     }
@@ -911,16 +1143,16 @@ public final class DungeonBuilder {
         int radius = roomSize / 2;
         int tier = floorTier(floor);
         Material archPillar = switch (tier) {
-            case 1 -> Material.RED_CONCRETE;
+            case 1 -> Material.STONE_BRICKS;
             case 2 -> Material.POLISHED_BLACKSTONE_BRICKS;
             case 3 -> Material.DEEPSLATE_BRICKS;
-            default -> Material.OBSIDIAN;
+            default -> Material.POLISHED_BLACKSTONE;
         };
         Material archBeam = switch (tier) {
-            case 1 -> Material.POLISHED_BLACKSTONE;
+            case 1 -> Material.CHISELED_STONE_BRICKS;
             case 2 -> Material.CHISELED_POLISHED_BLACKSTONE;
             case 3 -> Material.CHISELED_DEEPSLATE;
-            default -> Material.POLISHED_BLACKSTONE_BRICKS;
+            default -> Material.REINFORCED_DEEPSLATE;
         };
         addGrandDoorArch(
                 world,
@@ -934,7 +1166,25 @@ public final class DungeonBuilder {
                 lanternMaterialForFloor(floor)
         );
         decorateLobbySanctum(world, centerX, baseY, centerZ, radius, floor);
-        world.getBlockAt(centerX, baseY + 1, centerZ).setType(Material.BELL, false);
+
+        // Mort (Dungeon Master) Placeholder
+        Location mortLoc = new Location(world, centerX + 0.5, baseY + 1, centerZ - 2.5);
+        world.getBlockAt(mortLoc).setType(Material.LECTERN, false);
+        
+        // Ready Up Station
+        world.getBlockAt(centerX, baseY + 1, centerZ - 4).setType(Material.STONE_BUTTON, false);
+        world.getBlockAt(centerX, baseY + 1, centerZ - 5).setType(Material.OAK_SIGN, false);
+
+        // Class Selection Altar
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                if (Math.abs(x) == 1 && Math.abs(z) == 1) {
+                    world.getBlockAt(centerX + x, baseY + 1, centerZ + 2 + z).setType(Material.CHISELED_STONE_BRICKS, false);
+                    world.getBlockAt(centerX + x, baseY + 2, centerZ + 2 + z).setType(Material.SOUL_LANTERN, false);
+                }
+            }
+        }
+        world.getBlockAt(centerX, baseY + 1, centerZ + 2).setType(Material.ENCHANTING_TABLE, false);
     }
 
     private static void decorateBossRoom(
@@ -989,11 +1239,12 @@ public final class DungeonBuilder {
     ) {
         int crownY = baseY + ROOM_INTERIOR_HEIGHT;
         int lanternY = baseY + ROOM_INTERIOR_HEIGHT - 1;
+        int pillarHeight = ROOM_INTERIOR_HEIGHT - 2;
         switch (side) {
             case NORTH -> {
                 int z = centerZ - radius + 1;
-                placePillar(world, centerX - 3, baseY + 1, z, 5, pillarMaterial);
-                placePillar(world, centerX + 3, baseY + 1, z, 5, pillarMaterial);
+                placePillar(world, centerX - 3, baseY + 1, z, pillarHeight, pillarMaterial);
+                placePillar(world, centerX + 3, baseY + 1, z, pillarHeight, pillarMaterial);
                 for (int x = centerX - 4; x <= centerX + 4; x++) {
                     world.getBlockAt(x, crownY, z).setType(beamMaterial, false);
                 }
@@ -1002,8 +1253,8 @@ public final class DungeonBuilder {
             }
             case SOUTH -> {
                 int z = centerZ + radius - 1;
-                placePillar(world, centerX - 3, baseY + 1, z, 5, pillarMaterial);
-                placePillar(world, centerX + 3, baseY + 1, z, 5, pillarMaterial);
+                placePillar(world, centerX - 3, baseY + 1, z, pillarHeight, pillarMaterial);
+                placePillar(world, centerX + 3, baseY + 1, z, pillarHeight, pillarMaterial);
                 for (int x = centerX - 4; x <= centerX + 4; x++) {
                     world.getBlockAt(x, crownY, z).setType(beamMaterial, false);
                 }
@@ -1012,8 +1263,8 @@ public final class DungeonBuilder {
             }
             case EAST -> {
                 int x = centerX + radius - 1;
-                placePillar(world, x, baseY + 1, centerZ - 3, 5, pillarMaterial);
-                placePillar(world, x, baseY + 1, centerZ + 3, 5, pillarMaterial);
+                placePillar(world, x, baseY + 1, centerZ - 3, pillarHeight, pillarMaterial);
+                placePillar(world, x, baseY + 1, centerZ + 3, pillarHeight, pillarMaterial);
                 for (int z = centerZ - 4; z <= centerZ + 4; z++) {
                     world.getBlockAt(x, crownY, z).setType(beamMaterial, false);
                 }
@@ -1022,8 +1273,8 @@ public final class DungeonBuilder {
             }
             case WEST -> {
                 int x = centerX - radius + 1;
-                placePillar(world, x, baseY + 1, centerZ - 3, 5, pillarMaterial);
-                placePillar(world, x, baseY + 1, centerZ + 3, 5, pillarMaterial);
+                placePillar(world, x, baseY + 1, centerZ - 3, pillarHeight, pillarMaterial);
+                placePillar(world, x, baseY + 1, centerZ + 3, pillarHeight, pillarMaterial);
                 for (int z = centerZ - 4; z <= centerZ + 4; z++) {
                     world.getBlockAt(x, crownY, z).setType(beamMaterial, false);
                 }
@@ -1043,15 +1294,15 @@ public final class DungeonBuilder {
     ) {
         int tier = floorTier(floor);
         Material crossMaterial = switch (tier) {
-            case 1 -> Material.CHERRY_WOOD;
-            case 2 -> Material.CHISELED_POLISHED_BLACKSTONE;
-            case 3 -> Material.CHISELED_DEEPSLATE;
-            default -> Material.POLISHED_BLACKSTONE_BRICKS;
+            case 1 -> Material.MOSSY_STONE_BRICKS;
+            case 2 -> Material.POLISHED_BLACKSTONE_BRICKS;
+            case 3 -> Material.DEEPSLATE_TILES;
+            default -> Material.OBSIDIAN;
         };
         Material coreMaterial = switch (tier) {
-            case 1 -> Material.STRIPPED_CHERRY_WOOD;
+            case 1 -> Material.CHISELED_STONE_BRICKS;
             case 2 -> Material.GILDED_BLACKSTONE;
-            case 3 -> Material.POLISHED_DEEPSLATE;
+            case 3 -> Material.CHISELED_DEEPSLATE;
             default -> Material.CRYING_OBSIDIAN;
         };
         int ring = Math.max(3, radius - 4);
@@ -1078,13 +1329,13 @@ public final class DungeonBuilder {
     ) {
         int tier = floorTier(floor);
         Material ringMaterial = switch (tier) {
-            case 1 -> Material.BLACKSTONE;
+            case 1 -> Material.MOSSY_STONE_BRICKS;
             case 2 -> Material.POLISHED_BLACKSTONE_BRICKS;
             case 3 -> Material.DEEPSLATE_TILES;
             default -> Material.OBSIDIAN;
         };
         Material centerEdge = switch (tier) {
-            case 1 -> Material.POLISHED_BLACKSTONE_BRICKS;
+            case 1 -> Material.CHISELED_STONE_BRICKS;
             case 2 -> Material.GILDED_BLACKSTONE;
             case 3 -> Material.CHISELED_DEEPSLATE;
             default -> Material.REINFORCED_DEEPSLATE;
@@ -1096,7 +1347,7 @@ public final class DungeonBuilder {
             default -> Material.CRYING_OBSIDIAN;
         };
         Material brazierPillar = switch (tier) {
-            case 1 -> Material.POLISHED_BLACKSTONE_BRICKS;
+            case 1 -> Material.STONE_BRICKS;
             case 2 -> Material.CRYING_OBSIDIAN;
             case 3 -> Material.DEEPSLATE_BRICKS;
             default -> Material.OBSIDIAN;
@@ -1144,17 +1395,34 @@ public final class DungeonBuilder {
     ) {
         int lateralStepX = direction == CorridorDirection.NORTH || direction == CorridorDirection.SOUTH ? 1 : 0;
         int lateralStepZ = direction == CorridorDirection.NORTH || direction == CorridorDirection.SOUTH ? 0 : 1;
+        Material trim = detailAccentFor(wallMaterial);
+        Material floorAccent = detailSecondaryAccentFor(floorMaterial);
+        Material lantern = nicheLanternFor(wallMaterial);
 
         for (int depth = 1; depth <= ROOM_WING_DEPTH; depth++) {
             for (int lateral = -ROOM_WING_HALF_WIDTH; lateral <= ROOM_WING_HALF_WIDTH; lateral++) {
                 int x = centerX + (direction.stepX() * (radius + depth)) + (lateralStepX * lateral);
                 int z = centerZ + (direction.stepZ() * (radius + depth)) + (lateralStepZ * lateral);
 
-                world.getBlockAt(x, baseY, z).setType(floorMaterial, false);
+                boolean outerWall = depth == ROOM_WING_DEPTH;
+                boolean sideWall = depth > 1 && Math.abs(lateral) == ROOM_WING_HALF_WIDTH;
+                world.getBlockAt(x, baseY, z).setType(outerWall ? floorAccent : floorMaterial, false);
 
-                boolean edge = Math.abs(lateral) == ROOM_WING_HALF_WIDTH || depth == ROOM_WING_DEPTH;
                 for (int y = baseY + 1; y <= wallTop - 1; y++) {
-                    world.getBlockAt(x, y, z).setType(edge ? wallMaterial : Material.AIR, false);
+                    Block block = world.getBlockAt(x, y, z);
+                    if (outerWall) {
+                        if (lateral == 0 && y == baseY + 2) {
+                            block.setType(lantern, false);
+                        } else if (y == baseY + 1 || y == wallTop - 2 || (Math.abs(lateral) == ROOM_WING_HALF_WIDTH - 1 && y == baseY + 4)) {
+                            block.setType(trim, false);
+                        } else {
+                            block.setType(wallMaterial, false);
+                        }
+                    } else if (sideWall) {
+                        block.setType(y == baseY + 3 ? trim : wallMaterial, false);
+                    } else {
+                        block.setType(Material.AIR, false);
+                    }
                 }
                 world.getBlockAt(x, wallTop, z).setType(roofMaterial, false);
             }
@@ -1182,8 +1450,15 @@ public final class DungeonBuilder {
 
     private static Material detailAccentFor(Material wallMaterial) {
         return switch (wallMaterial) {
+            case STONE_BRICKS -> Material.CHISELED_STONE_BRICKS;
+            case MOSSY_STONE_BRICKS -> Material.STONE_BRICKS;
+            case CRACKED_STONE_BRICKS -> Material.STONE_BRICKS;
+            case CHISELED_STONE_BRICKS -> Material.STONE_BRICKS;
+            case POLISHED_ANDESITE -> Material.CHISELED_STONE_BRICKS;
             case DARK_OAK_PLANKS -> Material.CHERRY_WOOD;
+            case POLISHED_BLACKSTONE -> Material.CHISELED_POLISHED_BLACKSTONE;
             case POLISHED_BLACKSTONE_BRICKS -> Material.CHISELED_POLISHED_BLACKSTONE;
+            case CRACKED_POLISHED_BLACKSTONE_BRICKS -> Material.POLISHED_BLACKSTONE_BRICKS;
             case CHERRY_WOOD -> Material.STRIPPED_CHERRY_WOOD;
             case CRIMSON_HYPHAE -> Material.CRIMSON_PLANKS;
             case BAMBOO_BLOCK -> Material.BAMBOO_MOSAIC;
@@ -1197,41 +1472,52 @@ public final class DungeonBuilder {
             case REINFORCED_DEEPSLATE -> Material.DEEPSLATE_TILES;
             case NETHER_BRICKS -> Material.RED_NETHER_BRICKS;
             case CRYING_OBSIDIAN -> Material.GILDED_BLACKSTONE;
-            default -> Material.POLISHED_BLACKSTONE;
+            default -> Material.STONE_BRICKS;
         };
     }
 
     private static Material detailSecondaryAccentFor(Material floorMaterial) {
         return switch (floorMaterial) {
+            case STONE_BRICKS -> Material.MOSSY_STONE_BRICKS;
+            case MOSSY_STONE_BRICKS -> Material.CRACKED_STONE_BRICKS;
+            case CRACKED_STONE_BRICKS -> Material.CHISELED_STONE_BRICKS;
+            case CHISELED_STONE_BRICKS -> Material.STONE_BRICKS;
+            case POLISHED_ANDESITE -> Material.COBBLESTONE;
+            case SMOOTH_STONE -> Material.CHISELED_STONE_BRICKS;
             case BAMBOO_MOSAIC -> Material.BAMBOO_PLANKS;
             case CHERRY_PLANKS -> Material.STRIPPED_CHERRY_WOOD;
             case CRIMSON_PLANKS -> Material.NETHER_BRICKS;
             case POLISHED_BLACKSTONE -> Material.GILDED_BLACKSTONE;
+            case POLISHED_BLACKSTONE_BRICKS -> Material.CHISELED_POLISHED_BLACKSTONE;
             case BLACKSTONE -> Material.POLISHED_BLACKSTONE_BRICKS;
-            case POLISHED_DEEPSLATE -> Material.CRACKED_DEEPSLATE_BRICKS;
+            case POLISHED_DEEPSLATE -> Material.DEEPSLATE_BRICKS;
+            case DEEPSLATE_BRICKS -> Material.CRACKED_DEEPSLATE_BRICKS;
             case TUFF_BRICKS -> Material.CHISELED_TUFF;
             case DEEPSLATE_TILES -> Material.CHISELED_DEEPSLATE;
             case NETHER_BRICKS -> Material.RED_NETHER_BRICKS;
             case REINFORCED_DEEPSLATE -> Material.CRYING_OBSIDIAN;
             case RED_TERRACOTTA -> Material.CUT_RED_SANDSTONE;
-            default -> Material.SMOOTH_STONE;
+            default -> Material.STONE_BRICKS;
         };
     }
 
     private static Material slabFor(Material wallMaterial) {
         return switch (wallMaterial) {
+            case STONE_BRICKS, MOSSY_STONE_BRICKS, CRACKED_STONE_BRICKS, CHISELED_STONE_BRICKS -> Material.STONE_BRICK_SLAB;
+            case POLISHED_ANDESITE -> Material.ANDESITE_SLAB;
             case DARK_OAK_PLANKS -> Material.DARK_OAK_SLAB;
-            case POLISHED_BLACKSTONE_BRICKS -> Material.POLISHED_BLACKSTONE_BRICK_SLAB;
+            case POLISHED_BLACKSTONE_BRICKS, CHISELED_POLISHED_BLACKSTONE, CRACKED_POLISHED_BLACKSTONE_BRICKS -> Material.POLISHED_BLACKSTONE_BRICK_SLAB;
             case CHERRY_WOOD -> Material.CHERRY_SLAB;
             case CRIMSON_HYPHAE -> Material.CRIMSON_SLAB;
             case BAMBOO_BLOCK -> Material.BAMBOO_SLAB;
             case BLACKSTONE -> Material.BLACKSTONE_SLAB;
+            case POLISHED_BLACKSTONE -> Material.POLISHED_BLACKSTONE_SLAB;
             case OBSIDIAN -> Material.POLISHED_BLACKSTONE_SLAB;
             case NETHER_BRICKS -> Material.NETHER_BRICK_SLAB;
             case DEEPSLATE_BRICKS -> Material.DEEPSLATE_BRICK_SLAB;
             case DEEPSLATE_TILES, CHISELED_DEEPSLATE, COBBLED_DEEPSLATE, REINFORCED_DEEPSLATE -> Material.DEEPSLATE_TILE_SLAB;
             case TUFF_BRICKS -> Material.TUFF_BRICK_SLAB;
-            default -> Material.DARK_OAK_SLAB;
+            default -> Material.STONE_BRICK_SLAB;
         };
     }
 
@@ -1259,14 +1545,14 @@ public final class DungeonBuilder {
         String floorId = floor.id();
         if ("F1".equalsIgnoreCase(floorId)) {
             return new DungeonTheme(
-                    Material.BAMBOO_MOSAIC,
-                    Material.DARK_OAK_PLANKS,
-                    Material.CHERRY_WOOD,
-                    Material.DARK_OAK_SLAB,
-                    Material.SHROOMLIGHT,
-                    Material.DARK_OAK_LOG,
-                    Material.POLISHED_BLACKSTONE_BRICKS,
-                    Material.REDSTONE_LAMP,
+                    Material.STONE_BRICKS,
+                    Material.MOSSY_STONE_BRICKS,
+                    Material.CHISELED_STONE_BRICKS,
+                    Material.STONE_BRICK_SLAB,
+                    Material.GLOWSTONE,
+                    Material.STONE_BRICKS,
+                    solidAccentMaterial(),
+                    Material.CHISELED_STONE_BRICKS,
                     Material.LANTERN
             );
         }
@@ -1276,9 +1562,9 @@ public final class DungeonBuilder {
                     Material.POLISHED_BLACKSTONE,
                     Material.CHISELED_POLISHED_BLACKSTONE,
                     Material.POLISHED_BLACKSTONE_BRICK_SLAB,
-                    Material.SEA_LANTERN,
+                    Material.GLOWSTONE,
                     Material.POLISHED_BLACKSTONE_BRICKS,
-                    Material.CRYING_OBSIDIAN,
+                    solidAccentMaterial(),
                     Material.GILDED_BLACKSTONE,
                     Material.SOUL_LANTERN
             );
@@ -1291,8 +1577,8 @@ public final class DungeonBuilder {
                     Material.DEEPSLATE_BRICK_SLAB,
                     Material.SEA_LANTERN,
                     Material.DEEPSLATE_TILES,
+                    solidAccentMaterial(),
                     Material.CHISELED_DEEPSLATE,
-                    Material.CRYING_OBSIDIAN,
                     Material.SOUL_LANTERN
             );
         }
@@ -1304,8 +1590,8 @@ public final class DungeonBuilder {
                     Material.POLISHED_BLACKSTONE_BRICK_SLAB,
                     Material.SEA_LANTERN,
                     Material.OBSIDIAN,
+                    solidAccentMaterial(),
                     Material.CRYING_OBSIDIAN,
-                    Material.GILDED_BLACKSTONE,
                     Material.SOUL_LANTERN
             );
         }
@@ -1314,11 +1600,11 @@ public final class DungeonBuilder {
                 floor.wallMaterial(),
                 detailAccentFor(floor.wallMaterial()),
                 slabFor(floor.wallMaterial()),
-                Material.SEA_LANTERN,
+                Material.GLOWSTONE,
                 floor.wallMaterial(),
-                Material.POLISHED_BLACKSTONE_BRICKS,
+                solidAccentMaterial(),
                 Material.CRYING_OBSIDIAN,
-                Material.LANTERN
+                Material.SOUL_LANTERN
         );
     }
 

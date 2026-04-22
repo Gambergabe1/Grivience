@@ -1,7 +1,11 @@
 package io.papermc.Grivience.item;
 
-import io.papermc.Grivience.dungeon.YokaiType;
+import io.papermc.Grivience.accessory.AccessoryType;
+import io.papermc.Grivience.compactor.PersonalCompactorType;
+import io.papermc.Grivience.dungeon.MonsterType;
 import io.papermc.Grivience.item.EnchantedFarmItemType;
+import io.papermc.Grivience.mines.DrillStatProfile;
+import io.papermc.Grivience.util.ArmorDurabilityUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -29,35 +33,61 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.lang.reflect.Method;
 
 public final class CustomItemService {
+    private static final String DRAGON_SLAYER_HELMET_TEXTURE_UUID = "c7ce3652-2bdb-6c36-56ce-be2319ee1681";
+    private static final String DRAGON_SLAYER_HELMET_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzdjZTM2NTIyYmRiNmMzNjU2Y2ViZTIzMTllZTE2ODFlN2I1ZWQ3OWFlMmZjMjVlNTk5ZDUxZDg3YmQyODExNSJ9fX0=";
+    private static final String SUMMONING_EYE_TEXTURE_UUID = "198a49ca-54c3-ea67-a86e-c8b9f16bdf46";
+    private static final String SUMMONING_EYE_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTk4YTQ5Y2E1NGMzZWE2N2E4NmVjOGI5ZjE2YmRmNDZhYTVlZmM1YWVlZmI3YTE5Y2NjYzc5NjJlODIxYTU5OSJ9fX0=";
+
     private final JavaPlugin plugin;
     private final NamespacedKey itemIdKey;
-    private final Map<String, Integer> modelDataOverrides = new HashMap<>();
     private final NamespacedKey reforgeIdKey;
     private final NamespacedKey reforgeBaseNameKey;
     private final NamespacedKey recipeFlyingRaijinKey;
     private final NamespacedKey recipeHayabusaKey;
     private final NamespacedKey recipeRaijinShortbowKey;
+    private final NamespacedKey recipeSovereignAspectKey;
     private final NamespacedKey recipeGuardianHelmKey;
     private final NamespacedKey recipeGuardianChestKey;
     private final NamespacedKey recipeGuardianLegsKey;
     private final NamespacedKey recipeGuardianBootsKey;
     private final NamespacedKey farmRecipeKey;
     private final NamespacedKey recipeDrillUpgradeKey;
+    private final NamespacedKey recipeVoltaKey;
+    private final NamespacedKey recipeOilBarrelKey;
+    private final NamespacedKey recipeMithrilEngineKey;
+    private final NamespacedKey recipeTitaniumEngineKey;
+    private final NamespacedKey recipeGemstoneEngineKey;
+    private final NamespacedKey recipeDivanEngineKey;
+    private final NamespacedKey recipeMediumFuelTankKey;
+    private final NamespacedKey recipeLargeFuelTankKey;
+    private final NamespacedKey recipeIroncrestDrillKey;
+    private final NamespacedKey recipeTitaniumDrillKey;
+    private final NamespacedKey recipeGemstoneDrillKey;
+    private final NamespacedKey recipePersonalCompactor3000Key;
+    private final NamespacedKey recipePersonalCompactor4000Key;
+    private final NamespacedKey recipePersonalCompactor5000Key;
+    private final NamespacedKey recipePersonalCompactor6000Key;
+    private final NamespacedKey recipePersonalCompactor7000Key;
     private final NamespacedKey customMaterialKey;
     // Drill PDC keys
     private final NamespacedKey drillFuelKey;
     private final NamespacedKey drillFuelMaxKey;
     private final NamespacedKey drillEngineKey;
     private final NamespacedKey drillTankKey;
+    private final NamespacedKey dungeonStarsKey;
+    private final NamespacedKey dungeonizedKey;
+
     private io.papermc.Grivience.item.GrapplingHookManager grapplingHookManager;
+
 
     private ItemStyle itemStyle = ItemStyle.SKYBLOCK;
     private double mobWeaponBaseChance;
-    private final EnumMap<YokaiType, Double> yokaiWeaponChances = new EnumMap<>(YokaiType.class);
+    private final EnumMap<MonsterType, Double> yokaiWeaponChances = new EnumMap<>(MonsterType.class);
     private double mobArmorBaseChance;
-    private final EnumMap<YokaiType, Double> yokaiArmorChances = new EnumMap<>(YokaiType.class);
+    private final EnumMap<MonsterType, Double> yokaiArmorChances = new EnumMap<>(MonsterType.class);
     private double mobReforgeStoneChance;
     private double stormSigilChance;
     private double thunderEssenceChance;
@@ -84,22 +114,40 @@ public final class CustomItemService {
         this.plugin = plugin;
         this.itemIdKey = new NamespacedKey(plugin, "custom-item-id");
         this.customMaterialKey = new NamespacedKey(plugin, "custom_material");
-        loadModelOverrides();
         this.reforgeIdKey = new NamespacedKey(plugin, "custom-reforge-id");
         this.reforgeBaseNameKey = new NamespacedKey(plugin, "custom-reforge-base-name");
         this.recipeFlyingRaijinKey = new NamespacedKey(plugin, "flying-raijin-recipe");
         this.recipeHayabusaKey = new NamespacedKey(plugin, "hayabusa_katana_recipe");
         this.recipeRaijinShortbowKey = new NamespacedKey(plugin, "raijin_shortbow_recipe");
+        this.recipeSovereignAspectKey = new NamespacedKey(plugin, "sovereign_aspect_recipe");
         this.recipeGuardianHelmKey = new NamespacedKey(plugin, "guardian_helm_recipe");
         this.recipeGuardianChestKey = new NamespacedKey(plugin, "guardian_chest_recipe");
         this.recipeGuardianLegsKey = new NamespacedKey(plugin, "guardian_legs_recipe");
         this.recipeGuardianBootsKey = new NamespacedKey(plugin, "guardian_boots_recipe");
         this.farmRecipeKey = new NamespacedKey(plugin, "farm-compress");
         this.recipeDrillUpgradeKey = new NamespacedKey(plugin, "drill_upgrade");
+        this.recipeVoltaKey = new NamespacedKey(plugin, "volta_recipe");
+        this.recipeOilBarrelKey = new NamespacedKey(plugin, "oil_barrel_recipe");
+        this.recipeMithrilEngineKey = new NamespacedKey(plugin, "mithril_engine_recipe");
+        this.recipeTitaniumEngineKey = new NamespacedKey(plugin, "titanium_engine_recipe");
+        this.recipeGemstoneEngineKey = new NamespacedKey(plugin, "gemstone_engine_recipe");
+        this.recipeDivanEngineKey = new NamespacedKey(plugin, "divan_engine_recipe");
+        this.recipeMediumFuelTankKey = new NamespacedKey(plugin, "medium_fuel_tank_recipe");
+        this.recipeLargeFuelTankKey = new NamespacedKey(plugin, "large_fuel_tank_recipe");
+        this.recipeIroncrestDrillKey = new NamespacedKey(plugin, "ironcrest_drill_recipe");
+        this.recipeTitaniumDrillKey = new NamespacedKey(plugin, "titanium_drill_recipe");
+        this.recipeGemstoneDrillKey = new NamespacedKey(plugin, "gemstone_drill_recipe");
+        this.recipePersonalCompactor3000Key = new NamespacedKey(plugin, "personal_compactor_3000_recipe");
+        this.recipePersonalCompactor4000Key = new NamespacedKey(plugin, "personal_compactor_4000_recipe");
+        this.recipePersonalCompactor5000Key = new NamespacedKey(plugin, "personal_compactor_5000_recipe");
+        this.recipePersonalCompactor6000Key = new NamespacedKey(plugin, "personal_compactor_6000_recipe");
+        this.recipePersonalCompactor7000Key = new NamespacedKey(plugin, "personal_compactor_7000_recipe");
         this.drillFuelKey = new NamespacedKey(plugin, "drill-fuel");
         this.drillFuelMaxKey = new NamespacedKey(plugin, "drill-fuel-max");
         this.drillEngineKey = new NamespacedKey(plugin, "drill-engine");
         this.drillTankKey = new NamespacedKey(plugin, "drill-tank");
+        this.dungeonStarsKey = new NamespacedKey(plugin, "dungeon-stars");
+        this.dungeonizedKey = new NamespacedKey(plugin, "dungeonized");
         resetDropDefaults();
     }
 
@@ -117,7 +165,7 @@ public final class CustomItemService {
         ConfigurationSection yokaiSection = dropSection.getConfigurationSection("mob-weapon.yokai");
         if (yokaiSection != null) {
             for (String key : yokaiSection.getKeys(false)) {
-                YokaiType type = YokaiType.parse(key);
+                MonsterType type = MonsterType.parse(key);
                 if (type == null) {
                     continue;
                 }
@@ -129,7 +177,7 @@ public final class CustomItemService {
         ConfigurationSection armorYokaiSection = dropSection.getConfigurationSection("mob-armor.yokai");
         if (armorYokaiSection != null) {
             for (String key : armorYokaiSection.getKeys(false)) {
-                YokaiType type = YokaiType.parse(key);
+                MonsterType type = MonsterType.parse(key);
                 if (type == null) {
                     continue;
                 }
@@ -150,11 +198,32 @@ public final class CustomItemService {
         Bukkit.removeRecipe(recipeFlyingRaijinKey);
         Bukkit.removeRecipe(recipeHayabusaKey);
         Bukkit.removeRecipe(recipeRaijinShortbowKey);
+        Bukkit.removeRecipe(recipeSovereignAspectKey);
         Bukkit.removeRecipe(recipeGuardianHelmKey);
         Bukkit.removeRecipe(recipeGuardianChestKey);
         Bukkit.removeRecipe(recipeGuardianLegsKey);
         Bukkit.removeRecipe(recipeGuardianBootsKey);
         Bukkit.removeRecipe(recipeDrillUpgradeKey);
+
+        Bukkit.removeRecipe(recipeGuardianChestKey);
+        Bukkit.removeRecipe(recipeGuardianLegsKey);
+        Bukkit.removeRecipe(recipeGuardianBootsKey);
+        Bukkit.removeRecipe(recipeDrillUpgradeKey);
+        Bukkit.removeRecipe(recipeVoltaKey);
+        Bukkit.removeRecipe(recipeOilBarrelKey);
+        Bukkit.removeRecipe(recipeMithrilEngineKey);
+        Bukkit.removeRecipe(recipeTitaniumEngineKey);
+        Bukkit.removeRecipe(recipeGemstoneEngineKey);
+        Bukkit.removeRecipe(recipeDivanEngineKey);
+        Bukkit.removeRecipe(recipeMediumFuelTankKey);
+        Bukkit.removeRecipe(recipeLargeFuelTankKey);
+        Bukkit.removeRecipe(recipeIroncrestDrillKey);
+        Bukkit.removeRecipe(recipeTitaniumDrillKey);
+        Bukkit.removeRecipe(recipeGemstoneDrillKey);
+        Bukkit.removeRecipe(recipePersonalCompactor4000Key);
+        Bukkit.removeRecipe(recipePersonalCompactor5000Key);
+        Bukkit.removeRecipe(recipePersonalCompactor6000Key);
+        Bukkit.removeRecipe(recipePersonalCompactor7000Key);
         // farmRecipeKey acts as a placeholder key to allow discoverRecipe; logic handled by listener
         Bukkit.removeRecipe(farmRecipeKey);
 
@@ -179,37 +248,17 @@ public final class CustomItemService {
         stormbow.setIngredient('B', Material.BOW);
         Bukkit.addRecipe(stormbow);
 
-        ItemStack fragment = createCraftingItem(RaijinCraftingItemType.GUARDIAN_FRAGMENT);
-        fragment.setAmount(10);
-        RecipeChoice.ExactChoice fragChoice = new RecipeChoice.ExactChoice(fragment);
+        ShapedRecipe sovereignAspect = new ShapedRecipe(recipeSovereignAspectKey, createWeapon(CustomWeaponType.SOVEREIGN_ASPECT));
+        sovereignAspect.shape("SKS", "SKS", "DRD");
+        sovereignAspect.setIngredient('S', Material.STRING);
+        sovereignAspect.setIngredient('K', new RecipeChoice.ExactChoice(createEndMinesMaterial(EndMinesMaterialType.KUNZITE)));
+        sovereignAspect.setIngredient('D', new RecipeChoice.ExactChoice(createCraftingItem(RaijinCraftingItemType.DRAGONS_SPINE)));
+        sovereignAspect.setIngredient('R', new RecipeChoice.ExactChoice(createWeapon(CustomWeaponType.RIFTBREAKER)));
+        Bukkit.addRecipe(sovereignAspect);
 
-        ShapedRecipe gHelm = new ShapedRecipe(recipeGuardianHelmKey, createArmor(CustomArmorType.GUARDIAN_HELM));
-        gHelm.shape("FFF", "F F", "   ");
-        gHelm.setIngredient('F', fragChoice);
-        Bukkit.addRecipe(gHelm);
-
-        ShapedRecipe gChest = new ShapedRecipe(recipeGuardianChestKey, createArmor(CustomArmorType.GUARDIAN_CHESTPLATE));
-        gChest.shape("F F", "FFF", "FFF");
-        gChest.setIngredient('F', fragChoice);
-        Bukkit.addRecipe(gChest);
-
-        ShapedRecipe gLegs = new ShapedRecipe(recipeGuardianLegsKey, createArmor(CustomArmorType.GUARDIAN_LEGGINGS));
-        gLegs.shape("FFF", "F F", "F F");
-        gLegs.setIngredient('F', fragChoice);
-        Bukkit.addRecipe(gLegs);
-
-        ShapedRecipe gBoots = new ShapedRecipe(recipeGuardianBootsKey, createArmor(CustomArmorType.GUARDIAN_BOOTS));
-        gBoots.shape("F F", "F F", "   ");
-        gBoots.setIngredient('F', fragChoice);
-        Bukkit.addRecipe(gBoots);
-
-        // Drill tier upgrades are a single recipe; output is determined dynamically in DrillUpgradeCraftListener.
-        ShapedRecipe drillUpgrade = new ShapedRecipe(recipeDrillUpgradeKey, createMiningItem(MiningItemType.MITHRIL_DRILL));
-        drillUpgrade.shape("FFF", "FDF", "FFF");
-        drillUpgrade.setIngredient('F', new RecipeChoice.ExactChoice(createEndMinesMaterial(EndMinesMaterialType.ORE_FRAGMENT)));
-        // Any Iron Pickaxe can match; DrillUpgradeCraftListener validates the input is a drill variant.
-        drillUpgrade.setIngredient('D', Material.IRON_PICKAXE);
-        Bukkit.addRecipe(drillUpgrade);
+        registerDrillCraftingRecipes();
+        registerDrillForgeRecipes();
+        registerPersonalCompactorRecipes();
 
         for (Player online : Bukkit.getOnlinePlayers()) {
             discoverRecipes(online);
@@ -223,22 +272,109 @@ public final class CustomItemService {
         player.discoverRecipe(recipeFlyingRaijinKey);
         player.discoverRecipe(recipeHayabusaKey);
         player.discoverRecipe(recipeRaijinShortbowKey);
-        player.discoverRecipe(recipeGuardianHelmKey);
-        player.discoverRecipe(recipeGuardianChestKey);
-        player.discoverRecipe(recipeGuardianLegsKey);
-        player.discoverRecipe(recipeGuardianBootsKey);
+        player.discoverRecipe(recipeSovereignAspectKey);
         player.discoverRecipe(recipeDrillUpgradeKey);
+        player.discoverRecipe(recipeVoltaKey);
+        player.discoverRecipe(recipeOilBarrelKey);
+        player.discoverRecipe(recipeMithrilEngineKey);
+        player.discoverRecipe(recipeTitaniumEngineKey);
+        player.discoverRecipe(recipeGemstoneEngineKey);
+        player.discoverRecipe(recipeDivanEngineKey);
+        player.discoverRecipe(recipeMediumFuelTankKey);
+        player.discoverRecipe(recipeLargeFuelTankKey);
+        player.discoverRecipe(recipeIroncrestDrillKey);
+        player.discoverRecipe(recipeTitaniumDrillKey);
+        player.discoverRecipe(recipeGemstoneDrillKey);
+        player.discoverRecipe(recipePersonalCompactor3000Key);
+        player.discoverRecipe(recipePersonalCompactor4000Key);
         player.discoverRecipe(farmRecipeKey);
     }
 
-    public double mobWeaponDropChance(YokaiType type) {
+    private void registerDrillCraftingRecipes() {
+        ItemStack oreFragment = createEndMinesMaterial(EndMinesMaterialType.ORE_FRAGMENT);
+        if (oreFragment == null) {
+            return;
+        }
+
+        // Ironcrest Drill (Basic starter drill) - The ONLY one craftable in a table
+        ShapedRecipe ironcrestDrill = new ShapedRecipe(recipeIroncrestDrillKey, createMiningItem(MiningItemType.IRONCREST_DRILL));
+        ironcrestDrill.shape("III", "OPO", " S ");
+        ironcrestDrill.setIngredient('I', Material.IRON_INGOT);
+        ironcrestDrill.setIngredient('O', new RecipeChoice.ExactChoice(oreFragment));
+        ironcrestDrill.setIngredient('P', Material.PISTON);
+        ironcrestDrill.setIngredient('S', Material.STICK);
+        Bukkit.addRecipe(ironcrestDrill);
+    }
+
+    private void registerDrillForgeRecipes() {
+        // Handled by DrillForgeManager's internal logic.
+        // We do NOT register Bukkit ShapedRecipes here to ensure they are ONLY craftable in the Forge.
+    }
+
+    private void registerPersonalCompactorRecipes() {
+        ItemStack enchantedRedstone = createMiningItem(MiningItemType.ENCHANTED_REDSTONE);
+        ItemStack enchantedRedstoneBlock = createMiningItem(MiningItemType.ENCHANTED_REDSTONE_BLOCK);
+        ItemStack enchantedCobble = createMiningItem(MiningItemType.ENCHANTED_COBBLESTONE);
+        
+        if (enchantedRedstone == null || enchantedRedstoneBlock == null || enchantedCobble == null) {
+            return;
+        }
+
+        // Tier 3000 - 60 Enchanted Cobblestone + 10 Enchanted Redstone
+        ShapedRecipe pc3000 = new ShapedRecipe(recipePersonalCompactor3000Key, createPersonalCompactor(PersonalCompactorType.PERSONAL_COMPACTOR_3000));
+        pc3000.shape("CCC", "CRC", "CCC");
+        
+        ItemStack cobble7 = enchantedCobble.clone(); cobble7.setAmount(7);
+        ItemStack cobble8 = enchantedCobble.clone(); cobble8.setAmount(8);
+        ItemStack redstone10 = enchantedRedstone.clone(); redstone10.setAmount(10);
+        
+        // Split 60 into 4x7 and 4x8
+        pc3000.setIngredient('C', new RecipeChoice.ExactChoice(cobble7, cobble8));
+        pc3000.setIngredient('R', new RecipeChoice.ExactChoice(redstone10));
+        Bukkit.addRecipe(pc3000);
+
+        // Tier 4000 - 7 stacks of Enchanted Redstone
+        ShapedRecipe pc4000 = new ShapedRecipe(recipePersonalCompactor4000Key, createPersonalCompactor(PersonalCompactorType.PERSONAL_COMPACTOR_4000));
+        pc4000.shape("RRR", "R R", "RRR");
+        ItemStack redstoneStack = enchantedRedstone.clone();
+        redstoneStack.setAmount(64);
+        pc4000.setIngredient('R', new RecipeChoice.ExactChoice(redstoneStack));
+        Bukkit.addRecipe(pc4000);
+
+        // Tier 5000 - 7 stacks of Enchanted Redstone Block + Tier 4000
+        ShapedRecipe pc5000 = new ShapedRecipe(recipePersonalCompactor5000Key, createPersonalCompactor(PersonalCompactorType.PERSONAL_COMPACTOR_5000));
+        pc5000.shape("BBB", "BMB", "BBB");
+        ItemStack blockStack = enchantedRedstoneBlock.clone();
+        blockStack.setAmount(64);
+        pc5000.setIngredient('B', new RecipeChoice.ExactChoice(blockStack));
+        pc5000.setIngredient('M', new RecipeChoice.ExactChoice(createPersonalCompactor(PersonalCompactorType.PERSONAL_COMPACTOR_4000)));
+        Bukkit.addRecipe(pc5000);
+
+        // Tier 6000 - 8 stacks of Enchanted Redstone Block + Tier 5000
+        ShapedRecipe pc6000 = new ShapedRecipe(recipePersonalCompactor6000Key, createPersonalCompactor(PersonalCompactorType.PERSONAL_COMPACTOR_6000));
+        pc6000.shape("BBB", "BMB", "BBB"); // Note: Shape is same but ingredient count is higher via ExactChoice if we used that, but Minecraft shaped recipes don't support >1 per slot easily.
+        // Actually, we can just use 8 slots of blocks.
+        pc6000.shape("BBB", "BMB", "BBB");
+        pc6000.setIngredient('B', new RecipeChoice.ExactChoice(blockStack));
+        pc6000.setIngredient('M', new RecipeChoice.ExactChoice(createPersonalCompactor(PersonalCompactorType.PERSONAL_COMPACTOR_5000)));
+        Bukkit.addRecipe(pc6000);
+
+        // Tier 7000 - 8 stacks of Enchanted Redstone Block + Tier 6000
+        ShapedRecipe pc7000 = new ShapedRecipe(recipePersonalCompactor7000Key, createPersonalCompactor(PersonalCompactorType.PERSONAL_COMPACTOR_7000));
+        pc7000.shape("BBB", "BMB", "BBB");
+        pc7000.setIngredient('B', new RecipeChoice.ExactChoice(blockStack));
+        pc7000.setIngredient('M', new RecipeChoice.ExactChoice(createPersonalCompactor(PersonalCompactorType.PERSONAL_COMPACTOR_6000)));
+        Bukkit.addRecipe(pc7000);
+    }
+
+    public double mobWeaponDropChance(MonsterType type) {
         if (type == null) {
             return mobWeaponBaseChance;
         }
         return yokaiWeaponChances.getOrDefault(type, mobWeaponBaseChance);
     }
 
-    public double mobArmorDropChance(YokaiType type) {
+    public double mobArmorDropChance(MonsterType type) {
         if (type == null) {
             return mobArmorBaseChance;
         }
@@ -275,6 +411,19 @@ public final class CustomItemService {
 
     public ItemStack createWeapon(CustomWeaponType type) {
         return switch (type) {
+            case WARDENS_CLEAVER -> createWardensCleaver();
+            case NEWBIE_KATANA -> weapon(
+                    Material.IRON_SWORD,
+                    ChatColor.GREEN + "Newbie Katana",
+                    "NEWBIE_KATANA",
+                    List.of(SB_DAMAGE + "20", SB_STRENGTH + "10"),
+                    "Novice's Grace",
+                    "Heals the wielder for 1 HP on every hit.",
+                    0, 0,
+                    ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON",
+                    "KATANA",
+                    Map.of(Enchantment.SHARPNESS, 2)
+            );
             case ONI_CLEAVER -> weapon(
                     Material.IRON_AXE,
                     ChatColor.RED + "Oni Cleaver",
@@ -466,6 +615,196 @@ public final class CustomItemService {
                     ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY",
                     "SHORTBOW",
                     Map.of(Enchantment.POWER, 6, Enchantment.INFINITY, 1, Enchantment.UNBREAKING, 4)
+            );
+            case DRAGON_HUNTER_SHORTBOW -> weapon(
+                    Material.BOW,
+                    ChatColor.GOLD + "Dragon Hunter Shortbow",
+                    "DRAGON_HUNTER_SHORTBOW",
+                    List.of(SB_DAMAGE + "310", SB_CRIT_CHANCE + "60%"),
+                    "Dragon Tracker",
+                    "Instantly fires 3 arrows that track the Ender Dragon!",
+                    0, 0,
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "MYTHIC",
+                    "SHORTBOW",
+                    Map.of(Enchantment.POWER, 7, Enchantment.INFINITY, 1, Enchantment.UNBREAKING, 10)
+            );
+            case RIFTBLADE -> weaponWithFlavor(
+                    Material.IRON_SWORD,
+                    ChatColor.BLUE + "Riftblade",
+                    "RIFTBLADE",
+                    List.of(
+                            ChatColor.GRAY + "Damage: " + ChatColor.RED + "+85",
+                            ChatColor.GRAY + "Strength: " + ChatColor.RED + "+25"
+                    ),
+                    "A blade infused with unstable End energy.",
+                    "Rift Step",
+                    "Teleport " + ChatColor.GREEN + "8 blocks " + ChatColor.GRAY + "forward and deal\n"
+                            + ChatColor.RED + "150 damage " + ChatColor.GRAY + "to nearby enemies.",
+                    20,
+                    2.0D,
+                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE",
+                    "SWORD",
+                    Map.of()
+            );
+            case VOID_ASPECT_BLADE -> weaponWithFlavor(
+                    Material.DIAMOND_SWORD,
+                    ChatColor.DARK_PURPLE + "Void Aspect Blade",
+                    "VOID_ASPECT_BLADE",
+                    List.of(
+                            ChatColor.GRAY + "Damage: " + ChatColor.RED + "+130",
+                            ChatColor.GRAY + "Strength: " + ChatColor.RED + "+45",
+                            ChatColor.GRAY + "Crit Chance: " + ChatColor.RED + "+10%"
+                    ),
+                    "A refined weapon that bends space\nto its wielder's will.",
+                    "Void Shift",
+                    "Teleport " + ChatColor.GREEN + "10 blocks " + ChatColor.GRAY + "forward and gain\n"
+                            + ChatColor.RED + "+40% damage " + ChatColor.GRAY + "for " + ChatColor.GREEN + "3 seconds.",
+                    40,
+                    2.0D,
+                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC",
+                    "SWORD",
+                    Map.of()
+            );
+            case RIFTBREAKER -> weaponWithFlavor(
+                    Material.NETHERITE_SWORD,
+                    ChatColor.GOLD + "Riftbreaker",
+                    "RIFTBREAKER",
+                    List.of(
+                            ChatColor.GRAY + "Damage: " + ChatColor.RED + "+185",
+                            ChatColor.GRAY + "Strength: " + ChatColor.RED + "+70",
+                            ChatColor.GRAY + "Crit Damage: " + ChatColor.RED + "+25%"
+                    ),
+                    "The fabric of reality fractures\nwith every swing.",
+                    "Fracture Dash",
+                    "Dash through enemies up to " + ChatColor.GREEN + "12 blocks" + ChatColor.GRAY + ",\n"
+                            + "dealing " + ChatColor.RED + "350 damage " + ChatColor.GRAY + "and leaving a\n"
+                            + "rift trail that deals " + ChatColor.RED + "150 damage" + ChatColor.GRAY + ".\n\n"
+                            + "Each consecutive dash within " + ChatColor.GREEN + "5s\n"
+                            + ChatColor.GRAY + "grants " + ChatColor.RED + "+10% damage " + ChatColor.GRAY + "("
+                            + ChatColor.GREEN + "Max 5 stacks" + ChatColor.GRAY + ").",
+                    60,
+                    1.0D,
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY",
+                    "SWORD",
+                    Map.of()
+            );
+            case SOVEREIGN_ASPECT -> weaponWithFlavor(
+                    Material.NETHERITE_SWORD,
+                    ChatColor.LIGHT_PURPLE + "Sovereign Aspect",
+                    "SOVEREIGN_ASPECT",
+                    List.of(
+                            ChatColor.GRAY + "Damage: " + ChatColor.RED + "+260",
+                            ChatColor.GRAY + "Strength: " + ChatColor.RED + "+110",
+                            ChatColor.GRAY + "Crit Damage: " + ChatColor.RED + "+40%",
+                            ChatColor.GRAY + "Intelligence: " + ChatColor.GREEN + "+150"
+                    ),
+                    "A weapon wielded by those who\ncommand the End itself.",
+                    "Dimensional Collapse",
+                    "Teleport up to " + ChatColor.GREEN + "14 blocks " + ChatColor.GRAY + "and pull all\n"
+                            + "nearby enemies to your location,\n"
+                            + "then deal " + ChatColor.RED + "800 damage" + ChatColor.GRAY + ".\n\n"
+                            + "Damage increases by " + ChatColor.RED + "+5% " + ChatColor.GRAY + "per enemy hit.",
+                    120,
+                    3.0D,
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "MYTHIC",
+                    "SWORD",
+                    Map.of()
+            );
+            case VOIDFANG_DAGGER -> weaponWithFlavor(
+                    Material.GOLDEN_SWORD,
+                    ChatColor.GOLD + "Voidfang Dagger",
+                    "VOIDFANG_DAGGER",
+                    List.of(
+                            ChatColor.GRAY + "Damage: " + ChatColor.RED + "+140",
+                            ChatColor.GRAY + "Strength: " + ChatColor.RED + "+35",
+                            ChatColor.GRAY + "Crit Chance: " + ChatColor.RED + "+20%",
+                            ChatColor.GRAY + "Attack Speed: " + ChatColor.GREEN + "+25%"
+                    ),
+                    "Strikes faster than the eye can follow.",
+                    "Shadow Chain",
+                    "Teleport between up to " + ChatColor.GREEN + "4 enemies" + ChatColor.GRAY + ",\n"
+                            + "dealing " + ChatColor.RED + "220 damage " + ChatColor.GRAY + "per hit.\n\n"
+                            + "Each hit reduces the next hit damage\n"
+                            + ChatColor.GRAY + "by " + ChatColor.RED + "10%." ,
+                    50,
+                    3.0D,
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY",
+                    "DAGGER",
+                    Map.of()
+            );
+            case WARP_BOW -> weaponWithFlavor(
+                    Material.BOW,
+                    ChatColor.BLUE + "Warp Bow",
+                    "WARP_BOW",
+                    List.of(ChatColor.GRAY + "Damage: " + ChatColor.RED + "+120"),
+                    "A bow infused with teleportation magic.",
+                    "Warp Shot",
+                    "Shoot an arrow that teleports you\nto its impact location.",
+                    30,
+                    2.0D,
+                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE",
+                    "BOW",
+                    Map.of()
+            );
+            case VOIDSHOT_BOW -> weaponWithFlavor(
+                    Material.BOW,
+                    ChatColor.DARK_PURPLE + "Voidshot Bow",
+                    "VOIDSHOT_BOW",
+                    List.of(
+                            ChatColor.GRAY + "Damage: " + ChatColor.RED + "+165",
+                            ChatColor.GRAY + "Crit Chance: " + ChatColor.RED + "+10%"
+                    ),
+                    "Arrows pierce through reality itself.",
+                    "Piercing Rift Arrow",
+                    "Arrows pierce enemies and apply\n"
+                            + "a stacking debuff increasing damage\n"
+                            + "taken by " + ChatColor.RED + "5% " + ChatColor.GRAY + "("
+                            + ChatColor.GREEN + "Max 5 stacks" + ChatColor.GRAY + ").",
+                    40,
+                    1.0D,
+                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC",
+                    "BOW",
+                    Map.of()
+            );
+            case RIFTSTORM_BOW -> weaponWithFlavor(
+                    Material.BOW,
+                    ChatColor.GOLD + "Riftstorm Bow",
+                    "RIFTSTORM_BOW",
+                    List.of(
+                            ChatColor.GRAY + "Damage: " + ChatColor.RED + "+210",
+                            ChatColor.GRAY + "Crit Damage: " + ChatColor.RED + "+30%"
+                    ),
+                    "Unleashes chaos from the void.",
+                    "Arrow Storm",
+                    "Fire a spread of " + ChatColor.GREEN + "5 arrows " + ChatColor.GRAY + "that deal\n"
+                            + ChatColor.RED + "120% damage" + ChatColor.GRAY + ".\n\n"
+                            + "Each hit increases your next ability\n"
+                            + "damage by " + ChatColor.RED + "+10% " + ChatColor.GRAY + "("
+                            + ChatColor.GREEN + "Max 5 stacks" + ChatColor.GRAY + ").",
+                    70,
+                    2.0D,
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY",
+                    "BOW",
+                    Map.of()
+            );
+            case ORBITAL_LONGBOW -> weaponWithFlavor(
+                    Material.BOW,
+                    ChatColor.LIGHT_PURPLE + "Orbital Longbow",
+                    "ORBITAL_LONGBOW",
+                    List.of(
+                            ChatColor.GRAY + "Damage: " + ChatColor.RED + "+270",
+                            ChatColor.GRAY + "Crit Damage: " + ChatColor.RED + "+50%"
+                    ),
+                    "The void bends to your aim.",
+                    "Gravity Collapse",
+                    "Mark an area on impact, pulling enemies\n"
+                            + "inward before exploding for\n"
+                            + ChatColor.RED + "900 damage" + ChatColor.GRAY + ".",
+                    120,
+                    4.0D,
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "MYTHIC",
+                    "BOW",
+                    Map.of()
             );
 
             // Mage Weapons - Staffs
@@ -1286,7 +1625,183 @@ public final class CustomItemService {
                     "BOOTS",
                     Map.of(Enchantment.PROTECTION, 1)
             );
+            case DRAGON_SLAYER_HELMET -> dragonSlayerArmor(
+                    Material.PLAYER_HEAD,
+                    "Dragon Slayer Helmet",
+                    "DRAGON_SLAYER_HELMET",
+                    List.of(SB_DEFENSE + "120", SB_HEALTH + "90"),
+                    "Dragon Hunter",
+                    List.of(ChatColor.GRAY + "Deal " + ChatColor.RED + "+15%" + ChatColor.GRAY + " more damage to End mobs."),
+                    List.of(ChatColor.DARK_GRAY + "Forged from hardened Endstone and",
+                            ChatColor.DARK_GRAY + "infused with dragon essence."),
+                    "HELMET"
+            );
+            case DRAGON_SLAYER_CHESTPLATE -> dragonSlayerArmor(
+                    Material.LEATHER_CHESTPLATE,
+                    "Dragon Slayer Chestplate",
+                    "DRAGON_SLAYER_CHESTPLATE",
+                    List.of(SB_DEFENSE + "220", SB_HEALTH + "160"),
+                    "Scales of the End",
+                    List.of(ChatColor.GRAY + "Reduces damage taken from End mobs",
+                            ChatColor.GRAY + "by " + ChatColor.GREEN + "10%" + ChatColor.GRAY + "."),
+                    List.of(ChatColor.DARK_GRAY + "Crafted in the depths of the End Mines,",
+                            ChatColor.DARK_GRAY + "where dragons once ruled."),
+                    "CHESTPLATE"
+            );
+            case DRAGON_SLAYER_LEGGINGS -> dragonSlayerArmor(
+                    Material.LEATHER_LEGGINGS,
+                    "Dragon Slayer Leggings",
+                    "DRAGON_SLAYER_LEGGINGS",
+                    List.of(SB_DEFENSE + "180", SB_HEALTH + "130"),
+                    "End Resilience",
+                    List.of(ChatColor.GRAY + "Gain " + ChatColor.RED + "+25 " + ChatColor.RED + "Strength"
+                            + ChatColor.GRAY + " while in the End."),
+                    List.of(ChatColor.DARK_GRAY + "Empowered by fragments of fallen dragons."),
+                    "LEGGINGS"
+            );
+            case DRAGON_SLAYER_BOOTS -> dragonSlayerArmor(
+                    Material.LEATHER_BOOTS,
+                    "Dragon Slayer Boots",
+                    "DRAGON_SLAYER_BOOTS",
+                    List.of(SB_DEFENSE + "110", SB_HEALTH + "80", SB_SPEED + "10"),
+                    "Void Step",
+                    List.of(ChatColor.GRAY + "Reduces fall damage and grants",
+                            ChatColor.AQUA + "immunity to void knockback."),
+                    List.of(ChatColor.DARK_GRAY + "Lightweight boots designed for",
+                            ChatColor.DARK_GRAY + "navigating unstable End terrain."),
+                    "BOOTS"
+            );
+
+            // --- SOULBOUND MAGE SET ---
+            case SOULBOUND_HELM -> armor(
+                    Material.NETHERITE_HELMET,
+                    ChatColor.DARK_PURPLE + "Soulbound Helm",
+                    "SOULBOUND_HELM",
+                    List.of(SB_MANA + "250", SB_HEALTH + "20", SB_DEFENSE + "15", SB_HEAL_SPEED + "-5"),
+                    "Pact of the Forbidden",
+                    "Grants massive Ability Damage but drains your soul.",
+                    fullSetBonusLore(type.setType()),
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "MYTHIC",
+                    "HELMET",
+                    Map.of(Enchantment.PROTECTION, 10, Enchantment.UNBREAKING, 5)
+            );
+            case SOULBOUND_CHESTPLATE -> armor(
+                    Material.NETHERITE_CHESTPLATE,
+                    ChatColor.DARK_PURPLE + "Soulbound Chestplate",
+                    "SOULBOUND_CHESTPLATE",
+                    List.of(SB_MANA + "450", SB_HEALTH + "40", SB_DEFENSE + "25", SB_HEAL_SPEED + "-8"),
+                    "Pact of the Forbidden",
+                    "Grants massive Ability Damage but drains your soul.",
+                    fullSetBonusLore(type.setType()),
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "MYTHIC",
+                    "CHESTPLATE",
+                    Map.of(Enchantment.PROTECTION, 10, Enchantment.UNBREAKING, 5)
+            );
+            case SOULBOUND_LEGGINGS -> armor(
+                    Material.NETHERITE_LEGGINGS,
+                    ChatColor.DARK_PURPLE + "Soulbound Leggings",
+                    "SOULBOUND_LEGGINGS",
+                    List.of(SB_MANA + "350", SB_HEALTH + "30", SB_DEFENSE + "20", SB_HEAL_SPEED + "-6"),
+                    "Pact of the Forbidden",
+                    "Grants massive Ability Damage but drains your soul.",
+                    fullSetBonusLore(type.setType()),
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "MYTHIC",
+                    "LEGGINGS",
+                    Map.of(Enchantment.PROTECTION, 10, Enchantment.UNBREAKING, 5)
+            );
+            case SOULBOUND_BOOTS -> armor(
+                    Material.NETHERITE_BOOTS,
+                    ChatColor.DARK_PURPLE + "Soulbound Boots",
+                    "SOULBOUND_BOOTS",
+                    List.of(SB_MANA + "200", SB_HEALTH + "15", SB_DEFENSE + "12", SB_HEAL_SPEED + "-4"),
+                    "Pact of the Forbidden",
+                    "Grants massive Ability Damage but drains your soul.",
+                    fullSetBonusLore(type.setType()),
+                    ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "MYTHIC",
+                    "BOOTS",
+                    Map.of(Enchantment.PROTECTION, 10, Enchantment.UNBREAKING, 5)
+            );
+
+            // --- ROOKIE SAMURAI SET ---
+            case ROOKIE_SAMURAI_KABUTO -> armor(
+                    Material.CHAINMAIL_HELMET,
+                    ChatColor.GREEN + "Rookie Samurai Kabuto",
+                    "ROOKIE_SAMURAI_KABUTO",
+                    List.of(SB_DEFENSE + "10", SB_HEALTH + "15", SB_HEAL_SPEED + "1", SB_MANA + "10"),
+                    "Bushido Spirit",
+                    "Increases Newbie Katana damage and healing.",
+                    fullSetBonusLore(type.setType()),
+                    ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON",
+                    "HELMET",
+                    Map.of(Enchantment.PROTECTION, 2)
+            );
+            case ROOKIE_SAMURAI_DO -> armor(
+                    Material.CHAINMAIL_CHESTPLATE,
+                    ChatColor.GREEN + "Rookie Samurai Do",
+                    "ROOKIE_SAMURAI_DO",
+                    List.of(SB_DEFENSE + "15", SB_HEALTH + "25", SB_HEAL_SPEED + "1", SB_MANA + "15"),
+                    "Bushido Spirit",
+                    "Increases Newbie Katana damage and healing.",
+                    fullSetBonusLore(type.setType()),
+                    ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON",
+                    "CHESTPLATE",
+                    Map.of(Enchantment.PROTECTION, 2)
+            );
+            case ROOKIE_SAMURAI_KOTE -> armor(
+                    Material.CHAINMAIL_LEGGINGS,
+                    ChatColor.GREEN + "Rookie Samurai Kote",
+                    "ROOKIE_SAMURAI_KOTE",
+                    List.of(SB_DEFENSE + "12", SB_HEALTH + "20", SB_HEAL_SPEED + "1", SB_MANA + "10"),
+                    "Bushido Spirit",
+                    "Increases Newbie Katana damage and healing.",
+                    fullSetBonusLore(type.setType()),
+                    ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON",
+                    "LEGGINGS",
+                    Map.of(Enchantment.PROTECTION, 2)
+            );
+            case ROOKIE_SAMURAI_SUNEATE -> armor(
+                    Material.CHAINMAIL_BOOTS,
+                    ChatColor.GREEN + "Rookie Samurai Suneate",
+                    "ROOKIE_SAMURAI_SUNEATE",
+                    List.of(SB_DEFENSE + "8", SB_HEALTH + "10", SB_HEAL_SPEED + "1", SB_MANA + "5"),
+                    "Bushido Spirit",
+                    "Increases Newbie Katana damage and healing.",
+                    fullSetBonusLore(type.setType()),
+                    ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON",
+                    "BOOTS",
+                    Map.of(Enchantment.PROTECTION, 2)
+            );
         };
+    }
+
+    private ItemStack createWardensCleaver() {
+        List<String> lore = new ArrayList<>();
+        lore.add(SB_DAMAGE + "30");
+        lore.add(SB_STRENGTH + "12");
+        lore.add("");
+        lore.add(ChatColor.GOLD + "Passive: Cleave");
+        lore.add(ChatColor.GRAY + "Hits up to 2 nearby enemies for 50% damage.");
+        lore.add("");
+        lore.add(ChatColor.GOLD + "Passive: Armor Break");
+        lore.add(ChatColor.GRAY + "15% chance to reduce enemy armor by 10% for 5s.");
+        lore.add("");
+        lore.add(ChatColor.GOLD + "Passive: Bloodthirst");
+        lore.add(ChatColor.GRAY + "Restore " + ChatColor.GREEN + "2 Health" + ChatColor.GRAY + " per hit.");
+        lore.add("");
+        lore.add(ChatColor.DARK_GRAY + "\"A relic of the spawn's first protector.");
+        lore.add(ChatColor.DARK_GRAY + "One swing and you feel its wrath.\"");
+        lore.add("");
+        lore.add(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC SWORD");
+
+        ItemStack item = build(
+                Material.IRON_SWORD,
+                ChatColor.RED + "Warden's Cleaver",
+                "WARDENS_CLEAVER",
+                lore,
+                Map.of(),
+                true
+        );
+        return applyCosmeticGlint(item);
     }
 
     public ItemStack createCraftingItem(RaijinCraftingItemType type) {
@@ -1310,6 +1825,35 @@ public final class CustomItemService {
                     ChatColor.GOLD + "Raijin Core",
                     "RAIJIN_CORE",
                     ChatColor.GRAY + "The divine core required for Flying Raijin.",
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY CRAFTING MATERIAL"
+            );
+            case SUMMONING_EYE -> material(
+                    Material.PLAYER_HEAD,
+                    ChatColor.LIGHT_PURPLE + "Summoning Eye",
+                    "SUMMONING_EYE",
+                    ChatColor.GRAY + "Used at a Dragon Ascension altar point.\n"
+                            + ChatColor.GRAY + "Place one at each marked pedestal to begin the ritual.",
+                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC SUMMONING ITEM"
+            );
+            case ASCENSION_SHARD -> material(
+                    Material.END_CRYSTAL,
+                    ChatColor.LIGHT_PURPLE + "Ascension Shard",
+                    "ASCENSION_SHARD",
+                    ChatColor.GRAY + "A crystallized sliver shed during a dragon ascension.",
+                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC DRAGON MATERIAL"
+            );
+            case DRAGON_HEART -> material(
+                    Material.NETHER_STAR,
+                    ChatColor.RED + "Dragon Heart",
+                    "DRAGON_HEART",
+                    ChatColor.GRAY + "A pulsing core torn from the strongest dragons of the End.",
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY DRAGON MATERIAL"
+            );
+            case DRAGONS_SPINE -> material(
+                    Material.BONE,
+                    ChatColor.GOLD + "Dragon's Spine",
+                    "DRAGONS_SPINE",
+                    ChatColor.GRAY + "Still warm from the dragon's fall.",
                     ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY CRAFTING MATERIAL"
             );
             case DRAGON_SCALE -> material(
@@ -1355,11 +1899,33 @@ public final class CustomItemService {
                     ChatColor.GRAY + "Can be used to craft " + ChatColor.WHITE + "Guardian Armor" + ChatColor.GRAY + ".",
                     ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC CRAFTING MATERIAL"
             );
+            case GOD_POTION -> material(
+                    Material.DRAGON_BREATH,
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "God Potion",
+                    "GOD_POTION",
+                    ChatColor.GRAY + "A legendary concoction that grants\n" +
+                    ChatColor.GRAY + "immense power for " + ChatColor.YELLOW + "24 hours" + ChatColor.GRAY + ".\n\n" +
+                    ChatColor.WHITE + "\u272a " + ChatColor.RED + "Strength VII\n" +
+                    ChatColor.WHITE + "\u272a " + ChatColor.AQUA + "Speed V\n" +
+                    ChatColor.WHITE + "\u272a " + ChatColor.GREEN + "Jump Boost IV\n" +
+                    ChatColor.WHITE + "\u272a " + ChatColor.BLUE + "Resistance III\n" +
+                    ChatColor.WHITE + "\u272a " + ChatColor.GOLD + "Haste IV\n" +
+                    ChatColor.WHITE + "\u272a " + ChatColor.LIGHT_PURPLE + "Regeneration IV\n\n" +
+                    ChatColor.GRAY + "Effects persist through death!",
+                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY CONSUMABLE"
+            );
         };
     }
 
     public ItemStack createEndMinesMaterial(EndMinesMaterialType type) {
         return switch (type) {
+            case KUNZITE -> material(
+                    Material.PINK_DYE,
+                    ChatColor.LIGHT_PURPLE + "Kunzite",
+                    "KUNZITE",
+                    ChatColor.GRAY + "A luminous pink crystal harvested from the End Hub.",
+                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC CRAFTING MATERIAL"
+            );
             case ENDSTONE_SHARD -> material(
                     Material.END_STONE,
                     ChatColor.YELLOW + "Endstone Shard",
@@ -1408,49 +1974,48 @@ public final class CustomItemService {
     public ItemStack createMiningItem(MiningItemType type) {
         return switch (type) {
             case IRONCREST_DRILL -> createDrill("IRONCREST_DRILL", "Ironcrest Drill");
-            case MITHRIL_DRILL -> createDrill("MITHRIL_DRILL", "Mithril Drill");
             case TITANIUM_DRILL -> createDrill("TITANIUM_DRILL", "Titanium Drill");
             case GEMSTONE_DRILL -> createDrill("GEMSTONE_DRILL", "Gemstone Drill");
             case MITHRIL_ENGINE -> material(
                     Material.PISTON,
                     ChatColor.BLUE + "Mithril Engine",
                     "MITHRIL_ENGINE",
-                    ChatColor.GRAY + "Increases drill mining speed by " + ChatColor.GREEN + "+50" + ChatColor.GRAY + ".",
+                    drillEngineDescription("MITHRIL_ENGINE"),
                     ChatColor.BLUE + "" + ChatColor.BOLD + "RARE DRILL PART"
             );
             case TITANIUM_ENGINE -> material(
                     Material.STICKY_PISTON,
                     ChatColor.DARK_PURPLE + "Titanium Engine",
                     "TITANIUM_ENGINE",
-                    ChatColor.GRAY + "Increases drill mining speed by " + ChatColor.GREEN + "+100" + ChatColor.GRAY + ".",
+                    drillEngineDescription("TITANIUM_ENGINE"),
                     ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC DRILL PART"
             );
             case GEMSTONE_ENGINE -> material(
                     Material.OBSERVER,
                     ChatColor.GOLD + "Gemstone Engine",
                     "GEMSTONE_ENGINE",
-                    ChatColor.GRAY + "Increases drill mining speed by " + ChatColor.GREEN + "+150" + ChatColor.GRAY + ".",
+                    drillEngineDescription("GEMSTONE_ENGINE"),
                     ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY DRILL PART"
             );
             case DIVAN_ENGINE -> material(
                     Material.NETHER_STAR,
                     ChatColor.LIGHT_PURPLE + "Divan Engine",
                     "DIVAN_ENGINE",
-                    ChatColor.GRAY + "Increases drill mining speed by " + ChatColor.GREEN + "+200" + ChatColor.GRAY + ".",
+                    drillEngineDescription("DIVAN_ENGINE"),
                     ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "MYTHIC DRILL PART"
             );
             case MEDIUM_FUEL_TANK -> material(
                     Material.BUCKET,
                     ChatColor.BLUE + "Medium Fuel Tank",
                     "MEDIUM_FUEL_TANK",
-                    ChatColor.GRAY + "Increases drill fuel capacity to " + ChatColor.YELLOW + "50,000" + ChatColor.GRAY + ".",
+                    drillTankDescription("MEDIUM_FUEL_TANK"),
                     ChatColor.BLUE + "" + ChatColor.BOLD + "RARE DRILL PART"
             );
             case LARGE_FUEL_TANK -> material(
                     Material.MINECART,
                     ChatColor.DARK_PURPLE + "Large Fuel Tank",
                     "LARGE_FUEL_TANK",
-                    ChatColor.GRAY + "Increases drill fuel capacity to " + ChatColor.YELLOW + "100,000" + ChatColor.GRAY + ".",
+                    drillTankDescription("LARGE_FUEL_TANK"),
                     ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC DRILL PART"
             );
             case PROSPECTOR_COMPASS -> material(
@@ -1502,12 +2067,89 @@ public final class CustomItemService {
                     ChatColor.GRAY + "A bulk storage of crude oil. Grants " + ChatColor.YELLOW + "10,000" + ChatColor.GRAY + " fuel.",
                     ChatColor.BLUE + "" + ChatColor.BOLD + "RARE DRILL FUEL"
             );
+            case SAPPHIRE -> material(
+                    Material.BLUE_DYE,
+                    ChatColor.AQUA + "Sapphire",
+                    "SAPPHIRE",
+                    ChatColor.GRAY + "A beautiful blue gemstone found deep underground.",
+                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE GEMSTONE"
+            );
+            case ENCHANTED_SAPPHIRE -> material(
+                    Material.BLUE_DYE,
+                    ChatColor.DARK_PURPLE + "Enchanted Sapphire",
+                    "ENCHANTED_SAPPHIRE",
+                    ChatColor.GRAY + "A highly compressed, magical sapphire.",
+                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC GEMSTONE"
+            );
+            case TITANIUM -> material(
+                    Material.PLAYER_HEAD,
+                    ChatColor.WHITE + "Titanium",
+                    "TITANIUM",
+                    ChatColor.GRAY + "A lightweight yet durable metal found in the Minehub.",
+                    ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON MATERIAL"
+            );
+            case ENCHANTED_TITANIUM -> material(
+                    Material.PLAYER_HEAD,
+                    ChatColor.AQUA + "Refined Titanium",
+                    "ENCHANTED_TITANIUM",
+                    ChatColor.GRAY + "A highly compressed, refined titanium ingot.",
+                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE MATERIAL"
+            );
+            case TITANIUM_BLOCK -> material(
+                    Material.IRON_BLOCK,
+                    ChatColor.WHITE + "Titanium Block",
+                    "TITANIUM_BLOCK",
+                    ChatColor.GRAY + "A solid block of forged titanium.",
+                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE MATERIAL"
+            );
+            case ENCHANTED_TITANIUM_BLOCK -> material(
+                    Material.DIAMOND_BLOCK,
+                    ChatColor.AQUA + "Refined Titanium Block",
+                    "ENCHANTED_TITANIUM_BLOCK",
+                    ChatColor.GRAY + "A solid block of refined titanium.",
+                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC MATERIAL"
+            );
+            case ENCHANTED_REDSTONE -> material(
+                    Material.REDSTONE,
+                    ChatColor.GREEN + "Enchanted Redstone",
+                    "ENCHANTED_REDSTONE",
+                    ChatColor.GRAY + "A highly compressed, magical redstone dust.",
+                    ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON MATERIAL"
+            );
+            case ENCHANTED_REDSTONE_BLOCK -> material(
+                    Material.REDSTONE_BLOCK,
+                    ChatColor.BLUE + "Enchanted Redstone Block",
+                    "ENCHANTED_REDSTONE_BLOCK",
+                    ChatColor.GRAY + "A solid block of enchanted redstone.",
+                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE MATERIAL"
+            );
+            case ENCHANTED_COBBLESTONE -> material(
+                    Material.COBBLESTONE,
+                    ChatColor.GREEN + "Enchanted Cobblestone",
+                    "ENCHANTED_COBBLESTONE",
+                    ChatColor.GRAY + "A highly compressed, magical cobblestone.",
+                    ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON MATERIAL"
+            );
         };
+    }
+
+    private ItemStack stackAmount(ItemStack stack, int amount) {
+        if (stack == null || stack.getType().isAir()) {
+            return stack;
+        }
+        ItemStack copy = stack.clone();
+        copy.setAmount(Math.max(1, amount));
+        return copy;
     }
 
     private ItemStack createDrill(String id, String fallbackName) {
         // Build a SkyBlock-style Drill with fuel PDC and lore.
-        ItemStack item = new ItemStack(Material.IRON_PICKAXE);
+        Material material = switch (id) {
+            case "TITANIUM_DRILL" -> Material.DIAMOND_PICKAXE;
+            case "GEMSTONE_DRILL" -> Material.NETHERITE_PICKAXE;
+            default -> Material.IRON_PICKAXE;
+        };
+        ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) {
             return item;
@@ -1524,18 +2166,13 @@ public final class CustomItemService {
         pdc.set(drillFuelMaxKey, PersistentDataType.INTEGER, maxFuel);
         pdc.set(drillFuelKey, PersistentDataType.INTEGER, maxFuel);
 
-        // Set custom model data if defined
-        Integer modelData = modelDataOverrides.get(id.toLowerCase(Locale.ROOT));
-        if (modelData != null) {
-            meta.setCustomModelData(modelData);
-        }
-
         updateDrillLore(meta);
         ItemRarity rarity = rarityFromLore(meta.getLore(), ItemRarity.RARE);
         meta.setDisplayName(styledName(resolveDisplayName(id, fallbackName), rarity, true));
+        meta.setUnbreakable(true);
 
         // Hide attributes to keep lore clean
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_UNBREAKABLE);
         item.setItemMeta(meta);
         return item;
     }
@@ -1617,6 +2254,14 @@ public final class CustomItemService {
         };
     }
 
+    public static CustomWeaponType getCustomWeaponType(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return null;
+        ItemMeta meta = item.getItemMeta();
+        NamespacedKey key = new NamespacedKey(org.bukkit.Bukkit.getPluginManager().getPlugin("Grivience"), "item_id");
+        String id = meta.getPersistentDataContainer().get(key, org.bukkit.persistence.PersistentDataType.STRING);
+        return CustomWeaponType.parse(id);
+    }
+
     public String itemId(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {
             return null;
@@ -1632,6 +2277,25 @@ public final class CustomItemService {
         ItemMeta meta = item.getItemMeta();
         String reforgeId = meta.getPersistentDataContainer().get(reforgeIdKey, PersistentDataType.STRING);
         return ReforgeType.parse(reforgeId);
+    }
+
+    public boolean isReforgable(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return false;
+        }
+        // If it has a custom weapon ID, it's reforgable.
+        if (CustomWeaponType.parse(itemId(item)) != null) {
+            return true;
+        }
+        // If it's a vanilla weapon, it's reforgable.
+        return isVanillaWeapon(item);
+    }
+
+    private boolean isVanillaWeapon(ItemStack item) {
+        Material type = item.getType();
+        String name = type.name();
+        return name.endsWith("_SWORD") || name.endsWith("_AXE") || name.endsWith("_BOW") 
+                || name.equals("CROSSBOW") || name.equals("TRIDENT");
     }
 
     public boolean isCustomDungeonWeapon(ItemStack item) {
@@ -1677,7 +2341,7 @@ public final class CustomItemService {
     }
 
     public ItemStack syncWeaponEnchantLore(ItemStack weapon) {
-        if (!isCustomDungeonWeapon(weapon) || !weapon.hasItemMeta()) {
+        if (!isReforgable(weapon) || !weapon.hasItemMeta()) {
             return weapon;
         }
         ItemStack updated = weapon.clone();
@@ -1731,6 +2395,11 @@ public final class CustomItemService {
     }
 
     public ItemStack createItemByKey(String key) {
+        AccessoryType accessoryType = AccessoryType.parse(key);
+        if (accessoryType != null) {
+            return createAccessory(accessoryType);
+        }
+
         CustomWeaponType weaponType = CustomWeaponType.parse(key);
         if (weaponType != null) {
             return createWeapon(weaponType);
@@ -1764,6 +2433,11 @@ public final class CustomItemService {
         MiningItemType mining = MiningItemType.parse(key);
         if (mining != null) {
             return createMiningItem(mining);
+        }
+
+        PersonalCompactorType compactor = PersonalCompactorType.parse(key);
+        if (compactor != null) {
+            return createPersonalCompactor(compactor);
         }
 
         GrapplingHookType hook = GrapplingHookType.parse(key);
@@ -1873,8 +2547,74 @@ public final class CustomItemService {
         );
     }
 
+    public ItemStack createAccessory(AccessoryType type) {
+        if (type == null) {
+            return null;
+        }
+
+        List<String> lore = new ArrayList<>();
+        appendAccessoryStat(lore, "Health", type.health(), ChatColor.RED, false);
+        appendAccessoryStat(lore, "Defense", type.defense(), ChatColor.GREEN, false);
+        appendAccessoryStat(lore, "Strength", type.strength(), ChatColor.RED, false);
+        appendAccessoryStat(lore, "Crit Chance", type.critChance(), ChatColor.BLUE, true);
+        appendAccessoryStat(lore, "Crit Damage", type.critDamage(), ChatColor.BLUE, true);
+        appendAccessoryStat(lore, "Intelligence", type.intelligence(), ChatColor.AQUA, false);
+        appendAccessoryStat(lore, "Farming Fortune", type.farmingFortune(), ChatColor.GOLD, false);
+
+        lore.add("");
+        int basePower = io.papermc.Grivience.accessory.AccessoryPower.calculatePower(type.rarity(), io.papermc.Grivience.accessory.AccessoryEnrichment.NONE);
+        lore.add(ChatColor.GRAY + "Magical Power: " + ChatColor.AQUA + basePower);
+        lore.add("");
+        lore.add(ChatColor.DARK_GRAY + "Category: " + ChatColor.GRAY + type.category().displayName());
+        lore.add(ChatColor.DARK_GRAY + "Family: " + ChatColor.GRAY + capitalize(type.family()));
+        lore.add(ChatColor.GRAY + type.flavor());
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "Unique Accessory: " + ChatColor.GRAY + "Only the highest tier");
+        lore.add(ChatColor.GRAY + "of this family grants bonuses.");
+        lore.add("");
+        lore.add(type.rarity().color() + "" + ChatColor.BOLD + type.rarity().name() + " ACCESSORY");
+
+        return build(
+                type.material(),
+                type.displayName(),
+                type.id(),
+                lore,
+                Map.of(),
+                false,
+                false
+        );
+    }
+
+    private void appendAccessoryStat(List<String> lore, String label, double value, ChatColor valueColor, boolean percent) {
+        int rounded = (int) Math.round(value);
+        if (rounded == 0) {
+            return;
+        }
+        String suffix = percent ? "%" : "";
+        lore.add(ChatColor.GRAY + label + ": " + valueColor + "+" + rounded + suffix);
+    }
+
+    private String capitalize(String value) {
+        if (value == null || value.isBlank()) {
+            return "Unknown";
+        }
+        String normalized = value.replace('_', ' ').replace('-', ' ').toLowerCase(Locale.ROOT);
+        String[] words = normalized.split("\\s+");
+        List<String> parts = new ArrayList<>(words.length);
+        for (String word : words) {
+            if (word.isBlank()) {
+                continue;
+            }
+            parts.add(Character.toUpperCase(word.charAt(0)) + word.substring(1));
+        }
+        return String.join(" ", parts);
+    }
+
     public List<String> allItemKeys() {
         List<String> keys = new ArrayList<>();
+        for (AccessoryType type : AccessoryType.values()) {
+            keys.add(type.id().toLowerCase(Locale.ROOT));
+        }
         for (CustomWeaponType type : CustomWeaponType.values()) {
             keys.add(type.name().toLowerCase());
         }
@@ -1896,6 +2636,9 @@ public final class CustomItemService {
         for (MiningItemType type : MiningItemType.values()) {
             keys.add(type.name().toLowerCase());
         }
+        for (PersonalCompactorType type : PersonalCompactorType.values()) {
+            keys.add(type.id().toLowerCase(Locale.ROOT));
+        }
         for (GrapplingHookType type : GrapplingHookType.values()) {
             keys.add(type.getId().toLowerCase());
         }
@@ -1915,6 +2658,30 @@ public final class CustomItemService {
                 type.id(),
                 "Compressed farm goods.\nUse in recipes or bazaar.",
                 rarity
+        );
+    }
+
+    public ItemStack createPersonalCompactor(PersonalCompactorType type) {
+        if (type == null) {
+            return null;
+        }
+        List<String> lore = new ArrayList<>();
+        String description = "Automatically compacts selected items in your inventory.\n"
+                + "Right-click to configure compacting slots.\n"
+                + "Slots: " + type.slots();
+        for (String line : description.split("\n")) {
+            lore.add(ChatColor.GRAY + line);
+        }
+        lore.add("");
+        lore.add(type.rarity() + " ITEM");
+        return build(
+                type.material(),
+                ChatColor.GOLD + type.displayName(),
+                type.id(),
+                lore,
+                Map.of(Enchantment.UNBREAKING, 1),
+                true,
+                true
         );
     }
 
@@ -1955,7 +2722,14 @@ public final class CustomItemService {
             }
         }
         
-        // 2. Ability
+        // 2. Enchants
+        List<String> enchantLines = enchantLoreLines(enchants);
+        if (!enchantLines.isEmpty()) {
+            lore.add("");
+            lore.addAll(enchantLines);
+        }
+
+        // 3. Ability
         if (abilityName != null && !abilityName.isEmpty()) {
             lore.add("");
             lore.add(ChatColor.GOLD + "Ability: " + abilityName + " " + ChatColor.YELLOW + ChatColor.BOLD + "RIGHT CLICK");
@@ -1972,17 +2746,66 @@ public final class CustomItemService {
             }
         }
 
-        // 3. Enchants
+        // 4. Rarity
+        lore.add("");
+        lore.add(rarity + " " + weaponType);
+
+        return build(material, name, id, lore, enchants, true);
+    }
+
+    private ItemStack weaponWithFlavor(
+            Material material,
+            String name,
+            String id,
+            List<String> stats,
+            String flavor,
+            String abilityName,
+            String abilityDesc,
+            int manaCost,
+            double cooldown,
+            String rarity,
+            String weaponType,
+            Map<Enchantment, Integer> enchants
+    ) {
+        List<String> lore = new ArrayList<>();
+
+        for (String stat : stats) {
+            if (stat != null && !stat.isEmpty()) {
+                lore.add(stat);
+            }
+        }
+
+        if (flavor != null && !flavor.isEmpty()) {
+            lore.add("");
+            for (String line : flavor.split("\n")) {
+                lore.add(ChatColor.GRAY + line);
+            }
+        }
+
         List<String> enchantLines = enchantLoreLines(enchants);
         if (!enchantLines.isEmpty()) {
             lore.add("");
             lore.addAll(enchantLines);
         }
 
-        // 4. Rarity
+        if (abilityName != null && !abilityName.isEmpty()) {
+            lore.add("");
+            lore.add(ChatColor.GOLD + "Ability: " + abilityName + " " + ChatColor.YELLOW + ChatColor.BOLD + "RIGHT CLICK");
+            if (abilityDesc != null && !abilityDesc.isEmpty()) {
+                for (String line : abilityDesc.split("\n")) {
+                    lore.add(ChatColor.GRAY + line);
+                }
+            }
+            if (manaCost > 0) {
+                lore.add(ChatColor.DARK_GRAY + "Mana Cost: " + ChatColor.AQUA + manaCost);
+            }
+            if (cooldown > 0) {
+                lore.add(ChatColor.DARK_GRAY + "Cooldown: " + ChatColor.GREEN + cooldown + "s");
+            }
+        }
+
         lore.add("");
         lore.add(rarity + " " + weaponType);
-
         return build(material, name, id, lore, enchants, true);
     }
 
@@ -1995,17 +2818,18 @@ public final class CustomItemService {
             lore.add("");
         }
         lore.add(rarity);
-        
-        // Add enchantment glint for all enchanted items
-        Map<Enchantment, Integer> enchants = Map.of();
-        boolean hideEnchants = false;
-        
-        if (id.startsWith("ENCHANTED_") || id.contains("_ESSENCE") || id.contains("_SIGIL") || id.contains("_CORE")) {
-            enchants = Map.of(Enchantment.UNBREAKING, 1);
-            hideEnchants = true;
+
+        String normalizedId = id == null ? "" : id.toUpperCase(Locale.ROOT);
+        boolean enchantedMaterial = normalizedId.startsWith("ENCHANTED_")
+                || normalizedId.contains("_ESSENCE")
+                || normalizedId.contains("_SIGIL")
+                || normalizedId.contains("_CORE");
+
+        ItemStack built = build(material, name, id, lore, Map.of(), false, true);
+        if (enchantedMaterial) {
+            built = applyCosmeticGlint(built);
         }
-        
-        return build(material, name, id, lore, enchants, hideEnchants, true);
+        return built;
     }
 
     private ItemStack armor(
@@ -2101,6 +2925,46 @@ public final class CustomItemService {
         return item;
     }
 
+    private ItemStack dragonSlayerArmor(
+            Material material,
+            String name,
+            String id,
+            List<String> stats,
+            String abilityName,
+            List<String> abilityDescription,
+            List<String> flavorLines,
+            String pieceType
+    ) {
+        List<String> lore = new ArrayList<>();
+        lore.addAll(stats);
+        lore.add("");
+        lore.add(ChatColor.GOLD + "Ability: " + abilityName);
+        lore.addAll(abilityDescription);
+        lore.add("");
+        lore.addAll(flavorLines);
+        lore.add("");
+        lore.add(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC " + pieceType);
+
+        ItemStack item = build(material, name, id, lore, Map.of(), true);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+
+        meta.setUnbreakable(true);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_UNBREAKABLE);
+        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "armor_set"), PersistentDataType.STRING, "dragon_slayer");
+        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "armor_piece"), PersistentDataType.STRING, pieceType);
+        item.setItemMeta(meta);
+
+        if (item.getItemMeta() instanceof LeatherArmorMeta leatherMeta) {
+            leatherMeta.setColor(Color.fromRGB(0x2B163B));
+            item.setItemMeta(leatherMeta);
+        }
+
+        return ArmorDurabilityUtil.ensureArmorUnbreakable(item);
+    }
+
     private ItemStack build(
             Material material,
             String name,
@@ -2121,41 +2985,66 @@ public final class CustomItemService {
             boolean hideEnchants,
             boolean markAsMaterial
     ) {
+        // Ensure ID consistency for stacking (PDC keys are case-sensitive)
+        final String effectiveId = id.toUpperCase(Locale.ROOT);
+        
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        ItemRarity rarity = rarityFromLore(lore, ItemRarity.RARE);
-        boolean weapon = isWeaponId(id);
-        boolean reforgeable = !markAsMaterial && (weapon || CustomArmorType.parse(id) != null);
+        if (meta == null) {
+            return item;
+        }
 
-        meta.setDisplayName(styledName(resolveDisplayName(id, name), rarity, weapon));
+        ItemRarity rarity = rarityFromLore(lore, ItemRarity.RARE);
+        boolean weapon = isWeaponId(effectiveId);
+        boolean reforgeable = !markAsMaterial && (weapon || CustomArmorType.parse(effectiveId) != null);
+
+        meta.setDisplayName(styledName(resolveDisplayName(effectiveId, name), rarity, weapon));
         meta.setLore(styledLore(lore, reforgeable));
-        meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, id);
+        
+        // --- NBT / PDC DATA ---
+        meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, effectiveId);
         if (markAsMaterial) {
-            meta.getPersistentDataContainer().set(customMaterialKey, PersistentDataType.STRING, id);
+            meta.getPersistentDataContainer().set(customMaterialKey, PersistentDataType.STRING, effectiveId);
         }
-        if (hideEnchants) {
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+
+        // Always make custom items unbreakable and hide the tag for consistency
+        meta.setUnbreakable(true);
+
+        // --- FLAGS (Standardized for stacking) ---
+        meta.addItemFlags(
+                ItemFlag.HIDE_ATTRIBUTES,
+                ItemFlag.HIDE_ENCHANTS,
+                ItemFlag.HIDE_UNBREAKABLE,
+                ItemFlag.HIDE_DESTROYS,
+                ItemFlag.HIDE_PLACED_ON,
+                ItemFlag.HIDE_DYE,
+                ItemFlag.HIDE_ARMOR_TRIM
+        );
+
+        // --- TEXTURES (Heads) ---
+        if (material == Material.PLAYER_HEAD && meta instanceof SkullMeta skullMeta) {
+            if (effectiveId.equals("GUARDIAN_HELM")) {
+                applyTexture(skullMeta, "b27c74c3-fac5-43b5-85bc-2b153b901d66", "ewogICJ0aW1lc3RhbXAiIDogMTc1MDY0NjgyNDIxMSwKICAicHJvZmlsZUlkIiA6ICI1ODc5MjNlNDkxMzM0ZDMzYWE4ZjQ3ZWJkZTljOTc3MiIsCiAgInByb2ZpbGVOYW1lIiA6ICJFbGV2ZW5mb3VyMTAiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjMyYmZiOGQ0ZjgxYWViNzFkMzQxMDJlM2JiY2JjZTU4MTM3YmYzNGU0NjczYWI1ZjJlZWI0OWE1MjhiZTBhMiIKICAgIH0KICB9Cn0=", "R0LRglh9wCuk+3rJFwx+QkwC6Nto3b3fyro3fJYl79V5FiLlEKdTIGD5c6RTMoCK1r6mxAanOPBGju0pCiP2GRXXAaWmVW0FuolT9LT1kx7VcUj6GrVV+PYj6i3zF3Pu7L/iO/D3oYYXr+f7ai62H47Ansl0EYSZNOC+Slu/3pc/2/tPwIAj534KwdWoRWa6KxMlyf8poFN6leOS7XAQXOIlc7GfMpg0UlABAxGKbRwdJqP9lCnv0a6CYu3G7YF3B733vx4FWvlmpTNzGmKcUYAsId1jGnzYflviCkPHrfICmWrutAK/5HrrM5bKMPVMY/diIcHnPbhPWnpdnECur9iWGFyM5sPPOALSno5TRF0BntrjVCcWsgEdJgYtZoqLsj64mJcTJn2S7mSlVFcGgeNTyqPiFvS6pahS+VXL4mNtJ/wGK4Vlms/0SJNcJmkHQv4HX1SFiHxbgq2xz73z+yCysiwHLS6KMRnfFuu/9J9wDxzmlncnJWP77VassjlA6+a2CxrWjUHoEjuhl+lbSpOmD1xN9Z3orYPWAoH5+F2Lj0+bRVNuf+CBjWjkjUOeQ/3aM0kW8f8pxU2+4PS36AGQcmpoFjtQaE3psRXPWC1zxfayrqlV7qpnmnGJbu+dmNolRHGnLHWvVqYr3oZj30PgTiyYizWuCz3tmZgH87A=");
+            } else if (effectiveId.equals("GUARDIAN_FRAGMENT")) {
+                applyTexture(skullMeta, "58c6fb76-db3c-7718-5810-2e14e6dcc7f2", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNThjNmZiNzZkYjNjNzcxODU4MTAyZTE0ZTZkY2M3ZjI3OTFmNTdlYjkzYzBkNGNiZDljOGExZDlkY2JlMTAzMCJ9fX0=", null);
+            } else if (effectiveId.equals("SUMMONING_EYE")) {
+                applyTexture(skullMeta, SUMMONING_EYE_TEXTURE_UUID, SUMMONING_EYE_TEXTURE, null);
+            } else if (effectiveId.equals("DRAGON_SLAYER_HELMET")) {
+                applyTexture(skullMeta, DRAGON_SLAYER_HELMET_TEXTURE_UUID, DRAGON_SLAYER_HELMET_TEXTURE, null);
+            } else if (effectiveId.equals("TITANIUM")) {
+                applyTexture(skullMeta, "324d23f0-bb3e-750a-e4fe-10a2a8490e8a", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzI0ZDIzZjBiYjNlNzUwYWU0ZmUxMGEyYTg0OTBlOGEwMjg4MDZiOGE5NTRjNDU3YmUzNzlkMDJiN2Q0NjUwMiJ9fX0=", null);
+            } else if (effectiveId.equals("ENCHANTED_TITANIUM")) {
+                applyTexture(skullMeta, "704baabf-7ef8-5482-5aae-1992e4a75ff7", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNzA0YmFhYmY3ZWY4NTQ4MjVhYWUxOTkyZTRhNzVmZjcyODZlZDE2NTRkOGYxYTA4OTUyZTdiODY2OWNmNjkyZCJ9fX0=", null);
+            }
         }
+
         item.setItemMeta(meta);
 
-        Integer model = modelDataOverrides.get(id.toLowerCase(Locale.ROOT));
-        if (model != null) {
-            meta.setCustomModelData(model);
-            item.setItemMeta(meta);
-        }
-
-        for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
-            item.addUnsafeEnchantment(entry.getKey(), entry.getValue());
-        }
-
-        // Apply custom head textures globally
-        if (material == Material.PLAYER_HEAD && item.getItemMeta() instanceof SkullMeta skullMeta) {
-            if (id.equals("GUARDIAN_HELM")) {
-                applyTexture(skullMeta, "b27c74c3-fac5-43b5-85bc-2b153b901d66", "ewogICJ0aW1lc3RhbXAiIDogMTc1MDY0NjgyNDIxMSwKICAicHJvZmlsZUlkIiA6ICI1ODc5MjNlNDkxMzM0ZDMzYWE4ZjQ3ZWJkZTljOTc3MiIsCiAgInByb2ZpbGVOYW1lIiA6ICJFbGV2ZW5mb3VyMTAiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjMyYmZiOGQ0ZjgxYWViNzFkMzQxMDJlM2JiY2JjZTU4MTM3YmYzNGU0NjczYWI1ZjJlZWI0OWE1MjhiZTBhMiIKICAgIH0KICB9Cn0=", "R0LRglh9wCuk+3rJFwx+QkwC6Nto3b3fyro3fJYl79V5FiLlEKdTIGD5c6RTMoCK1r6mxAanOPBGju0pCiP2GRXXAaWmVW0FuolT9LT1kx7VcUj6GrVV+PYj6i3zF3Pu7L/iO/D3oYYXr+f7ai62H47Ansl0EYSZNOC+Slu/3pc/2/tPwIAj534KwdWoRWa6KxMlyf8poFN6leOS7XAQXOIlc7GfMpg0UlABAxGKbRwdJqP9lCnv0a6CYu3G7YF3B733vx4FWvlmpTNzGmKcUYAsId1jGnzYflviCkPHrfICmWrutAK/5HrrM5bKMPVMY/diIcHnPbhPWnpdnECur9iWGFyM5sPPOALSno5TRF0BntrjVCcWsgEdJgYtZoqLsj64mJcTJn2S7mSlVFcGgeNTyqPiFvS6pahS+VXL4mNtJ/wGK4Vlms/0SJNcJmkHQv4HX1SFiHxbgq2xz73z+yCysiwHLS6KMRnfFuu/9J9wDxzmlncnJWP77VassjlA6+a2CxrWjUHoEjuhl+lbSpOmD1xN9Z3orYPWAoH5+F2Lj0+bRVNuf+CBjWjkjUOeQ/3aM0kW8f8pxU2+4PS36AGQcmpoFjtQaE3psRXPWC1zxfayrqlV7qpnmnGJbu+dmNolRHGnLHWvVqYr3oZj30PgTiyYizWuCz3tmZgH87A=");
-            } else if (id.equals("GUARDIAN_FRAGMENT")) {
-                applyTexture(skullMeta, "58c6fb76-db3c-7718-5810-2e14e6dcc7f2", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNThjNmZiNzZkYjNjNzcxODU4MTAyZTE0ZTZkY2M3ZjI3OTFmNTdlYjkzYzBkNGNiZDljOGExZDlkY2JlMTAzMCJ9fX0=", null);
+        // --- ENCHANTS ---
+        if (enchants != null) {
+            for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
+                item.addUnsafeEnchantment(entry.getKey(), entry.getValue());
             }
-            item.setItemMeta(skullMeta);
         }
 
         return item;
@@ -2172,15 +3061,60 @@ public final class CustomItemService {
     }
 
     private String resolveDisplayName(String id, String fallback) {
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("resource-pack.name-map");
-        if (section == null) {
-            return fallback;
+        return fallback;
+    }
+
+    public int getDungeonStars(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return 0;
+        return item.getItemMeta().getPersistentDataContainer().getOrDefault(dungeonStarsKey, PersistentDataType.INTEGER, 0);
+    }
+
+    public ItemStack setDungeonStars(ItemStack item, int stars) {
+        if (item == null || !item.hasItemMeta()) return item;
+        ItemStack result = item.clone();
+        ItemMeta meta = result.getItemMeta();
+        meta.getPersistentDataContainer().set(dungeonStarsKey, PersistentDataType.INTEGER, Math.clamp(stars, 0, 5));
+        result.setItemMeta(meta);
+        return updateItemLore(result);
+    }
+
+    public ItemStack updateItemLore(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return item;
+        
+        // This is a generic lore updater that should be called when stars or other NBT changes
+        // For now, let's just handle the name update with stars
+        ItemMeta meta = item.getItemMeta();
+        int stars = getDungeonStars(item);
+        
+        String baseName = meta.getPersistentDataContainer().get(reforgeBaseNameKey, PersistentDataType.STRING);
+        if (baseName == null) baseName = strip(meta.getDisplayName());
+        
+        ItemRarity rarity = rarityOf(item);
+        ReforgeType reforge = reforgeOf(item);
+        boolean isDungeonized = isDungeonized(item);
+        
+        String displayName = (reforge != null ? reforge.displayName() + " " : "") + baseName;
+        if (stars > 0) {
+            displayName += " " + ChatColor.GOLD + "✪".repeat(stars);
         }
-        String mapped = section.getString(id.toLowerCase(Locale.ROOT));
-        if (mapped == null || mapped.isBlank()) {
-            return fallback;
+        
+        meta.setDisplayName((rarity != null ? rarity.color() : ChatColor.WHITE) + displayName);
+        
+        // Update Lore - we need to find the rarity line and modify it
+        List<String> lore = meta.getLore();
+        if (lore != null && rarity != null) {
+            for (int i = 0; i < lore.size(); i++) {
+                String line = lore.get(i);
+                if (line.contains(rarity.name()) && line.contains("ACCESSORY") == false) {
+                    String prefix = isDungeonized ? "DUNGEON " : "";
+                    lore.set(i, rarity.color() + "" + ChatColor.BOLD + prefix + rarity.name() + (line.contains("ITEM") ? " ITEM" : ""));
+                }
+            }
+            meta.setLore(lore);
         }
-        return ChatColor.translateAlternateColorCodes('&', mapped);
+
+        item.setItemMeta(meta);
+        return item;
     }
 
     private String styledName(String original, ItemRarity rarity, boolean weapon) {
@@ -2243,8 +3177,21 @@ public final class CustomItemService {
         if (name == null) {
             return null;
         }
-        String normalized = strip(name);
-        normalized = normalized.stripLeading();
+        String stripped = strip(name);
+        if (stripped.contains("_")) {
+            // Likely a raw Material name, format it
+            String[] parts = stripped.split("_");
+            StringBuilder formatted = new StringBuilder();
+            for (String part : parts) {
+                if (part.isEmpty()) continue;
+                formatted.append(Character.toUpperCase(part.charAt(0)))
+                         .append(part.substring(1).toLowerCase(Locale.ROOT))
+                         .append(" ");
+            }
+            return formatted.toString().trim();
+        }
+
+        String normalized = stripped.stripLeading();
         while (!normalized.isEmpty() && isStarSymbol(normalized.charAt(0))) {
             normalized = normalized.substring(1).stripLeading();
         }
@@ -2253,20 +3200,6 @@ public final class CustomItemService {
 
     private boolean isStarSymbol(char c) {
         return c == '✪' || c == '★' || c == '☆';
-    }
-
-    private void loadModelOverrides() {
-        modelDataOverrides.clear();
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("resource-pack.models");
-        if (section == null) {
-            return;
-        }
-        for (String key : section.getKeys(false)) {
-            int value = section.getInt(key, -1);
-            if (value > 0) {
-                modelDataOverrides.put(key.toLowerCase(Locale.ROOT), value);
-            }
-        }
     }
 
     private List<String> styledLore(List<String> lore, boolean weapon) {
@@ -2329,6 +3262,8 @@ public final class CustomItemService {
             if (plain.contains(rarity.name())) {
                 // Heuristic: rarity lines often also contain keywords like "WEAPON", "ARMOR", "MATERIAL", "ACCESSORY"
                 if (plain.contains("WEAPON") || plain.contains("ARMOR") || plain.contains("MATERIAL") ||
+                        plain.contains("ACCESSORY") || plain.contains("CHARM") || plain.contains("RING") ||
+                        plain.contains("TALISMAN") || plain.contains("ARTIFACT") || plain.contains("TRINKET") ||
                         plain.contains("SWORD") || plain.contains("BOW") || plain.contains("AXE") ||
                         plain.contains("PICKAXE") || plain.contains("DRILL") || plain.contains("SHOVEL") ||
                         plain.contains("HOE") || plain.contains("SHEARS") || plain.contains("FISHING") ||
@@ -2382,9 +3317,13 @@ public final class CustomItemService {
             case KAPPA_GUARDIAN -> ChatColor.BLUE + "Full Set Bonus: Hydraulic Pressure";
             case TENGU_MASTER -> ChatColor.GOLD + "Full Set Bonus: High Altitude";
             case SKELETON_SOLDIER -> ChatColor.WHITE + "Full Set Bonus: Undead Soul";
+            case DRAGON_SLAYER -> ChatColor.DARK_PURPLE + "Full Set Bonus: Dragon's Dominion";
+            case GHOUL_OVERSEER -> ChatColor.DARK_GREEN + "Full Set Bonus: Undead Command";
             case GILDED_HARVESTER -> ChatColor.GOLD + "Full Set Bonus: Bountiful Harvest";
             case DREADLORD -> ChatColor.DARK_GRAY + "Full Set Bonus: Dread Aura";
             case NECROMANCER -> ChatColor.DARK_GREEN + "Full Set Bonus: Undead Commander";
+            case SOULBOUND_MAGE -> ChatColor.DARK_PURPLE + "Full Set Bonus: Pact of the Forbidden";
+            case ROOKIE_SAMURAI -> ChatColor.GREEN + "Full Set Bonus: Bushido Spirit";
         };
     }
 
@@ -2516,6 +3455,45 @@ public final class CustomItemService {
         parts.add(color + sign + rounded + label);
     }
 
+    private ItemStack applyCosmeticGlint(ItemStack item) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta()) {
+            return item;
+        }
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        applyGlintOverride(meta, true);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private boolean applyGlintOverride(ItemMeta meta, boolean glint) {
+        if (meta == null) {
+            return false;
+        }
+
+        try {
+            Method method = ItemMeta.class.getMethod("setEnchantmentGlintOverride", Boolean.class);
+            method.invoke(meta, glint ? Boolean.TRUE : null);
+            return true;
+        } catch (NoSuchMethodException ignored) {
+            // fall through
+        } catch (Throwable ignored) {
+            return false;
+        }
+
+        try {
+            Method method = ItemMeta.class.getMethod("setEnchantmentGlintOverride", boolean.class);
+            method.invoke(meta, glint);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private List<String> abilityLore(String name, String action, List<String> description, int mana, int cooldown) {
         List<String> lines = new ArrayList<>();
         lines.add(ChatColor.GOLD + "Ability: " + name + " " + ChatColor.YELLOW + ChatColor.BOLD + action);
@@ -2545,23 +3523,23 @@ public final class CustomItemService {
     private void resetDropDefaults() {
         mobWeaponBaseChance = 0.012D;
         yokaiWeaponChances.clear();
-        yokaiWeaponChances.put(YokaiType.ONI_BRUTE, 0.020D);
-        yokaiWeaponChances.put(YokaiType.TENGU_SKIRMISHER, 0.022D);
-        yokaiWeaponChances.put(YokaiType.KAPPA_RAIDER, 0.018D);
-        yokaiWeaponChances.put(YokaiType.ONRYO_WRAITH, 0.016D);
-        yokaiWeaponChances.put(YokaiType.JOROGUMO_WEAVER, 0.016D);
-        yokaiWeaponChances.put(YokaiType.KITSUNE_TRICKSTER, 0.018D);
-        yokaiWeaponChances.put(YokaiType.GASHADOKURO_SENTINEL, 0.035D);
+        yokaiWeaponChances.put(MonsterType.ONI_BRUTE, 0.020D);
+        yokaiWeaponChances.put(MonsterType.TENGU_SKIRMISHER, 0.022D);
+        yokaiWeaponChances.put(MonsterType.KAPPA_RAIDER, 0.018D);
+        yokaiWeaponChances.put(MonsterType.ONRYO_WRAITH, 0.016D);
+        yokaiWeaponChances.put(MonsterType.JOROGUMO_WEAVER, 0.016D);
+        yokaiWeaponChances.put(MonsterType.KITSUNE_TRICKSTER, 0.018D);
+        yokaiWeaponChances.put(MonsterType.GASHADOKURO_SENTINEL, 0.035D);
 
         mobArmorBaseChance = 0.010D;
         yokaiArmorChances.clear();
-        yokaiArmorChances.put(YokaiType.ONI_BRUTE, 0.014D);
-        yokaiArmorChances.put(YokaiType.TENGU_SKIRMISHER, 0.011D);
-        yokaiArmorChances.put(YokaiType.KAPPA_RAIDER, 0.010D);
-        yokaiArmorChances.put(YokaiType.ONRYO_WRAITH, 0.010D);
-        yokaiArmorChances.put(YokaiType.JOROGUMO_WEAVER, 0.009D);
-        yokaiArmorChances.put(YokaiType.KITSUNE_TRICKSTER, 0.011D);
-        yokaiArmorChances.put(YokaiType.GASHADOKURO_SENTINEL, 0.022D);
+        yokaiArmorChances.put(MonsterType.ONI_BRUTE, 0.014D);
+        yokaiArmorChances.put(MonsterType.TENGU_SKIRMISHER, 0.011D);
+        yokaiArmorChances.put(MonsterType.KAPPA_RAIDER, 0.010D);
+        yokaiArmorChances.put(MonsterType.ONRYO_WRAITH, 0.010D);
+        yokaiArmorChances.put(MonsterType.JOROGUMO_WEAVER, 0.009D);
+        yokaiArmorChances.put(MonsterType.KITSUNE_TRICKSTER, 0.011D);
+        yokaiArmorChances.put(MonsterType.GASHADOKURO_SENTINEL, 0.022D);
 
         mobReforgeStoneChance = 0.018D;
 
@@ -2599,43 +3577,21 @@ public final class CustomItemService {
         var pdc = meta.getPersistentDataContainer();
 
         String drillId = pdc.get(itemIdKey, PersistentDataType.STRING);
+        if (drillId == null || !drillId.endsWith("_DRILL")) {
+            return;
+        }
         ItemRarity drillRarity = switch (drillId) {
-            case "MITHRIL_DRILL" -> ItemRarity.EPIC;
             case "TITANIUM_DRILL" -> ItemRarity.LEGENDARY;
             case "GEMSTONE_DRILL" -> ItemRarity.MYTHIC;
             default -> ItemRarity.RARE;
         };
-        int baseSpeed = switch (drillId) {
-            case "MITHRIL_DRILL" -> 600;
-            case "TITANIUM_DRILL" -> 800;
-            case "GEMSTONE_DRILL" -> 1000;
-            default -> 400;
-        };
-        int breakingPower = switch (drillId) {
-            case "MITHRIL_DRILL" -> 6;
-            case "TITANIUM_DRILL" -> 7;
-            case "GEMSTONE_DRILL" -> 8;
-            default -> 5;
-        };
-
         String engine = pdc.getOrDefault(drillEngineKey, PersistentDataType.STRING, "BASIC_ENGINE");
         String tank = pdc.getOrDefault(drillTankKey, PersistentDataType.STRING, "SMALL_TANK");
         int fuel = pdc.getOrDefault(drillFuelKey, PersistentDataType.INTEGER, 0);
 
-        int bonusSpeed = switch (engine) {
-            case "MITHRIL_ENGINE" -> 50;
-            case "TITANIUM_ENGINE" -> 100;
-            case "GEMSTONE_ENGINE" -> 150;
-            case "DIVAN_ENGINE" -> 200;
-            default -> 0;
-        };
-        
-        int maxFuel = switch (tank) {
-            case "MEDIUM_FUEL_TANK" -> 50000;
-            case "LARGE_FUEL_TANK" -> 100000;
-            default -> 20000;
-        };
-        
+        DrillStatProfile.Profile profile = DrillStatProfile.resolve(drillId, engine, tank);
+        int maxFuel = profile.maxFuel();
+
         // Ensure max fuel is updated in PDC if tank changed
         pdc.set(drillFuelMaxKey, PersistentDataType.INTEGER, maxFuel);
         if (fuel > maxFuel) {
@@ -2647,8 +3603,15 @@ public final class CustomItemService {
         }
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Mining Speed: " + ChatColor.GREEN + "+" + (baseSpeed + bonusSpeed));
-        lore.add(ChatColor.GRAY + "Breaking Power: " + ChatColor.AQUA + breakingPower);
+        lore.add(ChatColor.GRAY + "Mining Speed: " + ChatColor.GREEN + "+" + profile.miningSpeed());
+        lore.add(ChatColor.GRAY + "Breaking Power: " + ChatColor.AQUA + profile.breakingPower());
+        lore.add(ChatColor.GRAY + "Fuel Burn: " + ChatColor.YELLOW + profile.fuelCostPerBlock() + ChatColor.GRAY + "/block");
+        lore.add(ChatColor.GRAY + "Drill Burst: " + ChatColor.AQUA + "Haste " + roman(profile.abilityAmplifier() + 1)
+                + ChatColor.GRAY + " for " + ChatColor.AQUA + (profile.abilityDurationTicks() / 20) + "s");
+        lore.add(ChatColor.GRAY + "Burst Cooldown: " + ChatColor.AQUA + (profile.abilityCooldownMillis() / 1000L) + "s");
+        lore.add(ChatColor.GRAY + "Crystal Nodes: " + (profile.crystalNodeHitReduction() > 0
+                ? ChatColor.GREEN + "-" + profile.crystalNodeHitReduction() + ChatColor.GRAY + " hit(s)"
+                : ChatColor.GRAY + "Standard"));
         lore.add("");
         lore.add(ChatColor.GRAY + "Fuel: " + ChatColor.YELLOW + formatInt(fuel) + ChatColor.GRAY + "/" + ChatColor.YELLOW + formatInt(maxFuel));
         lore.add("");
@@ -2658,7 +3621,32 @@ public final class CustomItemService {
         lore.add("");
         lore.add(drillRarity.color() + "" + ChatColor.BOLD + drillRarity.name() + " DRILL");
 
+        meta.setUnbreakable(true);
+        if (meta instanceof org.bukkit.inventory.meta.Damageable damageable) {
+            if (damageable.getDamage() > 0) {
+                damageable.setDamage(0);
+            }
+        }
+        meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
         meta.setLore(styledLore(lore, false));
+    }
+
+    private String drillEngineDescription(String engineId) {
+        DrillStatProfile.EngineTuning tuning = DrillStatProfile.engineTuning(engineId);
+        List<String> lines = new ArrayList<>();
+        lines.add("Mining Speed +" + tuning.miningSpeedBonus());
+        lines.add("Fuel Burn -" + tuning.fuelReductionPerBlock() + " per block");
+        lines.add("Drill Burst cooldown -" + (tuning.abilityCooldownReductionMillis() / 1000L) + "s");
+        lines.add("Drill Burst duration +" + (tuning.abilityDurationBonusTicks() / 20) + "s");
+        if (tuning.abilityAmplifierBonus() > 0) {
+            lines.add("Drill Burst power +" + tuning.abilityAmplifierBonus() + " Haste tier");
+        }
+        return String.join("\n", lines);
+    }
+
+    private String drillTankDescription(String tankId) {
+        DrillStatProfile.TankTuning tuning = DrillStatProfile.tankTuning(tankId);
+        return "Fuel Capacity " + formatInt(tuning.maxFuel()) + "\nLonger runs before refueling.";
     }
 
     private String formatPartName(String id) {
@@ -2680,8 +3668,50 @@ public final class CustomItemService {
     public NamespacedKey getDrillTankKey() { return drillTankKey; }
     public NamespacedKey getRecipeDrillUpgradeKey() { return recipeDrillUpgradeKey; }
 
+    public boolean isWeapon(ItemStack item) {
+        if (item == null) return false;
+        String id = itemId(item);
+        return CustomWeaponType.parse(id) != null;
+    }
+
+    public boolean isArmor(ItemStack item) {
+        if (item == null) return false;
+        String id = itemId(item);
+        return CustomArmorType.parse(id) != null;
+    }
+
     public void setGrapplingHookManager(io.papermc.Grivience.item.GrapplingHookManager manager) {
         this.grapplingHookManager = manager;
+    }
+
+    public boolean isDungeonized(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        if (isNativeDungeonItem(item)) return true;
+        return item.getItemMeta().getPersistentDataContainer().has(dungeonizedKey, PersistentDataType.BYTE);
+    }
+
+    public boolean isNativeDungeonItem(ItemStack item) {
+        String id = itemId(item);
+        if (id == null) return false;
+        
+        // List of items that are dungeon-native and don't need dungeonizing
+        return id.startsWith("RONIN_") || 
+               id.startsWith("KAPPA_GUARDIAN_") ||
+               id.startsWith("TENGU_MASTER_") ||
+               id.startsWith("SKELETON_SOLDIER_") ||
+               id.startsWith("DREADLORD_") ||
+               id.startsWith("NECROMANCER_") ||
+               id.startsWith("SOULBOUND_") ||
+               id.equals("WARDENS_CLEAVER");
+    }
+
+    public ItemStack dungeonize(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return item;
+        ItemStack result = item.clone();
+        ItemMeta meta = result.getItemMeta();
+        meta.getPersistentDataContainer().set(dungeonizedKey, PersistentDataType.BYTE, (byte) 1);
+        result.setItemMeta(meta);
+        return updateItemLore(result);
     }
 
     private static String formatInt(int value) {

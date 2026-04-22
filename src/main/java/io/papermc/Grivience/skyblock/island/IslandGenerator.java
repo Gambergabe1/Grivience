@@ -2,6 +2,7 @@ package io.papermc.Grivience.skyblock.island;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.Bukkit;
@@ -14,6 +15,8 @@ public final class IslandGenerator {
         Location center = island.getCenter();
         int size = island.getSize();
         int halfSize = size / 2;
+
+        clearIslandEnvelope(center, halfSize + 8);
 
         if (generateFromSchematic(center)) {
             return;
@@ -40,6 +43,25 @@ public final class IslandGenerator {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Clears any pre-existing terrain where an island is about to be generated.
+     * This keeps island chunks void even if the world was ever loaded without the Skyblock generator.
+     */
+    private static void clearIslandEnvelope(Location center, int horizontalRadius) {
+        if (center == null || center.getWorld() == null) {
+            return;
+        }
+
+        World world = center.getWorld();
+        int minY = world.getMinHeight();
+        int maxY = world.getMaxHeight() - 1;
+        int radius = Math.max(1, horizontalRadius);
+
+        Location min = new Location(world, center.getBlockX() - radius, minY, center.getBlockZ() - radius);
+        Location max = new Location(world, center.getBlockX() + radius, maxY, center.getBlockZ() + radius);
+        WorldHelper.clearArea(min, max);
     }
 
     private static void generateBasePlatform(Location center, int halfSize) {

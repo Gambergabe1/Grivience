@@ -1,103 +1,59 @@
 # Enchanting System
 
-Last updated: 2026-03-08
+Last updated: 2026-03-13
 
 ## Overview
 
-Grivience provides a Skyblock-style enchanting stack with:
+Grivience provides a Skyblock-style enchanting stack with table/anvil GUI workflows and registry-driven custom enchant logic.
 
-- Enchantment Table GUI (`/enchant`, `/et`)
-- Anvil Combining GUI (`/anvil`, `/av`)
-- Registry-driven custom enchant definitions
-- Conflict handling
-- Ultimate enchant limit (one ultimate per item)
+Core mechanics:
+
+- Enchantment table GUI (`/enchant`)
+- Anvil combining GUI (`/anvil`)
+- Custom enchant registry and compatibility checks
+- Conflict enforcement and one-ultimate-per-item rule
+- XP level cost scaling and anvil book discount logic
 
 Primary sources:
 
+- `src/main/java/io/papermc/Grivience/enchantment/EnchantmentRegistry.java`
 - `src/main/java/io/papermc/Grivience/enchantment/EnchantmentManager.java`
 - `src/main/java/io/papermc/Grivience/enchantment/EnchantmentTableGui.java`
 - `src/main/java/io/papermc/Grivience/enchantment/SkyblockAnvilGui.java`
-- `src/main/java/io/papermc/Grivience/enchantment/EnchantmentRegistry.java`
-- `src/main/java/io/papermc/Grivience/enchantment/SkyblockEnchantStorage.java`
+- `src/main/resources/config.yml` (`enchant-table.*`)
+- `src/main/resources/plugin.yml` (`enchant`, `anvil`, `enchantinfo`, `enchantlist`)
 
 ## Player Flow
 
-### Enchantment Table
-
-1. Hold exactly one item in main hand.
-2. Run `/enchant` (or use an enchanting table interaction flow).
-3. Pick enchantment, then pick level.
-4. Pay XP levels.
-5. Item is updated with enchant data and lore.
-
-### Anvil
-
-1. Run `/anvil`.
-2. Put target item + ingredient (book/item).
-3. Preview result and XP level cost.
-4. Click output to apply.
-
-## Rules and Mechanics
-
-### Applicability
-
-Enchantments are category-checked (`SkyblockEnchantment.canEnchantItem`), including:
-
-- Weapon classes (sword/axe/bow)
-- Tool classes
-- Armor pieces
-- Universal/equipment categories
-
-### Conflict Rules
-
-- Conflicting enchantments cannot coexist.
-- Conflict check is performed before apply in table/anvil flows.
-
-### Ultimate Enchants
-
-- Only one ultimate enchant is allowed per item.
-- If an item already has a different ultimate, apply is blocked.
-
-### XP Cost Model
-
-- Enchantment table apply cost: `baseXpCost * selectedLevel` (from enchant definition).
-- Cost is paid from **player vanilla XP levels**.
-- Applying enchants records enchanting progression via `SkyblockLevelManager.recordEnchanting(...)`.
-
-### Anvil Discount
-
-- Combining with an enchanted book applies a **25% cost discount**.
-
-## Rarity / Type Tiers
-
-Defined in `EnchantmentType`:
-
-- Common
-- Uncommon
-- Rare
-- Epic
-- Legendary
-- Mythic
-- Special
-- Very Special
+1. Hold target item and run `/enchant`.
+2. Choose enchant and level from GUI.
+3. Pay vanilla XP level cost.
+4. Apply enchant; lore and PDC data are updated.
+5. Use `/anvil` to combine items/books with conflict + ultimate checks.
 
 ## Commands
-
-From `plugin.yml`:
 
 - `/enchant [page]` (aliases: `et`, `enchantmenttable`)
 - `/anvil` (alias: `av`)
 - `/enchantinfo <enchantment_id>` (alias: `ei`)
 - `/enchantlist [page]` (alias: `el`)
 
+Examples:
+
+- Player: `/enchant`
+- Player: `/anvil`
+- Lookup: `/enchantinfo sharpness`
+
 ## Permissions
 
-No separate custom permission node is declared for these player commands in `plugin.yml`.
-Use your server permission plugin policy as needed.
+No dedicated enchant command permission nodes are declared in `plugin.yml`.
+Access policy should be managed by server command/permission plugins if needed.
 
 ## Configuration Keys
 
-Config section: `enchant-table` in `src/main/resources/config.yml`:
+Main section: `enchant-table`
+
+Important keys:
 
 - `enchant-table.enabled`
 - `enchant-table.vanilla.base-cost`
@@ -107,46 +63,67 @@ Config section: `enchant-table` in `src/main/resources/config.yml`:
 - `enchant-table.eco.command-template`
 - `enchant-table.options.*`
 
-Implementation note:
+## Data Files
 
-- The active Skyblock enchant UI is primarily registry-driven from `EnchantmentRegistry`.
-- The `enchant-table` config still controls legacy/auxiliary option behavior via listener layer.
+Enchant state is item-bound, not file-bound:
 
-## Data Storage
+- Item Persistent Data Container keys: `sb_enchant_*`
+- Lore is rebuilt from stored enchant values
 
-Enchants are stored on items:
-
-- Vanilla enchant tags (when mapped)
-- Persistent Data Container keys with prefix: `sb_enchant_`
-- Lore lines are rebuilt from stored enchant levels
-
-No standalone enchant database file is required for normal operation.
+No standalone enchant runtime `.yml` database is required.
 
 ## Admin Setup
 
-1. Ensure commands exist in `plugin.yml`.
-2. Tune `enchant-table.*` config if using configured option paths.
-3. Reload with `/grivience reload`.
-4. Validate with:
+1. Verify commands in `plugin.yml`.
+2. Tune `enchant-table.*` values in `config.yml`.
+3. Reload: `/grivience reload`.
+4. Validate:
    - `/enchantlist`
    - `/enchantinfo <id>`
-   - Table/anvil GUI interaction tests
+   - table/anvil GUI apply flow
+
+## Balancing Notes
+
+Cost and rarity summary:
+
+| Item | Rule |
+| --- | --- |
+| Table apply cost | `baseXpCost * selectedLevel` |
+| Cost currency | Player vanilla XP levels |
+| Anvil enchanted-book combine | 25% cost discount |
+| Ultimate enchantments | Max one ultimate per item |
+| Conflict handling | Registry-driven hard block |
+
+Rarity tiers defined in `EnchantmentType`:
+
+- `COMMON`
+- `UNCOMMON`
+- `RARE`
+- `EPIC`
+- `LEGENDARY`
+- `MYTHIC`
+- `SPECIAL`
+- `VERY_SPECIAL`
 
 ## Troubleshooting
 
 - "That enchantment cannot be applied":
   - Item category mismatch.
 - "Conflicts with X":
-  - Existing enchant conflict in registry rules.
+  - Existing enchant conflicts in registry.
 - "Only one ultimate enchant can be applied":
   - Item already has a different ultimate enchant.
 - "Not enough levels":
-  - Player level is lower than computed XP cost.
-- Enchant lore not refreshing:
-  - Reapply/refresh item through enchant system; storage rewrites lore from PDC.
+  - Insufficient vanilla XP levels for computed cost.
+
+### Common Mistakes
+
+- Forgetting that costs use vanilla XP levels, not coins.
+- Expecting conflicting enchants to combine via anvil.
+- Treating ultimate enchants as stackable.
 
 ## Related Pages
 
 - `Skyblock Leveling and Skills`
-- `Custom Items, Armor, Monsters`
 - `Dungeons and Parties`
+- `Commands and Permissions`

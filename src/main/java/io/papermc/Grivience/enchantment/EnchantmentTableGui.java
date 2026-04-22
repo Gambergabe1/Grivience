@@ -10,6 +10,8 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
@@ -195,6 +197,12 @@ public final class EnchantmentTableGui implements Listener {
 
         if (rawHolder instanceof EnchantmentTableHolder holder) {
             event.setCancelled(true);
+            if (event.getClick() == ClickType.DOUBLE_CLICK || event.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
+                return;
+            }
+            if (event.getClickedInventory() == null || event.getClickedInventory() != top) {
+                return;
+            }
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || clicked.getType() == Material.AIR || !clicked.hasItemMeta()) return;
 
@@ -219,6 +227,12 @@ public final class EnchantmentTableGui implements Listener {
 
         if (rawHolder instanceof EnchantmentLevelHolder holder) {
             event.setCancelled(true);
+            if (event.getClick() == ClickType.DOUBLE_CLICK || event.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
+                return;
+            }
+            if (event.getClickedInventory() == null || event.getClickedInventory() != top) {
+                return;
+            }
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || clicked.getType() == Material.AIR || !clicked.hasItemMeta()) return;
 
@@ -795,6 +809,7 @@ public final class EnchantmentTableGui implements Listener {
 
         ItemStack updated = enchantStorage.apply(heldItem, enchantment, level);
         player.getInventory().setItemInMainHand(updated);
+        player.updateInventory();
         player.setLevel(player.getLevel() - cost);
         
         ((GriviencePlugin) plugin).getSkyblockLevelManager().recordEnchanting(player, cost);

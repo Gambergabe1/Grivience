@@ -1,179 +1,133 @@
 # Skyblock Leveling and Skills
 
-Last updated: 2026-03-08
+Last updated: 2026-03-13
 
 ## Overview
 
-Grivience uses a Skyblock-style progression model with:
+Grivience uses profile-scoped Skyblock progression with:
 
-- **Skyblock Level** (global profile progression)
-- **Skill Levels** (Combat, Mining, Farming, etc.)
-- **Category Tracks** (Core, Skill, Dungeon, Slaying, Story, etc.)
-- **Objective and milestone XP** (one-time and repeatable progression sources)
+- Global Skyblock XP and level
+- Skill XP and skill levels
+- Category tracks (Core/Event/Dungeon/Essence/Slaying/Skill/Misc/Story)
+- Action, objective, milestone, and dungeon-derived progression sources
 
-Core manager: `src/main/java/io/papermc/Grivience/stats/SkyblockLevelManager.java`.
+Primary sources:
+
+- `src/main/java/io/papermc/Grivience/stats/SkyblockLevelManager.java`
+- `src/main/java/io/papermc/Grivience/stats/SkyblockLevelListener.java`
+- `src/main/java/io/papermc/Grivience/skills/SkyblockSkillManager.java`
+- `src/main/java/io/papermc/Grivience/skills/SkillsCommand.java`
+- `src/main/java/io/papermc/Grivience/skills/SkillXpAdminCommand.java`
+- `src/main/resources/config.yml` (`skyblock-leveling.*`)
+- `src/main/resources/plugin.yml` (`skills`, `skillxp`, `sbadmin`)
 
 ## Player Flow
 
-1. Perform gameplay actions (farm, mine, fish, kill mobs, clear dungeons, craft, etc.).
-2. Action counters update and can award:
-   - Skill XP
-   - Category XP
-   - Objective XP
-   - Milestone progress
-3. Skyblock XP is applied to your active profile progress.
-4. On level-up, players receive level-up messages, sounds, and configured unlocks.
-
-## Progression Model
-
-### Skyblock Level
-
-- Default XP per level: `100` (`skyblock-leveling.xp-per-level`)
-- Default max level: `521` (`skyblock-leveling.max-level`)
-- Display/notification toggle: `skyblock-leveling.notify-xp-gain`
-
-Formula:
-
-- `level = floor(total_xp / xp_per_level)`
-
-### Skills
-
-Implemented skills are in `SkyblockSkill`:
-
-- Combat
-- Mining
-- Farming
-- Foraging
-- Fishing
-- Enchanting
-- Alchemy
-- Taming
-- Hunting
-- Dungeoneering
-- Carpentry
-
-Behavior notes:
-
-- Most skills have max level 60.
-- Dungeoneering max is 50.
-- Skills track XP with counters like `skill_xp.farming`.
-
-## XP Sources (Implemented)
-
-From `SkyblockLevelListener` + `SkyblockLevelManager`:
-
-- Mob kills (`recordCombatKill`)
-- Mining block breaks (`recordMiningOre`)
-- Foraging logs (`recordForagingLog`)
-- Mature crop harvests (`recordFarmingHarvest`)
-- Fishing catches / sea creature kills (`recordFishingCatch`)
-- Enchanting level spend (`recordEnchanting`)
-- Potion output interactions (`recordAlchemy`)
-- Crafting actions (`recordCarpentry`)
-- Dungeon completion/rank/score (`recordDungeonCompletion`)
-- Quest completion (`recordQuestCompletion`)
-- Island create/upgrade (`recordIslandCreated`, `recordIslandUpgrade`)
-
-## Bestiary, Dungeon, and Track Systems
-
-### Bestiary
-
-- Uses `bestiary_kills.<mob>` counters.
-- Awards slaying category XP and milestone XP from `skyblock-leveling.bestiary.*`.
-
-### Dungeon Pseudo-Leveling
-
-- Uses dungeon completion counters.
-- Catacombs/class pseudo-level rewards come from:
-  - `skyblock-leveling.dungeons.catacombs-level-xp-rewards.*`
-  - `skyblock-leveling.dungeons.class-level-xp-reward`
-
-### Guide Tracks
-
-Configured under `skyblock-leveling.tracks.*` (Core/Event/Dungeon/Essence/Slaying/Skill/Misc/Story).
-Each track has:
-
-- `counter-key`
-- `milestones`
-- `rewards`
-- Display metadata (name/icon/lore)
-
-## Profile and Co-op Scope
-
-Progress is **profile-scoped**, not just player-UUID scoped:
-
-- Selected profile ID is used when available.
-- Co-op profile ID is used for co-op members.
-- Legacy owner-scoped data can migrate into profile-scoped storage.
-
-Reference: `resolveProfileId(...)` in `SkyblockLevelManager`.
+1. Player performs gameplay actions (combat, mining, farming, fishing, dungeons, crafting, questing).
+2. Listener/manager updates counters and applies:
+   - skill XP
+   - objective XP
+   - category track XP
+   - milestone progress
+3. Total XP maps into Skyblock level progression.
+4. Level milestones unlock configured features and rewards.
 
 ## Commands
 
-From `plugin.yml`:
-
-- `/skills [skill_id]`
-  - Opens skills menu or specific skill details.
+- `/skills [skill_id]` (alias: `skill`)
 - `/skillxp <give|check> <player> [skill] [amount]`
-  - Admin skill XP controls.
 - `/sbadmin <set|setxp|give|take|check|reset> <player> [value]`
-  - Admin Skyblock level/XP controls.
+
+Examples:
+
+- Player: `/skills`
+- Admin: `/skillxp give Kazutos farming 5000`
+- Admin: `/sbadmin check Kazutos`
 
 ## Permissions
 
-- `grivience.admin` (required for admin commands above)
+- `skills` command: no explicit permission node in `plugin.yml`
+- `skillxp`: `grivience.admin`
+- `sbadmin`: `grivience.admin`
 
 ## Configuration Keys
 
-Primary section: `skyblock-leveling` in `src/main/resources/config.yml`.
+Main section: `skyblock-leveling`
 
-Key groups:
+Important groups:
 
-- `xp-per-level`, `max-level`, `notify-xp-gain`
-- `skill-leveling.*` (including level 1-60 XP table)
+- `max-level`
+- `xp-per-level`
+- `notify-xp-gain`
+- `skill-leveling.*` (skill XP requirements)
 - `skill-level-xp-rewards.*`
-- `dungeons.*` (catacombs/class rewards + floor rewards + score/rank objectives)
+- `dungeons.*`
 - `bestiary.*`
+- `slayer.*`
 - `action-xp.*`
 - `skill-actions-per-level.*`
 - `level-rewards.*`
 - `tracks.*`
 
-Related display config:
+Related display:
 
 - `scoreboard.custom.*`
 
 ## Data Files
 
 - `plugins/Grivience/levels.yml`
-  - Main persistent storage for:
-    - total Skyblock XP
-    - progression counters
-    - objective states
-    - milestone states
+  - Skyblock XP totals
+  - progression counters
+  - milestone states
+  - objective states
 
 ## Admin Setup
 
 1. Tune `skyblock-leveling.*` in `config.yml`.
-2. Reload plugin systems with `/grivience reload`.
-3. Validate using:
+2. Reload systems: `/grivience reload`.
+3. Validate with:
    - `/sbadmin check <player>`
    - `/skillxp check <player>`
+4. Verify scoreboard and progression feedback in live gameplay.
+
+## Balancing Notes
+
+Core progression defaults:
+
+| System | Default value | Config path |
+| --- | --- | --- |
+| Skyblock max level | `521` | `skyblock-leveling.max-level` |
+| Skyblock XP per level | `100` | `skyblock-leveling.xp-per-level` |
+| Skill max level | `60` (most skills) | `skyblock-leveling.skill-leveling.max-level` |
+| Catacombs level cap | `50` | `skyblock-leveling.dungeons.catacombs-level-cap` |
+| Class level cap | `50` | `skyblock-leveling.dungeons.class-level-cap` |
+
+Dungeon + track integration notes:
+
+- Dungeon completion routes through `recordDungeonCompletion(...)`.
+- Bestiary uses `bestiary_kills.*` counters.
+- Category tracks use `tracks.*.counter-key` and milestone arrays.
 
 ## Troubleshooting
 
-- No progression from crop breaks:
-  - Ensure crops are mature; immature ageable crops are ignored for farming XP.
-- No progression in creative mode:
-  - Creative/spectator are intentionally bypassed.
-- Unexpected profile progression split:
-  - Check selected profile/co-op assignments.
-- Level cap hit:
-  - Verify `skyblock-leveling.max-level` and available XP sources.
+- No skill gain on farm/mining/combat:
+  - verify listeners are active and action criteria are met.
+- Level appears split unexpectedly:
+  - progression is profile-scoped; confirm active profile/co-op mapping.
+- Admin command works for one command but not another:
+  - ensure sender has `grivience.admin`.
+- Scoreboard not reflecting progression:
+  - verify `scoreboard.custom.enabled` and update interval settings.
+
+### Common Mistakes
+
+- Editing `levels.yml` while the server is running.
+- Setting impossible XP requirements and forgetting to tune action rewards.
+- Testing progression in creative/spectator and expecting normal gain behavior.
 
 ## Related Pages
 
 - `Enchanting System`
 - `Farming and Farm Hub`
-- `Collections`
 - `Dungeons and Parties`
+- `Commands and Permissions`

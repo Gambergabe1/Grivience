@@ -16,6 +16,7 @@ import java.util.Map;
 
 /**
  * Jump pad registry with persistent storage in jumppads.yml.
+ * Refined to prevent data wiping during partial updates and improve area handling.
  */
 public final class JumpPadManager {
     private static final String ROOT_KEY = "pads";
@@ -30,44 +31,37 @@ public final class JumpPadManager {
         load();
     }
 
-    public synchronized void setLaunch(String id, Location launch) {
-        if (id == null || launch == null) return;
-        String key = normalizeId(id);
-        JumpPad pad = pads.getOrDefault(key, new JumpPad(null, null, null, null));
-        pads.put(key, new JumpPad(launch.clone(), null, pad.target(), pad.targetCorner()));
-        save();
+    private JumpPad getOrCreate(String id) {
+        return pads.computeIfAbsent(normalizeId(id), k -> new JumpPad());
     }
 
-    public synchronized void setTarget(String id, Location target) {
-        if (id == null || target == null) return;
-        String key = normalizeId(id);
-        JumpPad pad = pads.getOrDefault(key, new JumpPad(null, null, null, null));
-        pads.put(key, new JumpPad(pad.launch(), null, target.clone(), null));
+    public synchronized void setLaunch(String id, Location launch) {
+        if (id == null || launch == null) return;
+        getOrCreate(id).setLaunch(launch.clone());
         save();
     }
 
     public synchronized void setPos1(String id, Location pos1) {
         if (id == null || pos1 == null) return;
-        String key = normalizeId(id);
-        JumpPad pad = pads.getOrDefault(key, new JumpPad(null, null, null, null));
-        // pos1 is the first launch-area corner.
-        pads.put(key, new JumpPad(pos1.clone(), pad.launchCorner(), pad.target(), pad.targetCorner()));
+        getOrCreate(id).setLaunch(pos1.clone());
         save();
     }
 
     public synchronized void setPos2(String id, Location pos2) {
         if (id == null || pos2 == null) return;
-        String key = normalizeId(id);
-        JumpPad pad = pads.getOrDefault(key, new JumpPad(null, null, null, null));
-        pads.put(key, new JumpPad(pad.launch(), pos2.clone(), pad.target(), pad.targetCorner()));
+        getOrCreate(id).setLaunchCorner(pos2.clone());
+        save();
+    }
+
+    public synchronized void setTarget(String id, Location target) {
+        if (id == null || target == null) return;
+        getOrCreate(id).setTarget(target.clone());
         save();
     }
 
     public synchronized void setTargetCorner(String id, Location targetCorner) {
         if (id == null || targetCorner == null) return;
-        String key = normalizeId(id);
-        JumpPad pad = pads.getOrDefault(key, new JumpPad(null, null, null, null));
-        pads.put(key, new JumpPad(pad.launch(), pad.launchCorner(), pad.target(), targetCorner.clone()));
+        getOrCreate(id).setTargetCorner(targetCorner.clone());
         save();
     }
 
@@ -98,15 +92,19 @@ public final class JumpPadManager {
         for (Map.Entry<String, JumpPad> entry : pads.entrySet()) {
             String id = entry.getKey();
             JumpPad pad = entry.getValue();
-            if (pad == null) {
-                continue;
-            }
+            if (pad == null || !pad.isValid()) continue;
 
             ConfigurationSection section = root.createSection(id);
-            writeLocation(section, "launch", pad.launch());
-            writeLocation(section, "launch-corner", pad.launchCorner());
-            writeLocation(section, "target", pad.target());
-            writeLocation(section, "target-corner", pad.targetCorner());
+            writeLocation(section, "launch", pad.getLaunch());
+            writeLocation(section, "launch-corner", pad.getLaunchCorner());
+            writeLocation(section, "target", pad.getTarget());
+            writeLocation(section, "target-corner", pad.getTargetCorner());
+
+            // Save requirements
+            if (pad.getMinSkyblockLevel() > 0) section.set("min-skyblock-level", pad.getMinSkyblockLevel());
+            if (pad.getMinCombatLevel() > 0) section.set("min-combat-level", pad.getMinCombatLevel());
+            if (pad.getMinMiningLevel() > 0) section.set("min-mining-level", pad.getMinMiningLevel());
+            if (pad.getMinFarmingLevel() > 0) section.set("min-farming-level", pad.getMinFarmingLevel());
         }
 
         try {
@@ -121,40 +119,41 @@ public final class JumpPadManager {
 
     private synchronized void load() {
         pads.clear();
-        if (!dataFile.exists()) {
-            return;
-        }
+        if (!dataFile.exists()) return;
 
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(dataFile);
         ConfigurationSection root = yaml.getConfigurationSection(ROOT_KEY);
-        if (root == null) {
-            return;
-        }
+        if (root == null) return;
 
         for (String rawId : root.getKeys(false)) {
             ConfigurationSection section = root.getConfigurationSection(rawId);
-            if (section == null) {
-                continue;
-            }
+            if (section == null) continue;
 
             Location launch = readLocation(section.getConfigurationSection("launch"));
             Location launchCorner = readLocation(section.getConfigurationSection("launch-corner"));
             Location target = readLocation(section.getConfigurationSection("target"));
             Location targetCorner = readLocation(section.getConfigurationSection("target-corner"));
 
-            if (launch == null && launchCorner == null && target == null && targetCorner == null) {
-                continue;
-            }
+            JumpPad pad = new JumpPad();
+            pad.setLaunch(launch);
+            pad.setLaunchCorner(launchCorner);
+            pad.setTarget(target);
+            pad.setTargetCorner(targetCorner);
 
-            String id = normalizeId(rawId);
-            pads.put(id, new JumpPad(launch, launchCorner, target, targetCorner));
+            // Load requirements
+            pad.setMinSkyblockLevel(section.getInt("min-skyblock-level", 0));
+            pad.setMinCombatLevel(section.getInt("min-combat-level", 0));
+            pad.setMinMiningLevel(section.getInt("min-mining-level", 0));
+            pad.setMinFarmingLevel(section.getInt("min-farming-level", 0));
+
+            if (pad.isValid()) {
+                pads.put(normalizeId(rawId), pad);
+            }
         }
     }
 
     private void writeLocation(ConfigurationSection section, String key, Location location) {
-        if (section == null || key == null || location == null || location.getWorld() == null) {
-            return;
-        }
+        if (section == null || key == null || location == null || location.getWorld() == null) return;
 
         ConfigurationSection locSection = section.createSection(key);
         locSection.set("world", location.getWorld().getName());
@@ -166,19 +165,13 @@ public final class JumpPadManager {
     }
 
     private Location readLocation(ConfigurationSection section) {
-        if (section == null) {
-            return null;
-        }
+        if (section == null) return null;
 
         String worldName = section.getString("world");
-        if (worldName == null || worldName.isBlank()) {
-            return null;
-        }
+        if (worldName == null || worldName.isBlank()) return null;
 
         World world = Bukkit.getWorld(worldName);
-        if (world == null) {
-            return null;
-        }
+        if (world == null) return null;
 
         double x = section.getDouble("x");
         double y = section.getDouble("y");
@@ -192,48 +185,68 @@ public final class JumpPadManager {
         return id.toLowerCase(Locale.ROOT);
     }
 
-    /**
-     * Check if a location is within the launch area of any jump pad.
-     * @param location The location to check
-     * @return The JumpPad if the location is within its launch area, null otherwise
-     */
     public synchronized JumpPad getPadAtLocation(Location location) {
         for (JumpPad pad : pads.values()) {
-            if (pad.isWithinLaunchArea(location)) {
-                return pad;
-            }
+            if (pad.isWithinLaunchArea(location)) return pad;
         }
         return null;
     }
 
-    public record JumpPad(
-            Location launch,
-            Location launchCorner,  // pos2 for launch area
-            Location target,
-            Location targetCorner   // pos2 for target area (for future use)
-    ) {
-        /**
-         * Check if a location is within the launch area.
-         * If launchCorner is null, checks for exact block match with launch.
-         * If launchCorner is set, checks if location is within the cuboid defined by launch and launchCorner.
-         */
-        public boolean isWithinLaunchArea(Location location) {
-            if (launch == null || location == null || launch.getWorld() == null) {
-                return false;
-            }
+    /**
+     * Represents a single Jump Pad configuration.
+     */
+    public static final class JumpPad {
+        private Location launch;
+        private Location launchCorner;
+        private Location target;
+        private Location targetCorner;
 
-            if (!launch.getWorld().equals(location.getWorld())) {
-                return false;
-            }
+        // Requirements
+        private int minSkyblockLevel = 0;
+        private int minCombatLevel = 0;
+        private int minMiningLevel = 0;
+        private int minFarmingLevel = 0;
+
+        public JumpPad() {}
+
+        public boolean isValid() {
+            return launch != null && target != null;
+        }
+
+        public Location getLaunch() { return launch; }
+        public void setLaunch(Location launch) { this.launch = launch; }
+
+        public Location getLaunchCorner() { return launchCorner; }
+        public void setLaunchCorner(Location launchCorner) { this.launchCorner = launchCorner; }
+
+        public Location getTarget() { return target; }
+        public void setTarget(Location target) { this.target = target; }
+
+        public Location getTargetCorner() { return targetCorner; }
+        public void setTargetCorner(Location targetCorner) { this.targetCorner = targetCorner; }
+
+        public int getMinSkyblockLevel() { return minSkyblockLevel; }
+        public void setMinSkyblockLevel(int minSkyblockLevel) { this.minSkyblockLevel = minSkyblockLevel; }
+
+        public int getMinCombatLevel() { return minCombatLevel; }
+        public void setMinCombatLevel(int minCombatLevel) { this.minCombatLevel = minCombatLevel; }
+
+        public int getMinMiningLevel() { return minMiningLevel; }
+        public void setMinMiningLevel(int minMiningLevel) { this.minMiningLevel = minMiningLevel; }
+
+        public int getMinFarmingLevel() { return minFarmingLevel; }
+        public void setMinFarmingLevel(int minFarmingLevel) { this.minFarmingLevel = minFarmingLevel; }
+
+        public boolean isWithinLaunchArea(Location location) {
+            if (launch == null || location == null || launch.getWorld() == null) return false;
+            if (!launch.getWorld().equals(location.getWorld())) return false;
 
             if (launchCorner == null) {
-                // Single block launch pad
                 return launch.getBlockX() == location.getBlockX()
                         && launch.getBlockY() == location.getBlockY()
                         && launch.getBlockZ() == location.getBlockZ();
             }
 
-            // Area-based launch pad - check if within cuboid
             int minX = Math.min(launch.getBlockX(), launchCorner.getBlockX());
             int maxX = Math.max(launch.getBlockX(), launchCorner.getBlockX());
             int minY = Math.min(launch.getBlockY(), launchCorner.getBlockY());
@@ -246,41 +259,31 @@ public final class JumpPadManager {
                     && location.getBlockZ() >= minZ && location.getBlockZ() <= maxZ;
         }
 
-        /**
-         * Get the center of the launch area.
-         */
         public Location getLaunchCenter() {
             if (launch == null) return null;
-
-            if (launchCorner == null) {
-                return launch.clone();
-            }
+            if (launchCorner == null) return launch.clone();
 
             return new Location(
                     launch.getWorld(),
                     (launch.getX() + launchCorner.getX()) / 2.0,
                     (launch.getY() + launchCorner.getY()) / 2.0,
-                    (launch.getZ() + launchCorner.getZ()) / 2.0
+                    (launch.getZ() + launchCorner.getZ()) / 2.0,
+                    launch.getYaw(),
+                    launch.getPitch()
             );
         }
 
-        /**
-         * Get the center of the target area.
-         */
         public Location getTargetCenter() {
-            if (target == null) {
-                return null;
-            }
-
-            if (targetCorner == null) {
-                return target.clone();
-            }
+            if (target == null || target.getWorld() == null) return null;
+            if (targetCorner == null) return target.clone();
 
             return new Location(
                     target.getWorld(),
                     (target.getX() + targetCorner.getX()) / 2.0,
                     (target.getY() + targetCorner.getY()) / 2.0,
-                    (target.getZ() + targetCorner.getZ()) / 2.0
+                    (target.getZ() + targetCorner.getZ()) / 2.0,
+                    target.getYaw(),
+                    target.getPitch()
             );
         }
     }

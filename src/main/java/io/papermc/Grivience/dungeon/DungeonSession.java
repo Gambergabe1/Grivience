@@ -7,6 +7,7 @@ import io.papermc.Grivience.item.CustomItemService;
 import io.papermc.Grivience.item.CustomWeaponType;
 import io.papermc.Grivience.item.RaijinCraftingItemType;
 import io.papermc.Grivience.item.ReforgeStoneType;
+import io.papermc.Grivience.util.ArmorDurabilityUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -56,14 +57,16 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 public final class DungeonSession {
-    private static final String RUN_KEY_NAME = ChatColor.GOLD + "Temple Key";
-    private static final String PUZZLE_GUIDE_NAME = ChatColor.AQUA + "Temple Puzzle Guide";
+    private static final String RUN_KEY_NAME = ChatColor.GOLD + "Wither Key";
+    private static final String BLOOD_KEY_NAME = ChatColor.RED + "Blood Key";
+    private static final String PUZZLE_GUIDE_NAME = ChatColor.AQUA + "Dungeon Puzzle Guide";
 
     private final GriviencePlugin plugin;
     private final DungeonManager manager;
     private final CustomItemService customItemService;
     private final UUID sessionId = UUID.randomUUID();
     private final NamespacedKey runKeyTag;
+    private final NamespacedKey bloodKeyTag;
     private final NamespacedKey puzzleGuideTag;
     private final UUID partyId;
     private final Set<UUID> members;
@@ -73,6 +76,7 @@ public final class DungeonSession {
     private final List<ArenaLayout.Cuboid> cleanupVolumes;
     private final List<RoomType> encounterPlan;
     private final Map<UUID, TrackedMobInfo> trackedMobs = new HashMap<>();
+    private final DungeonStats dungeonStats = new DungeonStats();
     private final Map<Integer, ArenaLayout.Gate> gatesByIndex = new HashMap<>();
     private final Map<String, Integer> gateIndexByBlock = new HashMap<>();
     private final Set<Integer> openedGates = new HashSet<>();
@@ -153,8 +157,10 @@ public final class DungeonSession {
         this.members = new HashSet<>(members);
         this.floor = floor;
         this.arenaSlot = arenaSlot;
-        this.runKeyTag = new NamespacedKey(plugin, "run-key");
-        this.puzzleGuideTag = new NamespacedKey(plugin, "puzzle-guide");
+        this.runKeyTag = new NamespacedKey(plugin, "dungeon_run_key");
+        this.bloodKeyTag = new NamespacedKey(plugin, "dungeon_blood_key");
+        this.puzzleGuideTag = new NamespacedKey(plugin, "puzzle_guide");
+
         this.rooms = new ArrayList<>(layout.roomCenters());
         this.cleanupVolumes = List.copyOf(layout.cleanupVolumes());
         this.encounterPlan = List.copyOf(encounterPlan);
@@ -324,7 +330,7 @@ public final class DungeonSession {
         if (hadKey && pendingKeyGateIndex != null) {
             Player reassigned = grantRunKeyToSingleCarrier(playerId);
             if (reassigned != null) {
-                broadcast("Temple Key reassigned to " + reassigned.getName() + ".");
+                broadcast("Wither Key reassigned to " + reassigned.getName() + ".");
             }
         }
         if (onlineMemberCount() == 0) {
@@ -510,7 +516,7 @@ public final class DungeonSession {
             return true;
         }
 
-        broadcast(player.getName() + " opened a decoy chest. Yokai ambush!");
+        broadcast(player.getName() + " opened a decoy chest. Monster ambush!");
         spawnDungeonMob(floor.mobHealthMultiplier() * floorHealthScale * 1.2D, floor.mobDamageTier() + 1);
         return true;
     }
@@ -549,7 +555,7 @@ public final class DungeonSession {
             return;
         }
         if (!consumeRunKey(player)) {
-            player.sendMessage(ChatColor.RED + "You need a Temple Key to open this gate.");
+            player.sendMessage(ChatColor.RED + "You need a Wither Key to open this gate.");
             return;
         }
 
@@ -561,7 +567,7 @@ public final class DungeonSession {
         } else {
             beginBossRoom();
         }
-        broadcast(player.getName() + " unlocked the gate with a Temple Key.");
+        broadcast(player.getName() + " unlocked the gate with a Wither Key.");
     }
     private void beginEncounterRoom(int index) {
         if (ended) {
@@ -668,9 +674,26 @@ public final class DungeonSession {
 
     private void spawnCombatWave(int roomNumber) {
         int online = onlineMemberCount();
-        int mobCount = floor.baseMobCount() + (roomNumber - 1) * 2 + Math.max(0, online - 1);
-        double roomHealthScale = floor.mobHealthMultiplier() * floorHealthScale * (1.0D + ((roomNumber - 1) * 0.16D));
-        int roomDamageTier = floor.mobDamageTier() + (roomNumber / 2);
+        int floorNum = floorNumber(floor.id());
+        
+        // Dynamic mob count: increases with floor and room number
+        int mobCount = floor.baseMobCount() 
+                + (roomNumber - 1) * 2 
+                + (floorNum - 1) * 3 
+                + Math.max(0, (online - 1) * 2);
+        
+        // Limit mob count for performance
+        mobCount = Math.min(32, mobCount);
+
+        // Aggressive scaling for higher floors
+        double floorScaling = 1.0D + (floorNum - 1) * 0.45D;
+        double roomScaling = 1.0D + (roomNumber - 1) * 0.18D;
+        double roomHealthScale = floor.mobHealthMultiplier() * floorHealthScale * floorScaling * roomScaling;
+        
+        // Damage tier scales with floor and depth
+        int roomDamageTier = floor.mobDamageTier() + (floorNum - 1) + (roomNumber / 2);
+
+        broadcast(ChatColor.RED + "Dojo clash triggered! " + ChatColor.YELLOW + mobCount + " Monster summoned.");
 
         for (int i = 0; i < mobCount; i++) {
             spawnDungeonMob(roomHealthScale, roomDamageTier, distributedSpawnInRoom(currentRoomCenter, i, mobCount));
@@ -760,7 +783,7 @@ public final class DungeonSession {
 
     private void spawnDungeonMob(double healthScale, int damageTier, Location preferredSpawn) {
         if (floor.folkloreMobs()) {
-            spawnFolkloreMob(randomYokaiType(damageTier), healthScale, damageTier, preferredSpawn);
+            spawnFolkloreMob(randomMonsterType(damageTier), healthScale, damageTier, preferredSpawn);
             return;
         }
         spawnMob(randomMobType(), healthScale, damageTier, false, preferredSpawn);
@@ -926,7 +949,7 @@ public final class DungeonSession {
         int floorY = currentRoomCenter.getBlockY() - 1;
         int centerZ = currentRoomCenter.getBlockZ();
 
-        int bellOffset = Math.max(3, (floor.roomSize() / 2) - 4);
+        int bellOffset = DungeonBuilder.perimeterFeatureOffset(floor.roomSize());
         int[][] offsets = {
                 {0, -bellOffset},
                 {-bellOffset, 0},
@@ -1023,7 +1046,7 @@ public final class DungeonSession {
         int floorY = currentRoomCenter.getBlockY() - 1;
         int centerZ = currentRoomCenter.getBlockZ();
 
-        int leverOffset = Math.max(3, (floor.roomSize() / 2) - 4);
+        int leverOffset = DungeonBuilder.perimeterFeatureOffset(floor.roomSize());
         int[][] offsets = {
                 {-leverOffset, -leverOffset},
                 {leverOffset, -leverOffset},
@@ -1257,15 +1280,15 @@ public final class DungeonSession {
         if (gateToUnlock < encounterPlan.size()) {
             int nextRoom = gateToUnlock + 1;
             if (keyCarrier != null) {
-                broadcast(reason + " Temple Key granted to " + keyCarrier.getName() + ". Unlock the gate to room " + nextRoom + ".");
+                broadcast(reason + " Wither Key granted to " + keyCarrier.getName() + ". Unlock the gate to room " + nextRoom + ".");
             } else {
-                broadcast(reason + " Temple Key could not be assigned. Unlock the gate to room " + nextRoom + " once someone has inventory space.");
+                broadcast(reason + " Wither Key could not be assigned. Unlock the gate to room " + nextRoom + " once someone has inventory space.");
             }
         } else {
             if (keyCarrier != null) {
-                broadcast(reason + " Temple Key granted to " + keyCarrier.getName() + ". Unlock the sanctum gate.");
+                broadcast(reason + " Wither Key granted to " + keyCarrier.getName() + ". Unlock the sanctum gate.");
             } else {
-                broadcast(reason + " Temple Key could not be assigned. Unlock the sanctum gate once someone has inventory space.");
+                broadcast(reason + " Wither Key could not be assigned. Unlock the sanctum gate once someone has inventory space.");
             }
         }
     }
@@ -1277,25 +1300,51 @@ public final class DungeonSession {
         if (currentRoomCenter == null || currentRoomCenter.getWorld() == null) {
             return null;
         }
-        Location spawnLocation = preferredSpawn != null
-                ? preferredSpawn
-                : randomSpawnInRoom(currentRoomCenter, Math.max(3, (floor.roomSize() / 2) - 3));
-        if (spawnLocation == null) {
-            spawnLocation = fallbackSpawnInRoom(currentRoomCenter);
-        }
+        Location spawnLocation = resolveSpawnLocation(preferredSpawn);
         if (spawnLocation == null) {
             return null;
         }
-        Entity entity = currentRoomCenter.getWorld().spawnEntity(spawnLocation, type);
+        Entity entity;
+        try {
+            entity = spawnLocation.getWorld().spawnEntity(spawnLocation, type);
+        } catch (Exception exception) {
+            plugin.getLogger().warning("Failed to spawn dungeon mob " + type.name() + " at "
+                    + spawnLocation.getBlockX() + ","
+                    + spawnLocation.getBlockY() + ","
+                    + spawnLocation.getBlockZ() + ": " + exception.getMessage());
+            return null;
+        }
         if (!(entity instanceof LivingEntity living)) {
             entity.remove();
             return null;
         }
 
-        applyStats(living, healthScale, damageTier, boss);
+        // --- PARTY COMBAT LEVEL SCALING ---
+        int avgCombatLevel = getAveragePartyCombatLevel();
+        double hpMultiplier = 1.0D + (avgCombatLevel * 0.05D);
+        int finalLevel = Math.max(1, (boss ? 50 : 10) + avgCombatLevel + (floorNumber(floor.id()) * 5));
+        
+        applyStats(living, healthScale * hpMultiplier, damageTier, boss);
+        // ----------------------------------
+
+        living.getPersistentDataContainer().set(
+                new org.bukkit.NamespacedKey(plugin, "dungeon_mob"),
+                org.bukkit.persistence.PersistentDataType.BYTE,
+                (byte) 1
+        );
+        if (boss) {
+            living.getPersistentDataContainer().set(
+                    new org.bukkit.NamespacedKey(plugin, "boss_mob"),
+                    org.bukkit.persistence.PersistentDataType.BYTE,
+                    (byte) 1
+            );
+        }
+        if (boss && living.getEquipment() != null) {
+            ArmorDurabilityUtil.ensureArmorUnbreakable(living.getEquipment());
+        }
         String baseName = boss
                 ? ChatColor.DARK_RED + "" + ChatColor.BOLD + floor.bossName()
-                : ChatColor.GOLD + "Yokai";
+                : ChatColor.GOLD + "Monster";
         MobHealthDisplay.setBaseName(living, healthBaseNameKey, baseName);
 
         if (living instanceof Mob mob) {
@@ -1307,31 +1356,49 @@ public final class DungeonSession {
 
         UUID mobId = living.getUniqueId();
         trackedMobs.put(mobId, new TrackedMobInfo(boss, null));
+        
+        // Update monster level in PDC for MobHealthDisplay
+        living.getPersistentDataContainer().set(
+                new org.bukkit.NamespacedKey(plugin, "monster_level"),
+                org.bukkit.persistence.PersistentDataType.INTEGER,
+                finalLevel
+        );
+
         manager.trackMob(mobId, this);
         return living;
     }
 
-    private void spawnFolkloreMob(YokaiType yokai, double healthScale, int damageTier, Location preferredSpawn) {
+    private void spawnFolkloreMob(MonsterType yokai, double healthScale, int damageTier, Location preferredSpawn) {
         if (currentRoomCenter == null || currentRoomCenter.getWorld() == null) {
             return;
         }
-        Location spawnLocation = preferredSpawn != null
-                ? preferredSpawn
-                : randomSpawnInRoom(currentRoomCenter, Math.max(3, (floor.roomSize() / 2) - 3));
-        if (spawnLocation == null) {
-            spawnLocation = fallbackSpawnInRoom(currentRoomCenter);
-        }
+        Location spawnLocation = resolveSpawnLocation(preferredSpawn);
         if (spawnLocation == null) {
             return;
         }
-        Entity entity = currentRoomCenter.getWorld().spawnEntity(spawnLocation, yokai.entityType());
+        Entity entity;
+        try {
+            entity = spawnLocation.getWorld().spawnEntity(spawnLocation, yokai.entityType());
+        } catch (Exception exception) {
+            plugin.getLogger().warning("Failed to spawn dungeon yokai " + yokai.name() + " at "
+                    + spawnLocation.getBlockX() + ","
+                    + spawnLocation.getBlockY() + ","
+                    + spawnLocation.getBlockZ() + ": " + exception.getMessage());
+            return;
+        }
         if (!(entity instanceof LivingEntity living)) {
             entity.remove();
             return;
         }
 
+        // --- PARTY COMBAT LEVEL SCALING ---
+        int avgCombatLevel = getAveragePartyCombatLevel();
+        double hpMultiplier = 1.0D + (avgCombatLevel * 0.05D);
+        int finalLevel = Math.max(1, 15 + avgCombatLevel + (floorNumber(floor.id()) * 5));
+        // ----------------------------------
+
         int scaledTier = Math.max(0, damageTier);
-        applyStats(living, healthScale * yokai.healthScale(), Math.max(0, (int) Math.round(scaledTier * yokai.damageScale())), false);
+        applyStats(living, healthScale * yokai.healthScale() * hpMultiplier, Math.max(0, (int) Math.round(scaledTier * yokai.damageScale())), false);
         MobHealthDisplay.setBaseName(living, healthBaseNameKey, yokai.nameColor() + "" + ChatColor.BOLD + yokai.displayName());
         yokai.applyLoadout(living, scaledTier);
         yokai.applySpecialEffects(living, scaledTier);
@@ -1345,7 +1412,28 @@ public final class DungeonSession {
 
         UUID mobId = living.getUniqueId();
         trackedMobs.put(mobId, new TrackedMobInfo(false, yokai));
+
+        // Update monster level in PDC for MobHealthDisplay
+        living.getPersistentDataContainer().set(
+                new org.bukkit.NamespacedKey(plugin, "monster_level"),
+                org.bukkit.persistence.PersistentDataType.INTEGER,
+                finalLevel
+        );
+
         manager.trackMob(mobId, this);
+    }
+
+    private int getAveragePartyCombatLevel() {
+        if (members.isEmpty() || plugin.getSkyblockSkillManager() == null) {
+            return 0;
+        }
+        int total = 0;
+        int count = 0;
+        for (UUID memberId : members) {
+            total += plugin.getSkyblockSkillManager().getLevel(memberId, io.papermc.Grivience.skills.SkyblockSkill.COMBAT);
+            count++;
+        }
+        return count == 0 ? 0 : total / count;
     }
 
     private void startBossController() {
@@ -1502,35 +1590,36 @@ public final class DungeonSession {
         boolean alternate = bossAbilityCycle % 2 == 0;
 
         switch (archetype) {
-            case RONIN_GATEKEEPER -> {
+            case BONZO -> {
                 if (alternate) {
                     castRoninWhirlwind(boss);
                 } else {
                     castRoninIaidoDash(boss);
                 }
             }
-            case ONMYOJI_SHOGUN -> {
+            case SCARF -> {
                 if (alternate) {
                     castOnmyojiHexVolley(boss);
                 } else {
                     castOnmyojiFangSurge(boss);
                 }
             }
-            case STORM_DAIMYO -> {
+            case PROFESSOR -> {
                 if (alternate) {
                     castStormStampedeCharge(boss);
                 } else {
                     castStormThunderSlam(boss);
                 }
             }
-            case RAIJIN_AVATAR -> {
+            case NECRON -> {
                 if (alternate) {
                     castRaijinGravityWell(boss);
                 } else {
                     castRaijinCataclysm(boss);
                 }
             }
-            case TEMPLE_WARLORD -> castFallbackShadowNova(boss);
+            case SADAN -> castFallbackShadowNova(boss);
+            default -> castFallbackShadowNova(boss);
         }
     }
 
@@ -1910,7 +1999,7 @@ public final class DungeonSession {
 
         List<Player> inRoom = new ArrayList<>();
         World world = currentRoomCenter.getWorld();
-        double range = Math.max(14.0D, (floor.roomSize() / 2.0D) + 8.0D);
+        double range = Math.max(14.0D, DungeonBuilder.spawnRadius(floor.roomSize()) + 8.0D);
         double rangeSquared = range * range;
         for (Player player : online) {
             if (!Objects.equals(player.getWorld().getUID(), world.getUID())) {
@@ -2056,7 +2145,7 @@ public final class DungeonSession {
         rollMobReforgeStoneDrop(entity, mobInfo.yokaiType());
     }
 
-    private void rollMobWeaponDrop(LivingEntity entity, YokaiType yokaiType) {
+    private void rollMobWeaponDrop(LivingEntity entity, MonsterType yokaiType) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         CustomWeaponType weapon;
         double chance = customItemService.mobWeaponDropChance(yokaiType);
@@ -2084,6 +2173,8 @@ public final class DungeonSession {
                     default -> CustomWeaponType.KITSUNE_SHORTBOW;
                 };
                 case GASHADOKURO_SENTINEL -> CustomWeaponType.GASHADOKURO_NODACHI;
+                case SHOGUN_ELITE -> CustomWeaponType.ONI_CLEAVER; // placeholder or unique
+                case TEMPLE_GUARDIAN -> CustomWeaponType.KAPPA_TIDEBREAKER; // placeholder or unique
             };
         }
 
@@ -2093,12 +2184,12 @@ public final class DungeonSession {
         }
     }
 
-    private void rollMobArmorDrop(LivingEntity entity, YokaiType yokaiType) {
+    private void rollMobArmorDrop(LivingEntity entity, MonsterType yokaiType) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         if (random.nextDouble() > customItemService.mobArmorDropChance(yokaiType)) {
             return;
         }
-        ArmorSetType setType = armorSetForYokai(yokaiType);
+        ArmorSetType setType = armorSetForMonster(yokaiType);
         CustomArmorType piece = randomArmorPiece(setType);
         if (piece == null) {
             return;
@@ -2107,7 +2198,7 @@ public final class DungeonSession {
         awardLoot(entity, armorDrop);
     }
 
-    private void rollMobReforgeStoneDrop(LivingEntity entity, YokaiType yokaiType) {
+    private void rollMobReforgeStoneDrop(LivingEntity entity, MonsterType yokaiType) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         if (random.nextDouble() > customItemService.mobReforgeStoneChance()) {
             return;
@@ -2257,14 +2348,14 @@ public final class DungeonSession {
         for (Player player : online) {
             Map<Integer, ItemStack> leftovers = player.getInventory().addItem(createRunKey());
             if (leftovers.isEmpty()) {
-                player.sendMessage(ChatColor.GOLD + "[Dungeon] " + ChatColor.YELLOW + "You carry the Temple Key.");
+                player.sendMessage(ChatColor.GOLD + "[Dungeon] " + ChatColor.YELLOW + "You carry the Wither Key.");
                 return player;
             }
         }
 
         Player fallback = online.getFirst();
         fallback.getWorld().dropItemNaturally(fallback.getLocation(), createRunKey());
-        fallback.sendMessage(ChatColor.RED + "Your inventory is full. Temple Key dropped at your feet.");
+        fallback.sendMessage(ChatColor.RED + "Your inventory is full. Wither Key dropped at your feet.");
         return fallback;
     }
 
@@ -2694,7 +2785,7 @@ public final class DungeonSession {
         return pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
     }
 
-    private ArmorSetType armorSetForYokai(YokaiType yokaiType) {
+    private ArmorSetType armorSetForMonster(MonsterType yokaiType) {
         if (yokaiType == null) {
             return randomArmorSet();
         }
@@ -2703,6 +2794,8 @@ public final class DungeonSession {
             case TENGU_SKIRMISHER, JOROGUMO_WEAVER, KITSUNE_TRICKSTER -> ArmorSetType.SHINOBI;
             case KAPPA_RAIDER, ONRYO_WRAITH -> ArmorSetType.ONMYOJI;
             case GASHADOKURO_SENTINEL -> randomArmorSet();
+            case SHOGUN_ELITE -> ArmorSetType.SHOGUN;
+            case TEMPLE_GUARDIAN -> randomArmorSet();
         };
     }
 
@@ -2719,7 +2812,7 @@ public final class DungeonSession {
         return pieces.get(ThreadLocalRandom.current().nextInt(pieces.size()));
     }
 
-    private ReforgeStoneType randomReforgeStone(YokaiType yokaiType, boolean boss) {
+    private ReforgeStoneType randomReforgeStone(MonsterType yokaiType, boolean boss) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         ReforgeStoneType[] types = ReforgeStoneType.values();
         if (types.length == 0) {
@@ -2789,13 +2882,13 @@ public final class DungeonSession {
         return Math.max(3, Math.min(9, 3 + floorLevel));
     }
 
-    private YokaiType randomYokaiType(int damageTier) {
-        List<YokaiType> pool = floor.yokaiPool();
+    private MonsterType randomMonsterType(int damageTier) {
+        List<MonsterType> pool = floor.yokaiPool();
         if (pool.isEmpty()) {
-            return YokaiType.ONI_BRUTE;
+            return MonsterType.ONI_BRUTE;
         }
-        if (damageTier >= 3 && pool.contains(YokaiType.GASHADOKURO_SENTINEL) && ThreadLocalRandom.current().nextDouble() < 0.35D) {
-            return YokaiType.GASHADOKURO_SENTINEL;
+        if (damageTier >= 3 && pool.contains(MonsterType.GASHADOKURO_SENTINEL) && ThreadLocalRandom.current().nextDouble() < 0.35D) {
+            return MonsterType.GASHADOKURO_SENTINEL;
         }
         return pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
     }
@@ -2809,19 +2902,19 @@ public final class DungeonSession {
         int centerX = center.getBlockX();
         int centerZ = center.getBlockZ();
         int floorY = center.getBlockY() - 1;
-        int maxRoomRadius = Math.max(2, (floor.roomSize() / 2) - 3);
+        int maxRoomRadius = Math.max(2, DungeonBuilder.spawnRadius(floor.roomSize()));
         int boundedRadius = Math.max(2, Math.min(radius, maxRoomRadius));
 
         for (int attempt = 0; attempt < 40; attempt++) {
             int x = centerX + ThreadLocalRandom.current().nextInt(-boundedRadius, boundedRadius + 1);
             int z = centerZ + ThreadLocalRandom.current().nextInt(-boundedRadius, boundedRadius + 1);
             if (isSafeSpawnColumn(world, x, floorY, z)) {
-                return new Location(world, x + 0.5D, floorY + 1.0D, z + 0.5D);
+                return columnCenter(world, floorY, x, z);
             }
         }
 
         if (isSafeSpawnColumn(world, centerX, floorY, centerZ)) {
-            return new Location(world, centerX + 0.5D, floorY + 1.0D, centerZ + 0.5D);
+            return columnCenter(world, floorY, centerX, centerZ);
         }
         return null;
     }
@@ -2834,7 +2927,7 @@ public final class DungeonSession {
         int centerX = center.getBlockX();
         int centerZ = center.getBlockZ();
         int floorY = center.getBlockY() - 1;
-        int maxRoomRadius = Math.max(3, (floor.roomSize() / 2) - 3);
+        int maxRoomRadius = Math.max(3, DungeonBuilder.spawnRadius(floor.roomSize()));
         int ringRadius = Math.max(3, maxRoomRadius - 1);
         int count = Math.max(1, total);
         double angle = (Math.PI * 2.0D * index) / count;
@@ -2844,7 +2937,7 @@ public final class DungeonSession {
             int x = centerX + (int) Math.round(Math.cos(angle) * radius);
             int z = centerZ + (int) Math.round(Math.sin(angle) * radius);
             if (isSafeSpawnColumn(world, x, floorY, z)) {
-                return new Location(world, x + 0.5D, floorY + 1.0D, z + 0.5D);
+                return columnCenter(world, floorY, x, z);
             }
         }
         return randomSpawnInRoom(center, ringRadius);
@@ -2855,24 +2948,13 @@ public final class DungeonSession {
         Block feetBlock = world.getBlockAt(x, floorY + 1, z);
         Block headBlock = world.getBlockAt(x, floorY + 2, z);
         Block upperHeadBlock = world.getBlockAt(x, floorY + 3, z);
-        if (!floorBlock.getType().isSolid() || !feetBlock.isPassable() || !headBlock.isPassable() || !upperHeadBlock.isPassable()) {
+        if (!isSpawnableFloor(floorBlock)
+                || !isPassableSpawnBlock(feetBlock)
+                || !isPassableSpawnBlock(headBlock)
+                || !isPassableSpawnBlock(upperHeadBlock)) {
             return false;
         }
-
-        int solidCardinalFloor = 0;
-        if (world.getBlockAt(x - 1, floorY, z).getType().isSolid()) {
-            solidCardinalFloor++;
-        }
-        if (world.getBlockAt(x + 1, floorY, z).getType().isSolid()) {
-            solidCardinalFloor++;
-        }
-        if (world.getBlockAt(x, floorY, z - 1).getType().isSolid()) {
-            solidCardinalFloor++;
-        }
-        if (world.getBlockAt(x, floorY, z + 1).getType().isSolid()) {
-            solidCardinalFloor++;
-        }
-        return solidCardinalFloor >= 2;
+        return true;
     }
 
     private Location fallbackSpawnInRoom(Location center) {
@@ -2898,29 +2980,89 @@ public final class DungeonSession {
         for (int[] offset : offsets) {
             int x = centerX + offset[0];
             int z = centerZ + offset[1];
-            if (!prepareFallbackSpawnColumn(world, x, floorY, z)) {
+            if (!prepareSpawnColumn(world, x, floorY, z)) {
                 continue;
             }
-            return new Location(world, x + 0.5D, floorY + 1.0D, z + 0.5D);
+            return columnCenter(world, floorY, x, z);
         }
         return null;
     }
 
-    private boolean prepareFallbackSpawnColumn(World world, int x, int floorY, int z) {
+    private Location resolveSpawnLocation(Location preferredSpawn) {
+        if (currentRoomCenter == null || currentRoomCenter.getWorld() == null) {
+            return null;
+        }
+
+        World world = currentRoomCenter.getWorld();
+        int floorY = currentRoomCenter.getBlockY() - 1;
+        int centerX = currentRoomCenter.getBlockX();
+        int centerZ = currentRoomCenter.getBlockZ();
+        int roomRadius = Math.max(3, DungeonBuilder.spawnRadius(floor.roomSize()));
+        Integer preferredX = preferredSpawn != null ? preferredSpawn.getBlockX() : null;
+        Integer preferredZ = preferredSpawn != null ? preferredSpawn.getBlockZ() : null;
+
+        // Try preferred location if valid
+        if (preferredSpawn != null && isSafeSpawnColumn(world, preferredSpawn.getBlockX(), floorY, preferredSpawn.getBlockZ())) {
+            return columnCenter(world, floorY, preferredSpawn.getBlockX(), preferredSpawn.getBlockZ());
+        }
+
+        List<DungeonSpawnPlanner.SpawnColumn> candidates =
+                DungeonSpawnPlanner.candidateColumns(centerX, centerZ, roomRadius, preferredX, preferredZ);
+        
+        // Primary pass: check existing safe spots
+        for (DungeonSpawnPlanner.SpawnColumn candidate : candidates) {
+            if (isSafeSpawnColumn(world, candidate.x(), floorY, candidate.z())) {
+                return columnCenter(world, floorY, candidate.x(), candidate.z());
+            }
+        }
+
+        // Secondary pass: prepare/force a safe spot
+        for (DungeonSpawnPlanner.SpawnColumn candidate : candidates) {
+            if (prepareSpawnColumn(world, candidate.x(), floorY, candidate.z())) {
+                return columnCenter(world, floorY, candidate.x(), candidate.z());
+            }
+        }
+
+        // Final fallback: guaranteed location at center
+        Location center = columnCenter(world, floorY, centerX, centerZ);
+        prepareSpawnColumn(world, centerX, floorY, centerZ);
+        return center;
+    }
+
+    private boolean prepareSpawnColumn(World world, int x, int floorY, int z) {
         Block floorBlock = world.getBlockAt(x, floorY, z);
-        if (!floorBlock.getType().isSolid()) {
+        if (!isSpawnableFloor(floorBlock)) {
             floorBlock.setType(floor.floorMaterial(), false);
         }
 
         world.getBlockAt(x, floorY + 1, z).setType(Material.AIR, false);
         world.getBlockAt(x, floorY + 2, z).setType(Material.AIR, false);
         world.getBlockAt(x, floorY + 3, z).setType(Material.AIR, false);
-        return world.getBlockAt(x, floorY, z).getType().isSolid();
+        return isSafeSpawnColumn(world, x, floorY, z);
+    }
+
+    private boolean isPassableSpawnBlock(Block block) {
+        return block != null && !block.isLiquid() && (block.getType().isAir() || block.isPassable());
+    }
+
+    private boolean isSpawnableFloor(Block block) {
+        if (block == null || !block.getType().isSolid() || block.isLiquid()) {
+            return false;
+        }
+
+        Material type = block.getType();
+        return type != Material.MAGMA_BLOCK
+                && type != Material.CAMPFIRE
+                && type != Material.SOUL_CAMPFIRE;
+    }
+
+    private Location columnCenter(World world, int floorY, int x, int z) {
+        return new Location(world, x + 0.5D, floorY + 1.0D, z + 0.5D);
     }
 
     private int experienceForTrackedMob(TrackedMobInfo mobInfo) {
         int base = mobInfo.boss() ? 120 : 14;
-        if (!mobInfo.boss() && mobInfo.yokaiType() == YokaiType.GASHADOKURO_SENTINEL) {
+        if (!mobInfo.boss() && mobInfo.yokaiType() == MonsterType.GASHADOKURO_SENTINEL) {
             base += 18;
         }
         return base + Math.max(0, floor.mobDamageTier() * 3);
@@ -3048,23 +3190,25 @@ public final class DungeonSession {
     }
 
     private enum BossArchetype {
-        RONIN_GATEKEEPER,
-        ONMYOJI_SHOGUN,
-        STORM_DAIMYO,
-        RAIJIN_AVATAR,
-        TEMPLE_WARLORD;
+        BONZO,
+        SCARF,
+        PROFESSOR,
+        THORN,
+        LIVID,
+        SADAN,
+        NECRON;
 
         private static BossArchetype from(EntityType entityType) {
             return switch (entityType) {
-                case VINDICATOR -> RONIN_GATEKEEPER;
-                case EVOKER -> ONMYOJI_SHOGUN;
-                case RAVAGER -> STORM_DAIMYO;
-                case WARDEN -> RAIJIN_AVATAR;
-                default -> TEMPLE_WARLORD;
+                case VINDICATOR -> BONZO;
+                case EVOKER -> SCARF;
+                case RAVAGER -> PROFESSOR;
+                case WARDEN -> NECRON;
+                default -> SADAN;
             };
         }
     }
 
-    private record TrackedMobInfo(boolean boss, YokaiType yokaiType) {
+    private record TrackedMobInfo(boolean boss, MonsterType yokaiType) {
     }
 }

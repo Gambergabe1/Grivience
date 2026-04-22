@@ -3,28 +3,38 @@ package io.papermc.Grivience.storage;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.gui.SkyblockGui;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * GUI Manager for the storage system.
- * Provides Skyblock-style storage menus and interfaces.
+ * GUI manager for the storage system.
+ * Provides the main storage browser, per-storage inventory access, and upgrade menus.
  */
 public class StorageGui {
-    private static final int[] STORAGE_TYPE_SLOTS = {10, 12, 14, 16, 28};
+    private static final int[] STORAGE_TYPE_SLOTS = {19, 21, 23, 25, 29, 31, 33};
+    private static final int HEADER_SLOT = 4;
+    private static final int PROFILE_SLOT = 13;
     private static final int BACK_SLOT = 48;
     private static final int CLOSE_SLOT = 49;
     private static final int STATUS_SLOT = 50;
+    private static final int UPGRADE_ACTION_SLOT = 13;
+    private static final int UPGRADE_BACK_SLOT = 18;
+    private static final int UPGRADE_CLOSE_SLOT = 26;
 
     private final GriviencePlugin plugin;
     private final StorageManager storageManager;
@@ -51,51 +61,21 @@ public class StorageGui {
      */
     public void openMainMenu(Player player) {
         Inventory gui = Bukkit.createInventory(new StorageMenuHolder(StorageMenuHolder.MenuType.MAIN, null), 54, SkyblockGui.title("Storage"));
+        decorateFrame(gui);
 
-        SkyblockGui.fillAll(gui, SkyblockGui.filler(Material.BLACK_STAINED_GLASS_PANE));
-        ItemStack border = SkyblockGui.filler(Material.GRAY_STAINED_GLASS_PANE);
-        for (int slot = 0; slot < gui.getSize(); slot++) {
-            boolean top = slot < 9;
-            boolean bottom = slot >= gui.getSize() - 9;
-            boolean left = slot % 9 == 0;
-            boolean right = slot % 9 == 8;
-            if (top || bottom || left || right) {
-                gui.setItem(slot, border.clone());
-            }
-        }
+        gui.setItem(HEADER_SLOT, createMainHeader());
+        gui.setItem(PROFILE_SLOT, createProfileCard(player));
 
-        gui.setItem(4, SkyblockGui.button(
-                Material.CHEST,
-                "§aStorage",
-                List.of(
-                        "§7Access your storages from anywhere.",
-                        "",
-                        "§eClick a storage to open.",
-                        "§6Shift-Click for upgrades."
-                )
-        ));
-
-        // Fill with storage type icons
-        int slotIndex = 0;
-        for (StorageType type : StorageType.values()) {
-            if (!player.hasPermission(type.getPermissionNode())) {
-                continue;
-            }
-
+        StorageType[] types = StorageType.values();
+        for (int i = 0; i < types.length && i < STORAGE_TYPE_SLOTS.length; i++) {
+            StorageType type = types[i];
             StorageProfile profile = storageManager.getStorage(player, type);
-            if (profile == null) continue;
-
-            if (slotIndex >= STORAGE_TYPE_SLOTS.length) {
-                break;
-            }
-
-            ItemStack icon = createStorageIcon(type, profile);
+            boolean hasPermission = player.hasPermission(type.getPermissionNode());
+            ItemStack icon = createStorageIcon(type, profile, hasPermission);
             tag(icon, "open_storage", type.name());
-            gui.setItem(STORAGE_TYPE_SLOTS[slotIndex], icon);
-            slotIndex++;
+            gui.setItem(STORAGE_TYPE_SLOTS[i], icon);
         }
 
-        // Add status item
         ItemStack statusItem = createStatusItem(player);
         tag(statusItem, "status", "");
         gui.setItem(STATUS_SLOT, statusItem);
@@ -115,23 +95,23 @@ public class StorageGui {
      * Open a specific storage for a player.
      */
     public void openStorage(Player player, StorageType type) {
+        if (type == StorageType.ACCESSORY_BAG) {
+            plugin.getAccessoryBagGui().open(player);
+            return;
+        }
+        
         StorageProfile profile = storageManager.getStorage(player, type);
         if (profile == null) {
-            player.sendMessage("§cFailed to open storage.");
+            player.sendMessage(ChatColor.RED + "Failed to open storage.");
             return;
         }
 
-        // Create inventory with profile's current slots
         Inventory storageInventory = profile.createInventory();
-        
-        // Add back button in the last slot (bottom-right corner)
         int lastSlot = storageInventory.getSize() - 1;
-        ItemStack backButton = createBackButton();
-        storageInventory.setItem(lastSlot, backButton);
-        
+        storageInventory.setItem(lastSlot, createBackButton());
+
         player.openInventory(storageInventory);
 
-        // Track that this player has this storage type open
         if (storageListener != null) {
             storageListener.trackStorageOpen(player, type);
         }
@@ -143,13 +123,32 @@ public class StorageGui {
     public void openUpgradeMenu(Player player, StorageType type) {
         StorageProfile profile = storageManager.getStorage(player, type);
         if (profile == null) {
-            player.sendMessage("§cFailed to open upgrade menu.");
+            player.sendMessage(ChatColor.RED + "Failed to open upgrade menu.");
             return;
         }
 
         String title = SkyblockGui.title("Upgrade " + type.getDisplayName());
         Inventory gui = Bukkit.createInventory(new StorageMenuHolder(StorageMenuHolder.MenuType.UPGRADE, type), 27, title);
+        decorateFrame(gui);
 
+        StorageUpgrade nextUpgrade = storageManager.getNextUpgrade(profile);
+        gui.setItem(4, createUpgradeHeader(type, profile));
+        gui.setItem(11, createCurrentTierItem(profile, type));
+        gui.setItem(15, nextUpgrade == null ? createMaxedItem() : createNextUpgradeItem(nextUpgrade, profile));
+
+        if (storageManager.canUpgrade(player, profile) && nextUpgrade != null) {
+            gui.setItem(UPGRADE_ACTION_SLOT, createUpgradeButton(nextUpgrade));
+        } else {
+            gui.setItem(UPGRADE_ACTION_SLOT, createLockedButton(player, profile, nextUpgrade));
+        }
+
+        gui.setItem(UPGRADE_BACK_SLOT, SkyblockGui.backButton("Storage"));
+        gui.setItem(UPGRADE_CLOSE_SLOT, SkyblockGui.closeButton());
+
+        player.openInventory(gui);
+    }
+
+    private void decorateFrame(Inventory gui) {
         SkyblockGui.fillAll(gui, SkyblockGui.filler(Material.BLACK_STAINED_GLASS_PANE));
         ItemStack border = SkyblockGui.filler(Material.GRAY_STAINED_GLASS_PANE);
         for (int slot = 0; slot < gui.getSize(); slot++) {
@@ -161,64 +160,90 @@ public class StorageGui {
                 gui.setItem(slot, border.clone());
             }
         }
+    }
 
-        // Current tier display
-        ItemStack currentTierItem = createCurrentTierItem(profile, type);
-        gui.setItem(11, currentTierItem);
+    private ItemStack createMainHeader() {
+        return SkyblockGui.button(
+                Material.ENDER_CHEST,
+                ChatColor.GREEN + "Storage",
+                List.of(
+                        ChatColor.GRAY + "Browse and open all storage types.",
+                        "",
+                        ChatColor.YELLOW + "Click a storage to open it.",
+                        ChatColor.GOLD + "Shift-Click to open upgrades."
+                )
+        );
+    }
 
-        // Next upgrade display
-        StorageUpgrade nextUpgrade = storageManager.getNextUpgrade(profile);
-        if (nextUpgrade != null) {
-            ItemStack nextUpgradeItem = createNextUpgradeItem(nextUpgrade, profile);
-            gui.setItem(15, nextUpgradeItem);
-        } else {
-            ItemStack maxedItem = createMaxedItem();
-            gui.setItem(15, maxedItem);
+    private ItemStack createProfileCard(Player player) {
+        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+        ItemMeta meta = item.getItemMeta();
+        if (!(meta instanceof SkullMeta skullMeta)) {
+            return item;
         }
 
-        // Upgrade button
-        if (storageManager.canUpgrade(player, profile)) {
-            ItemStack upgradeButton = createUpgradeButton(nextUpgrade);
-            gui.setItem(13, upgradeButton);
-        } else {
-            ItemStack lockedButton = createLockedButton();
-            gui.setItem(13, lockedButton);
-        }
+        io.papermc.Grivience.skyblock.profile.ProfileManager profileManager = plugin.getProfileManager();
+        io.papermc.Grivience.skyblock.profile.SkyBlockProfile selected = profileManager == null ? null : profileManager.getSelectedProfile(player);
+        String profileName = selected == null ? "Current Profile" : selected.getProfileName();
 
-        // Close button
-        ItemStack closeButton = createCloseButton();
-        gui.setItem(26, closeButton);
-
-        player.openInventory(gui);
+        skullMeta.setOwningPlayer(player);
+        skullMeta.setDisplayName(ChatColor.AQUA + "Profile Context");
+        skullMeta.setLore(List.of(
+                ChatColor.GRAY + "Profile: " + ChatColor.YELLOW + profileName,
+                ChatColor.GRAY + "Unlocked Storages: " + ChatColor.GREEN + countUnlockedStorages(player) + ChatColor.DARK_GRAY + "/" + ChatColor.GREEN + StorageType.values().length
+        ));
+        skullMeta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        item.setItemMeta(skullMeta);
+        return item;
     }
 
     /**
      * Create a storage type icon item.
      */
-    private ItemStack createStorageIcon(StorageType type, StorageProfile profile) {
-        Material iconMaterial = getIconForStorageType(type);
+    private ItemStack createStorageIcon(StorageType type, StorageProfile profile, boolean hasPermission) {
+        boolean available = hasPermission && profile != null && !profile.isLocked();
+        Material iconMaterial = hasPermission ? getIconForStorageType(type) : Material.GRAY_DYE;
         ItemStack item = new ItemStack(iconMaterial);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
-        meta.setDisplayName("§a" + type.getDisplayName());
+        ChatColor nameColor = available ? ChatColor.GREEN : (hasPermission ? ChatColor.RED : ChatColor.DARK_GRAY);
+        meta.setDisplayName(nameColor + type.getDisplayName());
+
+        int usedSlots = profile == null ? 0 : profile.getTotalItems();
+        int currentSlots = profile == null ? type.getBaseSlots() : profile.getCurrentSlots();
+        int maxSlots = type.getMaxSlots();
+        int tier = profile == null ? 0 : profile.getUpgradeTier();
 
         List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add("§7Status: " + (profile.isLocked() ? "§cLocked" : "§aUnlocked"));
-        lore.add("§7Slots: §e" + profile.getCurrentSlots() + " §7/ §e" + type.getMaxSlots());
-        lore.add("§7Items: §a" + profile.getTotalItems());
-        lore.add("§7Tier: §6" + profile.getUpgradeTier());
+        lore.add(ChatColor.GRAY + "Status: " + (available ? ChatColor.GREEN + "Ready" : ChatColor.RED + "Locked"));
+        lore.add(ChatColor.GRAY + "Capacity: " + ChatColor.YELLOW + currentSlots + ChatColor.DARK_GRAY + "/" + ChatColor.YELLOW + maxSlots);
+        lore.add(ChatColor.GRAY + "Stored Stacks: " + ChatColor.AQUA + usedSlots);
+        lore.add(ChatColor.GRAY + "Tier: " + ChatColor.GOLD + tier);
+        lore.add(ChatColor.GRAY + "Usage: " + usageBar(usedSlots, currentSlots));
 
-        if (profile.getCustomName() != null) {
-            lore.add("");
-            lore.add("§7Custom Name: §f" + profile.getCustomName());
+        if (profile != null && profile.getCustomName() != null && !profile.getCustomName().isBlank()) {
+            lore.add(ChatColor.GRAY + "Alias: " + ChatColor.WHITE + profile.getCustomName());
         }
 
         lore.add("");
-        lore.add("§e§lClick to Open");
-        lore.add("§6§lShift+Click for Upgrades");
+        if (!hasPermission) {
+            lore.add(ChatColor.RED + "Requires permission:");
+            lore.add(ChatColor.DARK_GRAY + type.getPermissionNode());
+        } else if (profile != null && profile.isLocked()) {
+            lore.add(ChatColor.RED + "This storage is currently locked.");
+        } else {
+            lore.add(ChatColor.YELLOW + "Click to Open");
+            lore.add(ChatColor.GOLD + "Shift-Click for Upgrades");
+        }
 
         meta.setLore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        if (available) {
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+        }
         meta.getPersistentDataContainer().set(valueKey, PersistentDataType.STRING, type.name());
         item.setItemMeta(meta);
         return item;
@@ -228,12 +253,17 @@ public class StorageGui {
      * Create a status summary item.
      */
     private ItemStack createStatusItem(Player player) {
-        ItemStack item = new ItemStack(Material.BOOK);
+        ItemStack item = new ItemStack(Material.COMPARATOR);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
-        meta.setDisplayName("§6§lStorage Summary");
+        int totalItems = storageManager.getTotalItemsStored(player);
+        int totalCapacity = storageManager.getTotalStorageCapacity(player);
+        double usage = storageManager.getStorageUsagePercentage(player);
+        int rank = storageManager.getPlayerRank(player.getUniqueId());
 
-        // Get player's selected profile name for display
         String profileName = "Current Profile";
         io.papermc.Grivience.skyblock.profile.ProfileManager profileManager = plugin.getProfileManager();
         if (profileManager != null) {
@@ -243,19 +273,37 @@ public class StorageGui {
             }
         }
 
+        meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "Storage Overview");
         List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Profile: " + ChatColor.YELLOW + profileName);
+        lore.add(ChatColor.GRAY + "Items Stored: " + ChatColor.AQUA + totalItems);
+        lore.add(ChatColor.GRAY + "Total Capacity: " + ChatColor.YELLOW + totalCapacity);
+        lore.add(ChatColor.GRAY + "Usage: " + usageBar(totalItems, Math.max(1, totalCapacity)));
+        lore.add(ChatColor.GRAY + "Leaderboard Rank: " + (rank > 0 ? ChatColor.GOLD + "#" + rank : ChatColor.DARK_GRAY + "Unranked"));
         lore.add("");
-        lore.add("§7Profile: §e" + profileName);
-        lore.add("§7Total Items: §e" + storageManager.getTotalItemsStored(player));
-        lore.add("§7Total Capacity: §e" + storageManager.getTotalStorageCapacity(player));
-        lore.add("§7Usage: §e" + String.format("%.1f", storageManager.getStorageUsagePercentage(player)) + "%");
-        lore.add("");
-        lore.add("§7Rank: §e#" + storageManager.getPlayerRank(player.getUniqueId()));
-        lore.add("");
-        lore.add("§7View detailed status with");
-        lore.add("§7§e/storage status");
+        lore.add(ChatColor.YELLOW + "Click to run " + ChatColor.WHITE + "/storage status");
+        lore.add(ChatColor.DARK_GRAY + "Usage exact: " + String.format(Locale.US, "%.1f%%", usage));
 
         meta.setLore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createUpgradeHeader(StorageType type, StorageProfile profile) {
+        ItemStack item = new ItemStack(getIconForStorageType(type));
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+
+        meta.setDisplayName(ChatColor.GREEN + type.getDisplayName() + ChatColor.GRAY + " Upgrade");
+        meta.setLore(List.of(
+                ChatColor.GRAY + "Current Slots: " + ChatColor.YELLOW + profile.getCurrentSlots(),
+                ChatColor.GRAY + "Max Slots: " + ChatColor.YELLOW + type.getMaxSlots(),
+                ChatColor.GRAY + "Current Tier: " + ChatColor.GOLD + profile.getUpgradeTier()
+        ));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;
     }
@@ -264,21 +312,20 @@ public class StorageGui {
      * Create current tier display item.
      */
     private ItemStack createCurrentTierItem(StorageProfile profile, StorageType type) {
-        ItemStack item = new ItemStack(Material.GRAY_DYE);
+        ItemStack item = new ItemStack(Material.CHEST_MINECART);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
-        meta.setDisplayName("§7Current Tier");
-
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add("§7Storage Type: §e" + type.getDisplayName());
-        lore.add("§7Current Tier: §6" + profile.getUpgradeTier());
-        lore.add("§7Current Slots: §e" + profile.getCurrentSlots());
-        lore.add("§7Max Slots: §e" + type.getMaxSlots());
-        lore.add("");
-        lore.add("§7Items Stored: §a" + profile.getTotalItems());
-
-        meta.setLore(lore);
+        meta.setDisplayName(ChatColor.GRAY + "Current Tier");
+        meta.setLore(List.of(
+                ChatColor.GRAY + "Storage Type: " + ChatColor.YELLOW + type.getDisplayName(),
+                ChatColor.GRAY + "Tier: " + ChatColor.GOLD + profile.getUpgradeTier(),
+                ChatColor.GRAY + "Slots: " + ChatColor.YELLOW + profile.getCurrentSlots() + ChatColor.DARK_GRAY + "/" + ChatColor.YELLOW + type.getMaxSlots(),
+                ChatColor.GRAY + "Stored Stacks: " + ChatColor.AQUA + profile.getTotalItems()
+        ));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;
     }
@@ -287,28 +334,28 @@ public class StorageGui {
      * Create next upgrade display item.
      */
     private ItemStack createNextUpgradeItem(StorageUpgrade upgrade, StorageProfile profile) {
-        ItemStack item = new ItemStack(Material.GREEN_DYE);
+        ItemStack item = new ItemStack(Material.NETHER_STAR);
         ItemMeta meta = item.getItemMeta();
-
-        meta.setDisplayName("§a§lNext Upgrade");
-
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add("§7Upgrade to: §e" + upgrade.getDisplayName());
-        lore.add("§7New Slots: §e" + upgrade.getSlots());
-        lore.add("§7Slot Increase: §a+" + (upgrade.getSlots() - profile.getCurrentSlots()));
-        lore.add("");
-
-        if (upgrade.hasCost()) {
-            lore.add("§7Upgrade Cost: §6$" + upgrade.getCost());
-        } else {
-            lore.add("§7Upgrade Cost: §aFree!");
+        if (meta == null) {
+            return item;
         }
 
+        meta.setDisplayName(ChatColor.AQUA + "" + ChatColor.BOLD + "Next Upgrade");
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Tier Name: " + ChatColor.YELLOW + ChatColor.stripColor(upgrade.getDisplayName()));
+        lore.add(ChatColor.GRAY + "New Slots: " + ChatColor.YELLOW + upgrade.getSlots());
+        lore.add(ChatColor.GRAY + "Increase: " + ChatColor.GREEN + "+" + Math.max(0, upgrade.getSlots() - profile.getCurrentSlots()));
         lore.add("");
-        lore.add("§e§lClick to Upgrade");
+        if (upgrade.hasCost()) {
+            lore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + formatNumber(upgrade.getCost()) + " coins");
+        } else {
+            lore.add(ChatColor.GRAY + "Cost: " + ChatColor.GREEN + "Free");
+        }
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "Use the center button to upgrade.");
 
         meta.setLore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;
     }
@@ -317,19 +364,18 @@ public class StorageGui {
      * Create maxed out display item.
      */
     private ItemStack createMaxedItem() {
-        ItemStack item = new ItemStack(Material.GOLD_BLOCK);
+        ItemStack item = new ItemStack(Material.BEACON);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
-        meta.setDisplayName("§6§lMAXED OUT");
-
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add("§7This storage has reached");
-        lore.add("§7its maximum capacity!");
-        lore.add("");
-        lore.add("§eNo further upgrades available");
-
-        meta.setLore(lore);
+        meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "Max Tier Reached");
+        meta.setLore(List.of(
+                ChatColor.GRAY + "This storage is fully upgraded.",
+                ChatColor.YELLOW + "No additional tiers available."
+        ));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;
     }
@@ -338,22 +384,25 @@ public class StorageGui {
      * Create upgrade button.
      */
     private ItemStack createUpgradeButton(StorageUpgrade upgrade) {
-        ItemStack item = new ItemStack(Material.LIME_WOOL);
+        ItemStack item = new ItemStack(Material.EMERALD_BLOCK);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
-        meta.setDisplayName("§a§lCLICK TO UPGRADE");
-
+        meta.setDisplayName(ChatColor.GREEN + "" + ChatColor.BOLD + "Upgrade Storage");
         List<String> lore = new ArrayList<>();
-        lore.add("");
         if (upgrade != null && upgrade.hasCost()) {
-            lore.add("§7Cost: §6$" + upgrade.getCost());
+            lore.add(ChatColor.GRAY + "Cost: " + ChatColor.GOLD + formatNumber(upgrade.getCost()) + " coins");
         } else {
-            lore.add("§7Free Upgrade!");
+            lore.add(ChatColor.GRAY + "Cost: " + ChatColor.GREEN + "Free");
         }
         lore.add("");
-        lore.add("§e§lClick to confirm upgrade");
+        lore.add(ChatColor.YELLOW + "Click to confirm upgrade.");
 
         meta.setLore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        meta.addEnchant(Enchantment.UNBREAKING, 1, true);
         item.setItemMeta(meta);
         return item;
     }
@@ -361,36 +410,26 @@ public class StorageGui {
     /**
      * Create locked button.
      */
-    private ItemStack createLockedButton() {
-        ItemStack item = new ItemStack(Material.RED_WOOL);
+    private ItemStack createLockedButton(Player player, StorageProfile profile, StorageUpgrade nextUpgrade) {
+        ItemStack item = new ItemStack(Material.REDSTONE_BLOCK);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
-        meta.setDisplayName("§c§lCannot Upgrade");
-
+        meta.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "Cannot Upgrade");
         List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add("§7Requirements not met");
-        lore.add("§7Check permissions or cost");
-
+        if (nextUpgrade == null || profile.getCurrentSlots() >= profile.getStorageType().getMaxSlots()) {
+            lore.add(ChatColor.GRAY + "This storage is already maxed.");
+        } else if (!player.hasPermission(profile.getStorageType().getPermissionNode() + ".upgrade")) {
+            lore.add(ChatColor.GRAY + "Missing permission:");
+            lore.add(ChatColor.DARK_GRAY + profile.getStorageType().getPermissionNode() + ".upgrade");
+        } else {
+            lore.add(ChatColor.GRAY + "Requirements not met.");
+            lore.add(ChatColor.DARK_GRAY + "Check coins or profile state.");
+        }
         meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    /**
-     * Create close button.
-     */
-    private ItemStack createCloseButton() {
-        ItemStack item = new ItemStack(Material.BARRIER);
-        ItemMeta meta = item.getItemMeta();
-
-        meta.setDisplayName("§cClose");
-
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add("§7Click to close menu");
-
-        meta.setLore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;
     }
@@ -399,19 +438,11 @@ public class StorageGui {
      * Create back button to return to main menu.
      */
     private ItemStack createBackButton() {
-        ItemStack item = new ItemStack(Material.ARROW);
-        ItemMeta meta = item.getItemMeta();
-
-        meta.setDisplayName("§aGo Back");
-
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add("§7Click to return to");
-        lore.add("§7the main storage menu");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return SkyblockGui.button(
+                Material.ARROW,
+                ChatColor.GREEN + "Go Back",
+                List.of(ChatColor.GRAY + "Return to the Storage menu.")
+        );
     }
 
     private void tag(ItemStack item, String action, String value) {
@@ -429,6 +460,37 @@ public class StorageGui {
         item.setItemMeta(meta);
     }
 
+    private int countUnlockedStorages(Player player) {
+        int count = 0;
+        for (StorageType type : StorageType.values()) {
+            if (player.hasPermission(type.getPermissionNode())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private String usageBar(int used, int capacity) {
+        int safeCapacity = Math.max(1, capacity);
+        double percent = Math.max(0.0D, Math.min(100.0D, (used * 100.0D) / safeCapacity));
+        int segments = 10;
+        int filled = (int) Math.round((percent / 100.0D) * segments);
+        if (filled < 0) {
+            filled = 0;
+        }
+        if (filled > segments) {
+            filled = segments;
+        }
+
+        String full = "|".repeat(filled);
+        String empty = "|".repeat(Math.max(0, segments - filled));
+        return ChatColor.GREEN + full + ChatColor.DARK_GRAY + empty + ChatColor.GRAY + " " + ChatColor.YELLOW + String.format(Locale.US, "%.1f%%", percent);
+    }
+
+    private String formatNumber(double value) {
+        return String.format(Locale.US, "%,.0f", value);
+    }
+
     /**
      * Get the icon material for a storage type.
      */
@@ -439,8 +501,8 @@ public class StorageGui {
             case ENDER -> Material.ENDER_EYE;
             case BACKPACK -> Material.SHULKER_BOX;
             case WAREHOUSE -> Material.BARREL;
-            case ACCESSORY_BAG -> Material.REDSTONE;
-            case POTION_BAG -> Material.POTION;
+            case ACCESSORY_BAG -> Material.TOTEM_OF_UNDYING;
+            case POTION_BAG -> Material.BREWING_STAND;
         };
     }
 

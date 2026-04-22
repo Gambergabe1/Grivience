@@ -1,12 +1,12 @@
 package io.papermc.Grivience.dungeon;
 
 public enum RoomType {
-    COMBAT("Dojo Clash"),
-    PUZZLE_SEQUENCE("Ofuda Sequence"),
-    PUZZLE_SYNC("Shrine Bell Sync"),
+    COMBAT("Crypt Clash"),
+    PUZZLE_SEQUENCE("Rune Sequence"),
+    PUZZLE_SYNC("Bell Plate Sync"),
     PUZZLE_CHIME("Storm Chime Memory"),
-    PUZZLE_SEAL("Thunder Seal Alignment"),
-    TREASURE("Kura Vault");
+    PUZZLE_SEAL("Lever Seal Alignment"),
+    TREASURE("Treasure Vault");
 
     private final String displayName;
 

@@ -42,7 +42,7 @@ public final class ProfileGui implements Listener {
         fillBackground(inventory);
         
         // Header
-        setItem(inventory, 4, createHeaderItem());
+        setItem(inventory, 4, createHeaderItem(player));
         
         // Profile slots
         List<SkyBlockProfile> profiles = profileManager.getPlayerProfiles(player);
@@ -61,7 +61,7 @@ public final class ProfileGui implements Listener {
         // Action buttons (Skyblock-style bottom row)
         setItem(inventory, 48, createBackItem());
         setItem(inventory, 49, SkyblockGui.closeButton());
-        setItem(inventory, 50, createCreateItem());
+        setItem(inventory, 50, createCreateItem(player));
         setItem(inventory, 53, createInfoItem());
         
         player.openInventory(inventory);
@@ -89,7 +89,7 @@ public final class ProfileGui implements Listener {
         return item;
     }
 
-    private ItemStack createHeaderItem() {
+    private ItemStack createHeaderItem(Player player) {
         ItemStack item = new ItemStack(Material.BOOKSHELF);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "Skyblock Profiles");
@@ -103,7 +103,7 @@ public final class ProfileGui implements Listener {
         lore.add(ChatColor.AQUA + "  • Collections");
         lore.add(ChatColor.AQUA + "  • Skills");
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Max Profiles: " + profileManager.getMaxProfilesPerPlayer());
+        lore.add(ChatColor.YELLOW + "Max Profiles: " + profileManager.getMaxProfiles(player));
         
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
@@ -166,7 +166,7 @@ public final class ProfileGui implements Listener {
         return item;
     }
 
-    private ItemStack createCreateItem() {
+    private ItemStack createCreateItem(Player player) {
         ItemStack item = new ItemStack(Material.EMERALD_BLOCK);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.GREEN + "" + ChatColor.BOLD + "Create New Profile");
@@ -177,7 +177,7 @@ public final class ProfileGui implements Listener {
         lore.add(ChatColor.GRAY + "with fresh progress.");
         lore.add("");
         lore.add(ChatColor.YELLOW + "You can have up to " + 
-            profileManager.getMaxProfilesPerPlayer() + " profiles.");
+            profileManager.getMaxProfiles(player) + " profiles.");
         lore.add("");
         lore.add(ChatColor.GREEN + "Click to create!");
         

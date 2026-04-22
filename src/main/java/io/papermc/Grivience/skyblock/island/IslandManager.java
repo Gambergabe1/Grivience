@@ -3,6 +3,7 @@ package io.papermc.Grivience.skyblock.island;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.skyblock.economy.ProfileEconomyService;
 import io.papermc.Grivience.skyblock.profile.SkyBlockProfile;
+import io.papermc.Grivience.util.StackSizeSanitizer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -40,13 +41,28 @@ public final class IslandManager {
     private int startingSize;
     private List<Integer> upgradeSizes;
     private Map<Integer, Double> upgradeCosts;
+    private Map<Integer, Double> memberLimitCosts;
+    private Map<Integer, Double> guestLimitCosts;
+    private Map<Integer, Double> minionLimitCosts;
+    private Map<Integer, Double> endMinesLuckCosts;
+    private Map<Integer, Double> bankInterestCosts;
+    private Map<Integer, Double> bazaarFlipperCosts;
+    private Map<Integer, Double> islandSpeedCosts;
+    private Map<Integer, Double> magicFindCosts;
+    private Map<Integer, Double> petLuckCosts;
     private int islandSpawnY;
+    private boolean islandsLoaded;
+
+    private io.papermc.Grivience.skyblock.listener.IslandProtectionListener protectionListener;
 
     public IslandManager(GriviencePlugin plugin) {
         this.plugin = plugin;
         this.profileEconomy = new ProfileEconomyService(plugin);
         loadConfig();
-        loadIslands();
+    }
+
+    public void setProtectionListener(io.papermc.Grivience.skyblock.listener.IslandProtectionListener protectionListener) {
+        this.protectionListener = protectionListener;
     }
 
     public void loadConfig() {
@@ -102,44 +118,369 @@ public final class IslandManager {
                     7, 100000.0
             );
         }
+
+        memberLimitCosts = new HashMap<>();
+        ConfigurationSection memberCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-member-limit");
+        if (memberCostsSection != null) {
+            for (String key : memberCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    memberLimitCosts.put(level, memberCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        if (memberLimitCosts.isEmpty()) {
+            memberLimitCosts = Map.of(
+                    1, 25000.0,
+                    2, 100000.0,
+                    3, 500000.0
+            );
+        }
+
+        guestLimitCosts = new HashMap<>();
+        ConfigurationSection guestCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-guest-limit");
+        if (guestCostsSection != null) {
+            for (String key : guestCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    guestLimitCosts.put(level, guestCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        if (guestLimitCosts.isEmpty()) {
+            guestLimitCosts = Map.of(
+                    1, 10000.0,
+                    2, 50000.0,
+                    3, 200000.0
+            );
+        }
+
+        minionLimitCosts = new HashMap<>();
+        ConfigurationSection minionCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-minion-limit");
+        if (minionCostsSection != null) {
+            for (String key : minionCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    minionLimitCosts.put(level, minionCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        if (minionLimitCosts.isEmpty()) {
+            minionLimitCosts = Map.of(
+                    1, 50000.0,
+                    2, 250000.0,
+                    3, 1000000.0
+            );
+        }
+
+        endMinesLuckCosts = new HashMap<>();
+        ConfigurationSection luckCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-end-mines-luck");
+        if (luckCostsSection != null) {
+            for (String key : luckCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    endMinesLuckCosts.put(level, luckCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (endMinesLuckCosts.isEmpty()) {
+            endMinesLuckCosts = Map.of(
+                    1, 100000.0,
+                    2, 500000.0,
+                    3, 2000000.0
+            );
+        }
+
+        bankInterestCosts = new HashMap<>();
+        ConfigurationSection interestCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-bank-interest");
+        if (interestCostsSection != null) {
+            for (String key : interestCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    bankInterestCosts.put(level, interestCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (bankInterestCosts.isEmpty()) {
+            bankInterestCosts = Map.of(
+                    1, 250000.0,
+                    2, 1000000.0,
+                    3, 5000000.0
+            );
+        }
+
+        bazaarFlipperCosts = new HashMap<>();
+        ConfigurationSection flipperCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-bazaar-flipper");
+        if (flipperCostsSection != null) {
+            for (String key : flipperCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    bazaarFlipperCosts.put(level, flipperCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (bazaarFlipperCosts.isEmpty()) {
+            bazaarFlipperCosts = Map.of(
+                    1, 75000.0,
+                    2, 300000.0,
+                    3, 1000000.0
+            );
+        }
+
+        islandSpeedCosts = new HashMap<>();
+        ConfigurationSection speedCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-island-speed");
+        if (speedCostsSection != null) {
+            for (String key : speedCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    islandSpeedCosts.put(level, speedCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (islandSpeedCosts.isEmpty()) {
+            islandSpeedCosts = Map.of(
+                    1, 50000.0,
+                    2, 200000.0,
+                    3, 800000.0
+            );
+        }
+
+        magicFindCosts = new HashMap<>();
+        ConfigurationSection magicCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-magic-find");
+        if (magicCostsSection != null) {
+            for (String key : magicCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    magicFindCosts.put(level, magicCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (magicFindCosts.isEmpty()) {
+            magicFindCosts = Map.of(
+                    1, 150000.0,
+                    2, 600000.0,
+                    3, 2500000.0
+            );
+        }
+
+        petLuckCosts = new HashMap<>();
+        ConfigurationSection petLuckCostsSection = skyblockSection.getConfigurationSection("upgrade-costs-pet-luck");
+        if (petLuckCostsSection != null) {
+            for (String key : petLuckCostsSection.getKeys(false)) {
+                try {
+                    int level = Integer.parseInt(key);
+                    petLuckCosts.put(level, petLuckCostsSection.getDouble(key));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (petLuckCosts.isEmpty()) {
+            petLuckCosts = Map.of(
+                    1, 100000.0,
+                    2, 400000.0,
+                    3, 1500000.0
+            );
+        }
         
         // Log that islands are preserved
         plugin.getLogger().info("Island configuration reloaded. " + islandsById.size() + " islands preserved.");
     }
 
+    public boolean upgradeEndMinesLuck(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getEndMinesLuckUpgrade() + 1;
+        Double cost = endMinesLuckCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum End Mines Luck reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setEndMinesLuckUpgrade(nextLevel);
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "End Mines Luck upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public boolean upgradeBankInterest(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getBankInterestUpgrade() + 1;
+        Double cost = bankInterestCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum Bank Interest reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setBankInterestUpgrade(nextLevel);
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "Bank Interest upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public boolean upgradeBazaarFlipper(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getBazaarFlipperUpgrade() + 1;
+        Double cost = bazaarFlipperCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum Bazaar Flipper reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setBazaarFlipperUpgrade(nextLevel);
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "Bazaar Flipper upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public double getEndMinesLuckUpgradeCost(int level) {
+        return endMinesLuckCosts.getOrDefault(level, -1.0);
+    }
+
+    public double getBankInterestUpgradeCost(int level) {
+        return bankInterestCosts.getOrDefault(level, -1.0);
+    }
+
+    public double getBazaarFlipperUpgradeCost(int level) {
+        return bazaarFlipperCosts.getOrDefault(level, -1.0);
+    }
+
+    public boolean upgradeIslandSpeed(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getIslandSpeedUpgrade() + 1;
+        Double cost = islandSpeedCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum Island Speed reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setIslandSpeedUpgrade(nextLevel);
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "Island Speed upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public boolean upgradeMagicFind(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getMagicFindUpgrade() + 1;
+        Double cost = magicFindCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum Magic Find reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setMagicFindUpgrade(nextLevel);
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "Magic Find upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public boolean upgradePetLuck(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getPetLuckUpgrade() + 1;
+        Double cost = petLuckCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum Pet Luck reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setPetLuckUpgrade(nextLevel);
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "Pet Luck upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public double getIslandSpeedUpgradeCost(int level) {
+        return islandSpeedCosts.getOrDefault(level, -1.0);
+    }
+
+    public double getMagicFindUpgradeCost(int level) {
+        return magicFindCosts.getOrDefault(level, -1.0);
+    }
+
+    public double getPetLuckUpgradeCost(int level) {
+        return petLuckCosts.getOrDefault(level, -1.0);
+    }
+
     public void initializeWorld() {
         String worldName = plugin.getConfig().getString("skyblock.world-name", "skyblock_world");
-        islandWorld = Bukkit.getWorld(worldName);
+        World loadedWorld = Bukkit.getWorld(worldName);
 
-        // Check if world exists and is properly configured as void world
+        if (loadedWorld != null && !hasVoidGenerator(loadedWorld)) {
+            plugin.getLogger().warning("Skyblock world '" + worldName + "' is loaded without Skyblock void generator.");
+            plugin.getLogger().warning("Reloading world with void generator to prevent natural terrain chunks.");
+            loadedWorld = tryReloadWorldWithVoidGenerator(loadedWorld) ? null : loadedWorld;
+        }
+
+        if (loadedWorld != null && hasVoidGenerator(loadedWorld)) {
+            islandWorld = loadedWorld;
+        } else {
+            islandWorld = createOrLoadVoidWorld(worldName);
+        }
+
         if (islandWorld != null) {
-            // Verify world generator is correct
-            if (islandWorld.getGenerator() == null || !(islandWorld.getGenerator() instanceof SkyblockWorldGenerator)) {
-                plugin.getLogger().warning("Skyblock world '" + worldName + "' exists but does not have the void generator!");
-                plugin.getLogger().warning("The plugin will continue, but new chunks might generate natural terrain.");
+            configureSkyBlockWorld();
+            if (!islandsLoaded) {
+                loadIslands();
+                islandsLoaded = true;
+            } else {
+                rebindIslandLocationsToWorld(islandWorld);
             }
-            plugin.getLogger().info("Skyblock world loaded: " + worldName);
-            configureSkyBlockWorld();
-            return;
-        }
-
-        // World doesn't exist - create new void world
-        plugin.getLogger().info("Creating new Skyblock void world: " + worldName);
-        WorldCreator creator = new WorldCreator(worldName);
-        creator.environment(World.Environment.NORMAL);
-        creator.generateStructures(false);
-        creator.generator(new SkyblockWorldGenerator());
-        try {
-            creator.type(org.bukkit.WorldType.FLAT);
-        } catch (Exception ignored) {
-            // Some versions might not support this or it might be redundant with generator
-        }
-        
-        islandWorld = Bukkit.createWorld(creator);
-
-        if (islandWorld != null) {
-            configureSkyBlockWorld();
-            plugin.getLogger().info("Skyblock void world created successfully!");
+            plugin.getLogger().info("Skyblock void world ready: " + worldName);
             plugin.getLogger().info("World properties:");
             plugin.getLogger().info("  - Name: " + worldName);
             plugin.getLogger().info("  - Environment: NORMAL");
@@ -147,9 +488,136 @@ public final class IslandManager {
             plugin.getLogger().info("  - Structures: DISABLED");
             plugin.getLogger().info("  - Terrain Generation: VOID");
             plugin.getLogger().info("  - Mob Spawning: ENABLED (for player islands)");
+            if (!hasVoidGenerator(islandWorld)) {
+                plugin.getLogger().warning("Skyblock world generator handle is not exposed by Bukkit.");
+                plugin.getLogger().warning("Keeping world loaded, but island creation will still clear terrain envelopes.");
+            }
         } else {
             plugin.getLogger().severe("Failed to create Skyblock world: " + worldName);
         }
+    }
+
+    private void rebindIslandLocationsToWorld(World world) {
+        if (world == null || islandsById.isEmpty()) {
+            return;
+        }
+
+        int updated = 0;
+        for (Island island : islandsById.values()) {
+            if (island == null) {
+                continue;
+            }
+
+            Location center = island.getCenter();
+            if (needsWorldRebind(center, world)) {
+                island.setCenter(cloneInWorld(center, world));
+                updated++;
+            }
+
+            Location spawn = island.getRawSpawnPoint();
+            if (needsWorldRebind(spawn, world)) {
+                island.setSpawnPoint(cloneInWorld(spawn, world));
+                updated++;
+            }
+
+            Location guestSpawn = island.getRawGuestSpawnPoint();
+            if (needsWorldRebind(guestSpawn, world)) {
+                island.setGuestSpawnPoint(cloneInWorld(guestSpawn, world));
+                updated++;
+            }
+        }
+
+        if (updated > 0) {
+            plugin.getLogger().info("Rebound " + updated + " island location references to world '" + world.getName() + "'.");
+        }
+    }
+
+    private boolean needsWorldRebind(Location location, World targetWorld) {
+        if (location == null || targetWorld == null) {
+            return false;
+        }
+        World current = location.getWorld();
+        if (current == null) {
+            return true;
+        }
+        if (current.equals(targetWorld)) {
+            return false;
+        }
+        return current.getName().equalsIgnoreCase(targetWorld.getName());
+    }
+
+    private Location cloneInWorld(Location source, World targetWorld) {
+        if (source == null || targetWorld == null) {
+            return null;
+        }
+        return new Location(
+                targetWorld,
+                source.getX(),
+                source.getY(),
+                source.getZ(),
+                source.getYaw(),
+                source.getPitch()
+        );
+    }
+
+    private World createOrLoadVoidWorld(String worldName) {
+        WorldCreator creator = new WorldCreator(worldName);
+        creator.environment(World.Environment.NORMAL);
+        creator.generateStructures(false);
+        creator.generator(new SkyblockWorldGenerator());
+        try {
+            creator.type(org.bukkit.WorldType.FLAT);
+        } catch (Exception ignored) {
+            // Some versions might not support this or it might be redundant with generator.
+        }
+        return Bukkit.createWorld(creator);
+    }
+
+    private boolean hasVoidGenerator(World world) {
+        return world != null && world.getGenerator() instanceof SkyblockWorldGenerator;
+    }
+
+    private boolean tryReloadWorldWithVoidGenerator(World world) {
+        if (world == null) {
+            return false;
+        }
+
+        if (!world.getPlayers().isEmpty()) {
+            Location fallback = findFallbackLocation(world);
+            if (fallback == null) {
+                plugin.getLogger().severe("Cannot reload Skyblock world: no fallback location for connected players.");
+                return false;
+            }
+
+            for (Player player : new ArrayList<>(world.getPlayers())) {
+                player.teleport(fallback);
+                player.sendMessage(ChatColor.YELLOW + "Skyblock world is reloading in void mode. Please wait...");
+            }
+        }
+
+        if (!Bukkit.unloadWorld(world, true)) {
+            plugin.getLogger().severe("Failed to unload Skyblock world '" + world.getName() + "' for generator reload.");
+            return false;
+        }
+
+        plugin.getLogger().info("Unloaded Skyblock world '" + world.getName() + "' for void generator reload.");
+        return true;
+    }
+
+    private Location findFallbackLocation(World previousWorld) {
+        String hubWorldName = plugin.getConfig().getString("skyblock.hub-world", "world");
+        World hubWorld = hubWorldName == null ? null : Bukkit.getWorld(hubWorldName);
+        if (hubWorld != null && !hubWorld.equals(previousWorld)) {
+            return hubWorld.getSpawnLocation();
+        }
+
+        for (World world : Bukkit.getWorlds()) {
+            if (world == null || world.equals(previousWorld)) {
+                continue;
+            }
+            return world.getSpawnLocation();
+        }
+        return null;
     }
 
     /**
@@ -191,6 +659,10 @@ public final class IslandManager {
             initializeWorld();
         }
         return islandWorld;
+    }
+
+    public String getIslandWorldName() {
+        return plugin.getConfig().getString("skyblock.world-name", "skyblock_world");
     }
 
     public Island createIsland(Player player) {
@@ -235,7 +707,7 @@ public final class IslandManager {
             return null;
         }
         UUID owner = player.getUniqueId();
-        Island existing = findIslandForOwnerProfile(owner, profile.getProfileId(), profile.getProfileName());
+        Island existing = resolveIslandForProfile(profile);
         if (existing != null) {
             playerToIsland.put(owner, existing.getId());
             Location spawn = getSafeSpawnLocation(existing);
@@ -245,6 +717,12 @@ public final class IslandManager {
             }
             player.sendMessage(ChatColor.YELLOW + "You already have an island for this profile.");
             return existing;
+        }
+
+        if (profile.isCoopMemberProfile()) {
+            player.sendMessage(ChatColor.RED + "That coop profile uses a shared island.");
+            player.sendMessage(ChatColor.GRAY + "Switch back to the shared island owner profile if the island needs to be recreated.");
+            return null;
         }
 
         if (islandWorld == null) {
@@ -323,14 +801,7 @@ public final class IslandManager {
         }
 
         UUID owner = player.getUniqueId();
-        Island island = findIslandForOwnerProfile(owner, newProfile.getProfileId(), null);
-        if (island == null) {
-            island = findIslandForOwnerProfile(owner, null, newProfile.getProfileName());
-            if (island != null && island.getProfileId() == null) {
-                island.setProfileId(newProfile.getProfileId());
-                saveIsland(island);
-            }
-        }
+        Island island = resolveIslandForProfile(newProfile);
 
         loadProfileInventory(player, newProfile.getProfileId(), newProfile.getProfileName());
 
@@ -344,6 +815,13 @@ public final class IslandManager {
             return;
         }
 
+        if (newProfile.isCoopMemberProfile()) {
+            player.sendMessage(ChatColor.RED + "That coop profile is missing its shared island.");
+            plugin.getLogger().warning("Missing shared island for coop profile " + newProfile.getProfileId()
+                    + " linked to " + newProfile.getCanonicalProfileId() + ".");
+            return;
+        }
+
         // If no island exists for this profile, create one automatically
         plugin.getLogger().info("No island found for profile '" + newProfile.getProfileName() + "' (" + owner + "). Creating one automatically...");
         createIsland(player);
@@ -351,6 +829,12 @@ public final class IslandManager {
 
     public int computeGuestLimit(Player owner) {
         int limit = Math.max(1, plugin.getConfig().getInt("skyblock.visiting.guest-limit.default", 1));
+        
+        Island island = owner != null ? getIsland(owner.getUniqueId()) : null;
+        if (island != null) {
+            limit += island.getGuestLimitUpgrade() * 2; // Each upgrade adds 2 slots
+        }
+
         if (owner == null) {
             return limit;
         }
@@ -396,11 +880,20 @@ public final class IslandManager {
         if (owner.hasPermission("grivience.visit.guestlimit.youtuber")) {
             limit = Math.max(limit, 15);
         }
+        if (owner.hasPermission("grivience.visit.guestlimit.mvpplusplus")) {
+            limit = Math.max(limit, 10);
+        }
         if (owner.hasPermission("grivience.visit.guestlimit.mvpplus")) {
             limit = Math.max(limit, 7);
         }
         if (owner.hasPermission("grivience.visit.guestlimit.mvp")) {
+            limit = Math.max(limit, 6);
+        }
+        if (owner.hasPermission("grivience.visit.guestlimit.vipplusplus")) {
             limit = Math.max(limit, 5);
+        }
+        if (owner.hasPermission("grivience.visit.guestlimit.vipplus")) {
+            limit = Math.max(limit, 4);
         }
         if (owner.hasPermission("grivience.visit.guestlimit.vip")) {
             limit = Math.max(limit, 3);
@@ -489,25 +982,10 @@ public final class IslandManager {
         }
 
         UUID owner = player.getUniqueId();
-        Island island = findIslandForOwnerProfile(owner, profile.getProfileId(), null);
-        if (island == null) {
-            // Legacy islands keyed by profile name: migrate on access.
-            island = findIslandForOwnerProfile(owner, null, profile.getProfileName());
-            if (island != null && island.getProfileId() == null) {
-                island.setProfileId(profile.getProfileId());
-                saveIsland(island);
-            }
-        }
+        Island island = resolveIslandForProfile(profile);
         if (island != null) {
             playerToIsland.put(owner, island.getId());
             return island;
-        }
-
-        // Fallback: member islands
-        for (Island candidate : islandsById.values()) {
-            if (candidate != null && candidate.isMember(owner)) {
-                return candidate;
-            }
         }
         return null;
     }
@@ -637,6 +1115,15 @@ public final class IslandManager {
 
         saveIsland(island);
 
+        // Refresh world border for all players on the island
+        if (protectionListener != null && islandWorld != null) {
+            for (Player p : islandWorld.getPlayers()) {
+                if (island.isWithinIsland(p.getLocation())) {
+                    protectionListener.refreshWorldBorder(p, island);
+                }
+            }
+        }
+
         player.sendMessage(ChatColor.GREEN + "Island expanded to level " + newLevel + "!");
         player.sendMessage(ChatColor.GRAY + "New size: " + newSize + "x" + newSize);
         player.sendMessage(ChatColor.GRAY + "Cost: $" + String.format("%.2f", cost));
@@ -645,6 +1132,91 @@ public final class IslandManager {
         }
 
         return true;
+    }
+
+    public boolean upgradeMemberLimit(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getMemberLimitUpgrade() + 1;
+        Double cost = memberLimitCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum member limit reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setMemberLimitUpgrade(nextLevel);
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "Island member limit upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public boolean upgradeGuestLimit(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getGuestLimitUpgrade() + 1;
+        Double cost = guestLimitCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum guest limit reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setGuestLimitUpgrade(nextLevel);
+        island.setGuestLimit(computeGuestLimit(player)); // Refresh guest limit
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "Island guest limit upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public boolean upgradeMinionLimit(Player player) {
+        Island island = getIsland(player.getUniqueId());
+        if (island == null) return false;
+
+        int nextLevel = island.getMinionLimitUpgrade() + 1;
+        Double cost = minionLimitCosts.get(nextLevel);
+        if (cost == null) {
+            player.sendMessage(ChatColor.RED + "Maximum minion limit upgrade reached.");
+            return false;
+        }
+
+        if (!hasEnoughMoney(player, cost)) {
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: $" + String.format("%.2f", cost));
+            return false;
+        }
+
+        withdrawMoney(player, cost);
+        island.setMinionLimitUpgrade(nextLevel);
+        saveIsland(island);
+
+        player.sendMessage(ChatColor.GREEN + "Island minion limit upgraded to Level " + nextLevel + "!");
+        return true;
+    }
+
+    public double getMemberLimitUpgradeCost(int level) {
+        return memberLimitCosts.getOrDefault(level, -1.0);
+    }
+
+    public double getGuestLimitUpgradeCost(int level) {
+        return guestLimitCosts.getOrDefault(level, -1.0);
+    }
+
+    public double getMinionLimitUpgradeCost(int level) {
+        return minionLimitCosts.getOrDefault(level, -1.0);
     }
 
     public double getUpgradeCost(int level) {
@@ -694,6 +1266,7 @@ public final class IslandManager {
         }
 
         if (island != null) {
+            unindexIslandForCoop(island);
             deleteIslandData(island);
             deleteProfileInventory(playerUuid, island.getProfileId(), island.getProfileName());
         }
@@ -711,6 +1284,7 @@ public final class IslandManager {
         }
 
         UUID islandId = island.getId();
+        unindexIslandForCoop(island);
         islandsById.remove(islandId);
 
         List<UUID> ids = ownerProfiles.get(owner);
@@ -778,7 +1352,7 @@ public final class IslandManager {
 
         UUID profileId = island.getProfileId();
         if (profileId != null) {
-            islandByProfileId.putIfAbsent(profileId, island.getId());
+            islandByProfileId.put(profileId, island.getId());
 
             for (UUID memberId : island.getMembers()) {
                 if (memberId == null) {
@@ -788,7 +1362,29 @@ public final class IslandManager {
                 if (island.getOwner() != null && island.getOwner().equals(memberId)) {
                     continue;
                 }
-                coopProfileByMember.putIfAbsent(memberId, profileId);
+                coopProfileByMember.put(memberId, profileId);
+            }
+        }
+    }
+
+    private void unindexIslandForCoop(Island island) {
+        if (island == null) {
+            return;
+        }
+
+        UUID profileId = island.getProfileId();
+        if (profileId != null) {
+            islandByProfileId.remove(profileId, island.getId());
+        }
+
+        for (UUID memberId : island.getMembers()) {
+            if (memberId == null) {
+                continue;
+            }
+            if (profileId != null) {
+                coopProfileByMember.remove(memberId, profileId);
+            } else {
+                coopProfileByMember.remove(memberId);
             }
         }
     }
@@ -863,6 +1459,11 @@ public final class IslandManager {
         }
         ids.addAll(island.getMembers());
         return ids;
+    }
+
+    public boolean hasCoopMembers(UUID profileId) {
+        Island island = getIslandByProfileId(profileId);
+        return island != null && !island.getMembers().isEmpty();
     }
 
     /**
@@ -1016,6 +1617,31 @@ public final class IslandManager {
         return null;
     }
 
+    private Island resolveIslandForProfile(SkyBlockProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+
+        UUID canonicalProfileId = profile.getCanonicalProfileId();
+        if (canonicalProfileId != null) {
+            Island indexed = getIslandByProfileId(canonicalProfileId);
+            if (indexed != null) {
+                return indexed;
+            }
+        }
+
+        if (profile.isCoopMemberProfile()) {
+            return null;
+        }
+
+        Island legacy = findIslandForOwnerProfile(profile.getOwnerId(), profile.getProfileId(), profile.getProfileName());
+        if (legacy != null && legacy.getProfileId() == null && profile.getProfileId() != null) {
+            legacy.setProfileId(profile.getProfileId());
+            saveIsland(legacy);
+        }
+        return legacy;
+    }
+
     public Island switchActiveIsland(UUID owner, String profileName) {
         List<Island> list = getIslandsForOwner(owner);
         for (Island island : list) {
@@ -1109,8 +1735,35 @@ public final class IslandManager {
         YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
         List<ItemStack> inv = (List<ItemStack>) cfg.getList("inventory", new ArrayList<ItemStack>());
         List<ItemStack> armor = (List<ItemStack>) cfg.getList("armor", new ArrayList<ItemStack>());
-        player.getInventory().setContents(inv.toArray(new ItemStack[0]));
-        player.getInventory().setArmorContents(armor.toArray(new ItemStack[0]));
+        List<ItemStack> overflow = new ArrayList<>();
+        ItemStack[] contents = sanitizeLoadedStacks(inv.toArray(new ItemStack[0]), overflow);
+        ItemStack[] armorContents = sanitizeLoadedStacks(armor.toArray(new ItemStack[0]), overflow);
+        player.getInventory().setContents(contents);
+        player.getInventory().setArmorContents(armorContents);
+        for (ItemStack stack : overflow) {
+            if (stack == null || stack.getType().isAir()) {
+                continue;
+            }
+            Map<Integer, ItemStack> leftover = player.getInventory().addItem(stack);
+            for (ItemStack remainder : leftover.values()) {
+                if (remainder != null && !remainder.getType().isAir()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), remainder);
+                }
+            }
+        }
+    }
+
+    private ItemStack[] sanitizeLoadedStacks(ItemStack[] stacks, List<ItemStack> overflow) {
+        if (stacks == null || stacks.length == 0) {
+            return new ItemStack[0];
+        }
+        ItemStack[] sanitized = new ItemStack[stacks.length];
+        for (int i = 0; i < stacks.length; i++) {
+            var result = StackSizeSanitizer.sanitize(stacks[i]);
+            sanitized[i] = result.primary();
+            overflow.addAll(result.overflow());
+        }
+        return sanitized;
     }
 
     private File inventoryFile(UUID owner, UUID profileId) {
@@ -1127,9 +1780,15 @@ public final class IslandManager {
     }
 
     public Island getIslandAt(Location location) {
-        if (location == null || islandWorld == null || !location.getWorld().equals(islandWorld)) {
+        if (location == null || location.getWorld() == null) {
             return null;
         }
+        
+        String worldName = getIslandWorldName();
+        if (!location.getWorld().getName().equalsIgnoreCase(worldName)) {
+            return null;
+        }
+        
         for (Island island : islandsById.values()) {
             if (island != null && island.isWithinIsland(location)) {
                 return island;

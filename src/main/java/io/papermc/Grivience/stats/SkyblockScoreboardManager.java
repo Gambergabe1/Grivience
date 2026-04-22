@@ -3,6 +3,7 @@ package io.papermc.Grivience.stats;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.dungeon.DungeonManager;
 import io.papermc.Grivience.dungeon.DungeonSession;
+import io.papermc.Grivience.item.CustomItemService;
 import io.papermc.Grivience.mines.MiningEventManager;
 import io.papermc.Grivience.skyblock.island.Island;
 import io.papermc.Grivience.skyblock.island.IslandManager;
@@ -25,8 +26,6 @@ import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import io.papermc.Grivience.item.CustomItemService;
-import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -90,9 +89,13 @@ public final class SkyblockScoreboardManager implements Listener {
     private final DungeonManager dungeonManager;
     private final BitsManager bitsManager;
     private final io.papermc.Grivience.zone.ZoneManager zoneManager;
+    private final io.papermc.Grivience.farming.FarmingContestManager farmingContestManager;
     private final Map<UUID, Scoreboard> scoreboardsByPlayer = new HashMap<>();
+    private final Map<UUID, List<String>> lastRenderedLinesByPlayer = new HashMap<>();
 
     private BukkitTask updateTask;
+    private int renderCursor;
+    private long renderAccumulator;
 
     private boolean enabled;
     private long updateTicks;
@@ -110,7 +113,8 @@ public final class SkyblockScoreboardManager implements Listener {
             IslandManager islandManager,
             DungeonManager dungeonManager,
             BitsManager bitsManager,
-            io.papermc.Grivience.zone.ZoneManager zoneManager
+            io.papermc.Grivience.zone.ZoneManager zoneManager,
+            io.papermc.Grivience.farming.FarmingContestManager farmingContestManager
     ) {
         this.plugin = plugin;
         this.levelManager = levelManager;
@@ -118,6 +122,7 @@ public final class SkyblockScoreboardManager implements Listener {
         this.dungeonManager = dungeonManager;
         this.bitsManager = bitsManager;
         this.zoneManager = zoneManager;
+        this.farmingContestManager = farmingContestManager;
     }
 
     public void start() {
@@ -136,6 +141,7 @@ public final class SkyblockScoreboardManager implements Listener {
         profileLabel = plugin.getConfig().getString("scoreboard.custom.profile-label", "Profile");
 
         restartTask();
+        lastRenderedLinesByPlayer.clear();
         if (!enabled) {
             clearAllSidebars();
         }
@@ -161,7 +167,9 @@ public final class SkyblockScoreboardManager implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        scoreboardsByPlayer.remove(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        scoreboardsByPlayer.remove(playerId);
+        lastRenderedLinesByPlayer.remove(playerId);
     }
 
     private void restartTask() {
@@ -169,7 +177,9 @@ public final class SkyblockScoreboardManager implements Listener {
         if (!enabled) {
             return;
         }
-        updateTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 5L, updateTicks);
+        renderCursor = 0;
+        renderAccumulator = 0L;
+        updateTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 5L, 1L);
     }
 
     private void stopTask() {
@@ -183,8 +193,53 @@ public final class SkyblockScoreboardManager implements Listener {
         if (!enabled) {
             return;
         }
-        for (Player player : Bukkit.getOnlinePlayers()) {
+        Player[] online = Bukkit.getOnlinePlayers().toArray(Player[]::new);
+        if (online.length == 0) {
+            renderCursor = 0;
+            renderAccumulator = 0L;
+            return;
+        }
+
+        long effectiveUpdateTicks = effectiveUpdateTicks();
+        renderAccumulator += online.length;
+        int playersThisTick = (int) Math.min(online.length, renderAccumulator / effectiveUpdateTicks);
+        if (playersThisTick <= 0) {
+            return;
+        }
+        renderAccumulator %= effectiveUpdateTicks;
+
+        for (int i = 0; i < playersThisTick; i++) {
+            Player player = online[(renderCursor + i) % online.length];
+            try {
+                renderSidebar(player);
+            } catch (Throwable throwable) {
+                plugin.getLogger().warning("Scoreboard update failed for " + player.getName() + ": " + throwable.getMessage());
+            }
+        }
+        renderCursor = (renderCursor + playersThisTick) % online.length;
+    }
+
+    private long effectiveUpdateTicks() {
+        if (plugin.getServerPerformanceMonitor() == null) {
+            return updateTicks;
+        }
+        return plugin.getServerPerformanceMonitor().scalePeriod(updateTicks, 2, 4);
+    }
+
+    /**
+     * Forces an immediate scoreboard update for a specific player.
+     * Useful when a player enters/leaves a zone.
+     * 
+     * @param player The player to update the scoreboard for.
+     */
+    public void updateForPlayer(Player player) {
+        if (!enabled || player == null) {
+            return;
+        }
+        try {
             renderSidebar(player);
+        } catch (Throwable throwable) {
+            plugin.getLogger().warning("Manual scoreboard update failed for " + player.getName() + ": " + throwable.getMessage());
         }
     }
 
@@ -202,6 +257,12 @@ public final class SkyblockScoreboardManager implements Listener {
         objective.setDisplayName(clip(color(title), 32));
 
         List<String> lines = buildLines(player);
+        UUID playerId = player.getUniqueId();
+        List<String> previousLines = lastRenderedLinesByPlayer.get(playerId);
+        if (previousLines != null && previousLines.equals(lines)) {
+            return;
+        }
+        lastRenderedLinesByPlayer.put(playerId, List.copyOf(lines));
         int lineCount = Math.min(MAX_LINES, lines.size());
 
         for (int index = 0; index < lineCount; index++) {
@@ -258,6 +319,12 @@ public final class SkyblockScoreboardManager implements Listener {
 
     private void appendSkyblockLines(List<String> lines, Player player) {
         lines.add("&f\u23e3 &a" + resolveArea(player));
+        
+        String subArea = resolveSubArea(player);
+        if (subArea != null) {
+            lines.add("&7 Layer: &b" + subArea);
+        }
+
         lines.add("&7" + profileLabel + ": &a" + resolveProfile(player));
         lines.add("&7Purse: &6" + formatPurse(resolvePurse(player)));
         long playerBits = bitsManager != null ? bitsManager.getBits(player) : defaultBits;
@@ -265,7 +332,8 @@ public final class SkyblockScoreboardManager implements Listener {
 
         // Drill Fuel Display (Hypixel-style when holding a drill)
         ItemStack held = player.getInventory().getItemInMainHand();
-        String drillId = plugin.getCustomItemService().itemId(held);
+        CustomItemService customItemService = plugin.getCustomItemService();
+        String drillId = customItemService == null ? null : customItemService.itemId(held);
         if (drillId != null && drillId.endsWith("_DRILL")) {
             ItemMeta meta = held.getItemMeta();
             if (meta != null) {
@@ -288,6 +356,32 @@ public final class SkyblockScoreboardManager implements Listener {
 
         // Add XP progress line for live display
         lines.add("&7XP: &b" + formatWhole(xpInto) + "&f/&b" + formatWhole(xpPerLevel) + " &7(&e" + Math.round((xpInto * 100.0) / Math.max(1, xpPerLevel)) + "%&7)");
+
+        // Farming Contest Display
+        if (farmingContestManager != null && farmingContestManager.isContestActive()) {
+            boolean activelyFarming = false;
+            for (io.papermc.Grivience.farming.FarmingContestCrop crop : farmingContestManager.getActiveContestCrops()) {
+                if (farmingContestManager.getScoreFor(player, crop) > 0) {
+                    activelyFarming = true;
+                    break;
+                }
+            }
+
+            if (activelyFarming) {
+                long remainingMillis = farmingContestManager.getContestRemainingMillis();
+                lines.add("");
+                lines.add("&eCletus' Contest");
+                lines.add("&fTime Left: &a" + formatElapsed(remainingMillis / 1000));
+                
+                for (io.papermc.Grivience.farming.FarmingContestCrop crop : farmingContestManager.getActiveContestCrops()) {
+                    long score = farmingContestManager.getScoreFor(player, crop);
+                    if (score > 0) {
+                        lines.add("&a" + crop.displayName());
+                        lines.add("&f" + formatWhole(score) + " collected");
+                    }
+                }
+            }
+        }
 
         // Mining Event Display
         MiningEventManager eventManager = plugin.getMiningEventManager();
@@ -403,6 +497,14 @@ public final class SkyblockScoreboardManager implements Listener {
         if (zoneManager != null && zoneManager.isEnabled()) {
             String zoneName = zoneManager.getZoneName(player);
             if (zoneName != null && !zoneName.equals(zoneManager.getDefaultZoneName())) {
+                // If it's the Hub zone, normalize to "Hub" to match world fallback
+                if (ChatColor.stripColor(zoneName).equalsIgnoreCase("Hub")) {
+                    return "Hub";
+                }
+                // Handle shared Farm Hub world naming
+                if (usesSharedFarmHubWorld() && ChatColor.stripColor(zoneName).equalsIgnoreCase("Farm Hub")) {
+                    return "Hub";
+                }
                 return zoneName;
             }
         }
@@ -421,23 +523,61 @@ public final class SkyblockScoreboardManager implements Listener {
         // Fallback to world-based detection
         String worldName = player.getWorld().getName();
         String hubWorld = plugin.getConfig().getString("skyblock.hub-world", "world");
-        String minehubWorld = plugin.getConfig().getString("skyblock.minehub-world", "minehub_world");
+        String minehubWorld = plugin.getConfig().getString("skyblock.minehub-world", "Minehub");
         String farmhubWorld = plugin.getConfig().getString("skyblock.farmhub-world", "world");
         String islandWorld = plugin.getConfig().getString("skyblock.world-name", "skyblock_world");
+        String endMinesWorld = plugin.getConfig().getString("end-mines.world-name", "skyblock_end_mines");
+        String endWorld = plugin.getConfig().getString("skyblock.portal-routing.end.world-name", "world_the_end");
 
-        if (worldName.equalsIgnoreCase(hubWorld)) {
+        // Recognize "Hub 2" as "Hub" explicitly if not already covered by hubWorld config
+        if (worldName.equalsIgnoreCase(hubWorld) || worldName.equalsIgnoreCase("Hub 2")) {
             return "Hub";
         }
         if (worldName.equalsIgnoreCase(minehubWorld)) {
             return "Mining Hub";
         }
+        if (plugin.getEndMinesManager() != null && worldName.equalsIgnoreCase(plugin.getEndMinesManager().getWorldName())) {
+            return "End Mines";
+        }
         if (worldName.equalsIgnoreCase(farmhubWorld)) {
-            return "Farm Hub";
+            return usesSharedFarmHubWorld() ? "Hub" : "Farm Hub";
         }
         if (worldName.equalsIgnoreCase(islandWorld)) {
             return "Private Island";
         }
+        if (worldName.equalsIgnoreCase(endMinesWorld)) {
+            return "End Mines";
+        }
+        if (worldName.equalsIgnoreCase(endWorld)) {
+            return "The End";
+        }
         return readableWorldName(worldName);
+    }
+
+    private String resolveSubArea(Player player) {
+        String worldName = player.getWorld().getName();
+        String minehubWorld = plugin.getConfig().getString("skyblock.minehub-world", "Minehub");
+        
+        if (worldName.equalsIgnoreCase(minehubWorld)) {
+            if (plugin.getMinehubOreListener() != null) {
+                return plugin.getMinehubOreListener().getLayerName(player.getLocation().getBlockY());
+            }
+        }
+        
+        if (plugin.getEndMinesManager() != null && worldName.equalsIgnoreCase(plugin.getEndMinesManager().getWorldName())) {
+            return plugin.getEndMinesManager().getZoneName(player.getLocation());
+        }
+        
+        return null;
+    }
+
+    private boolean usesSharedFarmHubWorld() {
+        String hubWorld = plugin.getConfig().getString("skyblock.hub-world", "world");
+        String farmhubWorld = plugin.getConfig().getString("skyblock.farmhub-world", "world");
+        if (hubWorld == null || farmhubWorld == null) {
+            return false;
+        }
+        return hubWorld.equalsIgnoreCase(farmhubWorld);
     }
 
     private String resolveProfile(Player player) {
@@ -470,6 +610,21 @@ public final class SkyblockScoreboardManager implements Listener {
             DungeonSession session = dungeonManager.getSession(player.getUniqueId());
             if (session != null) {
                 return "Clear " + session.floor().id().toUpperCase(Locale.ROOT);
+            }
+        }
+
+        if (plugin.getQuestManager() != null) {
+            var activeQuests = plugin.getQuestManager().activeQuests(player);
+            if (!activeQuests.isEmpty()) {
+                var quest = activeQuests.get(0);
+                if (!quest.objectives().isEmpty()) {
+                    // Try to find first incomplete objective
+                    var questManager = plugin.getQuestManager();
+                    var progressMap = questManager.activeQuests(player); // This is inefficient but works for now
+                    // For now just show the first one
+                    return ChatColor.YELLOW + "Quest: " + ChatColor.WHITE + quest.objectives().get(0).description();
+                }
+                return ChatColor.YELLOW + "Quest: " + ChatColor.WHITE + stripColor(plugin.getQuestManager().color(quest.displayName()));
             }
         }
 
@@ -551,6 +706,7 @@ public final class SkyblockScoreboardManager implements Listener {
             }
         }
         scoreboardsByPlayer.clear();
+        lastRenderedLinesByPlayer.clear();
     }
 
     private String teamName(int index) {
@@ -686,5 +842,10 @@ public final class SkyblockScoreboardManager implements Listener {
             builder.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
         }
         return builder.isEmpty() ? "Unknown" : builder.toString();
+    }
+
+    private String stripColor(String input) {
+        if (input == null) return "";
+        return ChatColor.stripColor(input);
     }
 }

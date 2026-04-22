@@ -32,14 +32,11 @@ public final class ProfileBankService {
     }
 
     public long bankCoins(Player player) {
-        if (player == null) {
+        SkyBlockProfile selectedProfile = profileEconomy.getSelectedProfile(player);
+        if (selectedProfile == null) {
             return 0L;
         }
-
-        SkyBlockProfile profile = profileEconomy.getSelectedProfile(player);
-        if (profile == null) {
-            return 0L;
-        }
+        SkyBlockProfile profile = resolveBankProfile(selectedProfile);
 
         double bank = profile.getBankBalance();
         if (!Double.isFinite(bank) || bank <= 0.0D) {
@@ -65,19 +62,23 @@ public final class ProfileBankService {
             return false;
         }
 
-        SkyBlockProfile profile = requireSelectedProfile(player);
-        if (profile == null) {
+        SkyBlockProfile selectedProfile = requireSelectedProfile(player);
+        if (selectedProfile == null) {
             return false;
         }
+        SkyBlockProfile bankProfile = resolveBankProfile(selectedProfile);
 
-        double purse = Math.max(0.0D, profile.getPurse());
+        double purse = Math.max(0.0D, selectedProfile.getPurse());
         if (purse + 1e-9D < safe) {
             return false;
         }
 
-        profile.setPurse(Math.max(0.0D, purse - safe));
-        profile.setBankBalance(Math.max(0.0D, profile.getBankBalance() + safe));
-        manager.saveProfile(profile);
+        selectedProfile.setPurse(Math.max(0.0D, purse - safe));
+        bankProfile.setBankBalance(Math.max(0.0D, bankProfile.getBankBalance() + safe));
+        manager.saveProfile(selectedProfile);
+        if (!selectedProfile.getProfileId().equals(bankProfile.getProfileId())) {
+            manager.saveProfile(bankProfile);
+        }
         return true;
     }
 
@@ -98,20 +99,33 @@ public final class ProfileBankService {
             return false;
         }
 
-        SkyBlockProfile profile = requireSelectedProfile(player);
-        if (profile == null) {
+        SkyBlockProfile selectedProfile = requireSelectedProfile(player);
+        if (selectedProfile == null) {
             return false;
         }
+        SkyBlockProfile bankProfile = resolveBankProfile(selectedProfile);
 
-        double bank = Math.max(0.0D, profile.getBankBalance());
+        double bank = Math.max(0.0D, bankProfile.getBankBalance());
         if (bank + 1e-9D < safe) {
             return false;
         }
 
-        profile.setBankBalance(Math.max(0.0D, bank - safe));
-        profile.setPurse(Math.max(0.0D, profile.getPurse() + safe));
-        manager.saveProfile(profile);
+        bankProfile.setBankBalance(Math.max(0.0D, bank - safe));
+        selectedProfile.setPurse(Math.max(0.0D, selectedProfile.getPurse() + safe));
+        manager.saveProfile(selectedProfile);
+        if (!selectedProfile.getProfileId().equals(bankProfile.getProfileId())) {
+            manager.saveProfile(bankProfile);
+        }
         return true;
     }
-}
 
+    private SkyBlockProfile resolveBankProfile(SkyBlockProfile selectedProfile) {
+        ProfileManager manager = plugin.getProfileManager();
+        if (manager == null) {
+            return selectedProfile;
+        }
+
+        SkyBlockProfile resolved = manager.resolveSharedProfile(selectedProfile);
+        return resolved != null ? resolved : selectedProfile;
+    }
+}

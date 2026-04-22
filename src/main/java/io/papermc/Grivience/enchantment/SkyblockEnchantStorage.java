@@ -86,9 +86,6 @@ public final class SkyblockEnchantStorage {
         if (item == null || item.getType().isAir() || enchantment == null) {
             return item;
         }
-        if (!item.hasItemMeta()) {
-            return item;
-        }
         int clamped = Math.max(1, Math.min(level, enchantment.getMaxLevel()));
 
         ItemStack updated = item.clone();
@@ -133,14 +130,24 @@ public final class SkyblockEnchantStorage {
         }
 
         refreshedMeta.setLore(lore);
-        refreshedMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        refreshedMeta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
         applyGlintOverride(refreshedMeta, !enchantLines.isEmpty());
         updated.setItemMeta(refreshedMeta);
         return updated;
     }
 
+    public ItemStack createEnchantedBook(SkyblockEnchantment enchantment, int level) {
+        ItemStack book = new ItemStack(org.bukkit.Material.ENCHANTED_BOOK);
+        ItemMeta meta = book.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(enchantment.getType().getColor() + "Enchanted Book (" + enchantment.getName() + ")");
+            book.setItemMeta(meta);
+        }
+        return apply(book, enchantment, level);
+    }
+
     public ItemStack refreshLore(ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta()) {
+        if (item == null || item.getType().isAir()) {
             return item;
         }
         ItemMeta meta = item.getItemMeta();

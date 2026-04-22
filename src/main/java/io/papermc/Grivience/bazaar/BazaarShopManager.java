@@ -10,15 +10,18 @@ import io.papermc.Grivience.item.GrapplingHookType;
 import io.papermc.Grivience.item.MiningItemType;
 import io.papermc.Grivience.item.ReforgeStoneType;
 import io.papermc.Grivience.skyblock.economy.ProfileEconomyService;
+import io.papermc.Grivience.skyblock.island.Island;
 import io.papermc.Grivience.skyblock.profile.SkyBlockProfile;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
@@ -49,6 +52,7 @@ public final class BazaarShopManager {
     private final ProfileEconomyService profileEconomy;
     private final File bazaarConfigFile;
     private final File productsConfigFile;
+    private final NamespacedKey navigationItemKey;
     
     // Configuration
     private boolean enabled = true;
@@ -94,6 +98,7 @@ public final class BazaarShopManager {
         this.profileEconomy = new ProfileEconomyService(plugin);
         this.bazaarConfigFile = new File(plugin.getDataFolder(), "bazaar.yml");
         this.productsConfigFile = new File(plugin.getDataFolder(), "bazaar_products.yml");
+        this.navigationItemKey = new NamespacedKey(plugin, "navigation_item");
         
         reloadFromConfig();
         initializeProducts();
@@ -528,12 +533,21 @@ public final class BazaarShopManager {
                 continue;
             }
 
+            BazaarProduct.BazaarCategory category = BazaarProduct.BazaarCategory.ODDITIES;
+            BazaarProduct.BazaarSubcategory subcategory = BazaarProduct.BazaarSubcategory.MISC;
+
+            MiningItemType miningType = MiningItemType.parse(key);
+            if (miningType != null) {
+                category = BazaarProduct.BazaarCategory.MINING;
+                subcategory = BazaarProduct.BazaarSubcategory.SPECIAL;
+            }
+
             BazaarProduct product = new BazaarProduct(
                     "CUSTOM_" + key.toUpperCase(Locale.ROOT),
                     friendlyCustomProductName(key, item) + " " + ChatColor.DARK_GRAY + "(Custom)",
                     item.getType(),
-                    BazaarProduct.BazaarCategory.ODDITIES,
-                    BazaarProduct.BazaarSubcategory.MISC,
+                    category,
+                    subcategory,
                     true,
                     key,
                     item.getMaxStackSize()
@@ -560,11 +574,17 @@ public final class BazaarShopManager {
         if (key == null || key.isBlank() || material == null || isAirMaterial(material)) {
             return false;
         }
+        
+        MiningItemType miningType = MiningItemType.parse(key);
+        if (miningType != null && miningType != MiningItemType.SAPPHIRE && miningType != MiningItemType.ENCHANTED_SAPPHIRE
+                && miningType != MiningItemType.TITANIUM && miningType != MiningItemType.ENCHANTED_TITANIUM) {
+            return false;
+        }
+        
         if (CustomWeaponType.parse(key) != null
                 || CustomArmorType.parse(key) != null
                 || CustomToolType.parse(key) != null
                 || GrapplingHookType.parse(key) != null
-                || MiningItemType.parse(key) != null
                 || ReforgeStoneType.parse(key) != null) {
             return false;
         }
@@ -841,10 +861,22 @@ public final class BazaarShopManager {
 
     private double sellTaxRateForOwner(UUID ownerId) {
         // Hypixel: selling is taxed (base 1.25%), reduced by the Bazaar Flipper account upgrade.
-        if (accountUpgrades == null || ownerId == null) {
-            return BazaarAccountUpgrades.sellTaxRateForTier(0);
+        double rate = accountUpgrades == null ? BazaarAccountUpgrades.sellTaxRateForTier(0) : accountUpgrades.sellTaxRate(ownerId);
+        
+        // Add Island Upgrade Bonus
+        if (plugin.getIslandManager() != null) {
+            Island island = plugin.getIslandManager().getIsland(ownerId);
+            if (island != null) {
+                int islandTier = island.getBazaarFlipperUpgrade();
+                if (islandTier > 0) {
+                    // Use the better rate between account and island
+                    double islandRate = BazaarAccountUpgrades.sellTaxRateForTier(islandTier);
+                    rate = Math.min(rate, islandRate);
+                }
+            }
         }
-        return accountUpgrades.sellTaxRate(ownerId);
+        
+        return rate;
     }
 
     private double sellTaxRateForProfile(UUID profileId) {
@@ -887,7 +919,39 @@ public final class BazaarShopManager {
         if (player == null) {
             return maxOrdersPerPlayer;
         }
-        return accountUpgrades == null ? maxOrdersPerPlayer : accountUpgrades.maxOrders(player.getUniqueId());
+        
+        int base = accountUpgrades == null ? maxOrdersPerPlayer : accountUpgrades.maxOrders(player.getUniqueId());
+        
+        // Add Island Upgrade Bonus
+        if (plugin.getIslandManager() != null) {
+            Island island = plugin.getIslandManager().getIsland(player.getUniqueId());
+            if (island != null) {
+                int islandTier = island.getBazaarFlipperUpgrade();
+                if (islandTier > 0) {
+                    // Use the better order limit between account and island
+                    int islandLimit = BazaarAccountUpgrades.maxOrdersForTier(islandTier);
+                    base = Math.max(base, islandLimit);
+                }
+            }
+        }
+        
+        int max = base;
+        
+        if (player.hasPermission("grivience.bazaar.limit.mvpplusplus")) {
+            max = Math.max(max, base + 14);
+        } else if (player.hasPermission("grivience.bazaar.limit.mvpplus")) {
+            max = Math.max(max, base + 10);
+        } else if (player.hasPermission("grivience.bazaar.limit.mvp")) {
+            max = Math.max(max, base + 7);
+        } else if (player.hasPermission("grivience.bazaar.limit.vipplusplus")) {
+            max = Math.max(max, base + 4);
+        } else if (player.hasPermission("grivience.bazaar.limit.vipplus")) {
+            max = Math.max(max, base + 2);
+        } else if (player.hasPermission("grivience.bazaar.limit.vip")) {
+            max = Math.max(max, base + 1);
+        }
+        
+        return max;
     }
 
     public double getSellTaxRate(Player player) {
@@ -963,6 +1027,9 @@ public final class BazaarShopManager {
         if (stack == null || stack.getType().isAir()) {
             return null;
         }
+        if (isBlockedFromSelling(stack)) {
+            return null;
+        }
 
         if (customItemService != null) {
             String customId = customItemService.itemId(stack);
@@ -986,6 +1053,12 @@ public final class BazaarShopManager {
         }
         if (stack == null || stack.getType().isAir()) {
             return new NpcSellQuote(null, 0, 0.0, 0.0, 0.0, 0.0, "Hold an item in your main hand.");
+        }
+        if (isBlockedFromSelling(stack)) {
+            if (plugin.getPersonalCompactorManager() != null && plugin.getPersonalCompactorManager().isCompactorItem(stack)) {
+                return new NpcSellQuote(null, 0, 0.0, 0.0, 0.0, 0.0, "Personal Compacters cannot be sold to NPCs. Use the Auction House!");
+            }
+            return new NpcSellQuote(null, 0, 0.0, 0.0, 0.0, 0.0, "The Skyblock Menu cannot be sold.");
         }
 
         BazaarProduct product = findProductForItem(stack);
@@ -1312,7 +1385,7 @@ public final class BazaarShopManager {
             return null;
         }
         if (!hasFunds(player, escrow)) {
-            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: Â§6" + formatCoins(escrow));
+            player.sendMessage(ChatColor.RED + "Insufficient funds. Need: " + formatCoins(escrow));
             return null;
         }
         
@@ -1378,7 +1451,7 @@ public final class BazaarShopManager {
             priceHistory.recordTransaction(canonicalProductId, avgPrice, match.filled(), BazaarPriceHistory.TransactionType.BUY_ORDER);
             updateProductPrice(product);
 
-            player.sendMessage(ChatColor.GREEN + "Buy order filled Â§e" + match.filled() + "x " + product.getProductName()
+            player.sendMessage(ChatColor.GREEN + "Buy order filled " + ChatColor.YELLOW + match.filled() + "x " + product.getProductName()
                     + (order.getRemainingAmount() > 0 ? ChatColor.YELLOW + " (remaining: " + order.getRemainingAmount() + ")" : ""));
 
             return order.getRemainingAmount() > 0 ? order : null;
@@ -1386,7 +1459,8 @@ public final class BazaarShopManager {
         
         // No match - place full order
         orderBook.placeOrder(order);
-        player.sendMessage(ChatColor.GREEN + "Buy order placed: Â§e" + amount + "x " + product.getProductName() + " Â§7@ Â§6" + formatCoins(pricePerUnit) + " each");
+        player.sendMessage(ChatColor.GREEN + "Buy order placed: " + ChatColor.YELLOW + amount + "x " + product.getProductName()
+                + ChatColor.GRAY + " @ " + formatCoins(pricePerUnit) + ChatColor.GRAY + " each");
         
         return order;
     }
@@ -1492,8 +1566,8 @@ public final class BazaarShopManager {
             priceHistory.recordTransaction(canonicalProductId, avgPrice, match.filled(), BazaarPriceHistory.TransactionType.SELL_ORDER);
             updateProductPrice(product);
 
-            player.sendMessage(ChatColor.GREEN + "Sell order filled Â§e" + match.filled() + "x " + product.getProductName()
-                    + ChatColor.GRAY + " for Â§6" + formatCoins(netEarned)
+            player.sendMessage(ChatColor.GREEN + "Sell order filled " + ChatColor.YELLOW + match.filled() + "x " + product.getProductName()
+                    + ChatColor.GRAY + " for " + formatCoins(netEarned)
                     + (order.getRemainingAmount() > 0 ? ChatColor.YELLOW + " (remaining: " + order.getRemainingAmount() + ")" : ""));
 
             return order.getRemainingAmount() > 0 ? order : null;
@@ -1501,7 +1575,8 @@ public final class BazaarShopManager {
         
         // No match - place full order
         orderBook.placeOrder(order);
-        player.sendMessage(ChatColor.GREEN + "Sell order placed: Â§e" + amount + "x " + product.getProductName() + " Â§7@ Â§6" + formatCoins(pricePerUnit) + " each");
+        player.sendMessage(ChatColor.GREEN + "Sell order placed: " + ChatColor.YELLOW + amount + "x " + product.getProductName()
+                + ChatColor.GRAY + " @ " + formatCoins(pricePerUnit) + ChatColor.GRAY + " each");
         
         return order;
     }
@@ -1558,7 +1633,7 @@ public final class BazaarShopManager {
             }
 
             if (!hasFunds(player, previewCost)) {
-                player.sendMessage(ChatColor.RED + "Insufficient funds. Need: Â§6" + formatCoins(previewCost));
+                player.sendMessage(ChatColor.RED + "Insufficient funds. Need: " + formatCoins(previewCost));
                 return false;
             }
 
@@ -1600,9 +1675,11 @@ public final class BazaarShopManager {
         }
 
         if (match.isPartiallyFilled()) {
-            player.sendMessage(ChatColor.YELLOW + "Bought Â§e" + match.filled() + "x " + product.getProductName() + ChatColor.GRAY + " (not enough sell offers)");
+            player.sendMessage(ChatColor.YELLOW + "Bought " + ChatColor.YELLOW + match.filled() + "x " + product.getProductName()
+                    + ChatColor.GRAY + " (not enough sell offers)");
         } else {
-            player.sendMessage(ChatColor.GREEN + "Bought Â§e" + match.filled() + "x " + product.getProductName() + ChatColor.GRAY + " for Â§6" + formatCoins(match.totalCost()));
+            player.sendMessage(ChatColor.GREEN + "Bought " + ChatColor.YELLOW + match.filled() + "x " + product.getProductName()
+                    + ChatColor.GRAY + " for " + formatCoins(match.totalCost()));
         }
 
         double avgPrice = match.totalCost() / match.filled();
@@ -1702,9 +1779,11 @@ public final class BazaarShopManager {
         }
         
         if (match.isPartiallyFilled()) {
-            player.sendMessage(ChatColor.YELLOW + "Sold Â§e" + match.filled() + "x " + product.getProductName() + ChatColor.GRAY + " (not enough buy offers)");
+            player.sendMessage(ChatColor.YELLOW + "Sold " + ChatColor.YELLOW + match.filled() + "x " + product.getProductName()
+                    + ChatColor.GRAY + " (not enough buy offers)");
         } else {
-            player.sendMessage(ChatColor.GREEN + "Sold Â§e" + match.filled() + "x " + product.getProductName() + ChatColor.GRAY + " for Â§6" + formatCoins(netEarned));
+            player.sendMessage(ChatColor.GREEN + "Sold " + ChatColor.YELLOW + match.filled() + "x " + product.getProductName()
+                    + ChatColor.GRAY + " for " + formatCoins(netEarned));
         }
         
         double avgPrice = match.totalCost() / match.filled();
@@ -1804,7 +1883,7 @@ public final class BazaarShopManager {
             return false;
         }
 
-        player.sendMessage(ChatColor.GREEN + "Claimed Â§6" + formatCoins(coins) + ChatColor.GREEN + " from your shopping bag.");
+        player.sendMessage(ChatColor.GREEN + "Claimed " + formatCoins(coins) + ChatColor.GREEN + " from your shopping bag.");
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.0f);
         return true;
     }
@@ -1880,7 +1959,8 @@ public final class BazaarShopManager {
 
         shoppingBag.removeItems(profileId, bagKey, toClaim);
 
-        player.sendMessage(ChatColor.GREEN + "Claimed Â§e" + toClaim + "x " + product.getProductName() + ChatColor.GREEN + " from your shopping bag.");
+        player.sendMessage(ChatColor.GREEN + "Claimed " + ChatColor.YELLOW + toClaim + "x " + product.getProductName()
+                + ChatColor.GREEN + " from your shopping bag.");
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.0f);
         return true;
     }
@@ -1916,7 +1996,8 @@ public final class BazaarShopManager {
             if (refund > 0.0) {
                 shoppingBag.addCoins(profileId, refund);
             }
-            player.sendMessage(ChatColor.GREEN + "Cancelled buy order. Refunded Â§6" + formatCoins(refund) + ChatColor.GRAY + " to your shopping bag.");
+            player.sendMessage(ChatColor.GREEN + "Cancelled buy order. Refunded " + formatCoins(refund)
+                    + ChatColor.GRAY + " to your shopping bag.");
         } else {
             int remaining = order.getRemainingAmount();
             if (remaining > 0) {
@@ -2094,6 +2175,9 @@ public final class BazaarShopManager {
         if (stack == null || stack.getType().isAir() || product == null) {
             return false;
         }
+        if (isBlockedFromSelling(stack)) {
+            return false;
+        }
 
         if (product.isCustomItem()) {
             if (customItemService == null) {
@@ -2104,6 +2188,28 @@ public final class BazaarShopManager {
         }
 
         return product.getIcon() != null && stack.getType() == product.getIcon();
+    }
+
+    private boolean isBlockedFromSelling(ItemStack stack) {
+        if (stack == null || stack.getType().isAir() || !stack.hasItemMeta()) {
+            return false;
+        }
+        var meta = stack.getItemMeta();
+        if (meta == null) {
+            return false;
+        }
+        
+        // Navigation item (Skyblock Menu)
+        if (meta.getPersistentDataContainer().has(navigationItemKey, PersistentDataType.BYTE)) {
+            return true;
+        }
+
+        // Personal Compacters are blocked from Bazaar/NPC shops (allowed on AH)
+        if (plugin.getPersonalCompactorManager() != null && plugin.getPersonalCompactorManager().isCompactorItem(stack)) {
+            return true;
+        }
+
+        return false;
     }
     
     // ==================== ECONOMY HELPERS ====================
@@ -2140,17 +2246,18 @@ public final class BazaarShopManager {
     
     public String formatCoins(double amount) {
         if (!Double.isFinite(amount) || amount < 0.0D) {
-            return "Â§cN/A";
+            return ChatColor.RED + "N/A";
         }
-        if (amount >= 1_000_000_000) {
-            return String.format("Â§6%.2fÂ§7B", amount / 1_000_000_000);
-        } else if (amount >= 1_000_000) {
-            return String.format("Â§6%.2fÂ§7M", amount / 1_000_000);
-        } else if (amount >= 1_000) {
-            return String.format("Â§6%.1fÂ§7K", amount / 1_000);
-        } else {
-            return String.format("Â§e%.1f", amount);
+        if (amount >= 1_000_000_000D) {
+            return ChatColor.GOLD + String.format(Locale.US, "%.2f", amount / 1_000_000_000D) + ChatColor.GRAY + "B";
         }
+        if (amount >= 1_000_000D) {
+            return ChatColor.GOLD + String.format(Locale.US, "%.2f", amount / 1_000_000D) + ChatColor.GRAY + "M";
+        }
+        if (amount >= 1_000D) {
+            return ChatColor.GOLD + String.format(Locale.US, "%.1f", amount / 1_000D) + ChatColor.GRAY + "K";
+        }
+        return ChatColor.YELLOW + String.format(Locale.US, "%.1f", amount);
     }
 
     public void shutdown() {

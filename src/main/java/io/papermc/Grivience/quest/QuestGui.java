@@ -25,9 +25,13 @@ import java.util.UUID;
 public final class QuestGui implements Listener {
     private static final String PLAYER_TITLE = SkyblockGui.title("Quest Log");
     private static final String ADMIN_TITLE = SkyblockGui.title("Quest Editor");
-    private static final String EDIT_TITLE_PREFIX = SkyblockGui.title("Edit Quest: ");
+    private static final String EDIT_TITLE_PREFIX = SkyblockGui.title("Edit: ");
     private static final String REWARD_TITLE_PREFIX = SkyblockGui.title("Rewards: ");
-    private static final int PAGE_SIZE = 45;
+    private static final String OBJ_TITLE_PREFIX = SkyblockGui.title("Objectives: ");
+    private static final String PRE_TITLE_PREFIX = SkyblockGui.title("Prereqs: ");
+    private static final int PAGE_SIZE = 36;
+
+    public enum QuestFilter { ACTIVE, AVAILABLE, COMPLETED }
 
     private final GriviencePlugin plugin;
     private final QuestManager questManager;
@@ -38,641 +42,315 @@ public final class QuestGui implements Listener {
         this.questManager = questManager;
     }
 
-    public void openPlayerMenu(Player player) {
-        openPlayerMenu(player, 0);
+    public void openPlayerMenu(Player player) { openPlayerMenu(player, QuestFilter.ACTIVE, 0); }
+
+    public void openPlayerMenu(Player player, QuestFilter filter, int requestedPage) {
+        List<ConversationQuest> filtered = filterQuests(player, questManager.questsSorted(), filter);
+        int page = normalizePage(requestedPage, filtered.size());
+        Inventory inv = Bukkit.createInventory(new PlayerMenuHolder(filter, page), 54, PLAYER_TITLE);
+        fillSkyblockBackground(inv);
+        inv.setItem(46, filterButton(QuestFilter.ACTIVE, filter == QuestFilter.ACTIVE));
+        inv.setItem(47, filterButton(QuestFilter.AVAILABLE, filter == QuestFilter.AVAILABLE));
+        inv.setItem(48, filterButton(QuestFilter.COMPLETED, filter == QuestFilter.COMPLETED));
+        fillQuestPage(player, inv, filtered, page, false);
+        inv.setItem(45, navItem(Material.ARROW, ChatColor.GREEN + "Prev Page"));
+        inv.setItem(49, SkyblockGui.closeButton());
+        inv.setItem(53, navItem(Material.ARROW, ChatColor.GREEN + "Next Page"));
+        player.openInventory(inv);
     }
 
-    public void openPlayerMenu(Player player, int requestedPage) {
-        List<ConversationQuest> quests = questManager.questsSorted();
-        int page = normalizePage(requestedPage, quests.size());
-
-        Inventory inventory = Bukkit.createInventory(new PlayerMenuHolder(page), 54, PLAYER_TITLE);
-        fillSkyblockBackground(inventory);
-        fillQuestPage(player, inventory, quests, page, false);
-
-        inventory.setItem(45, SkyblockGui.button(Material.ARROW, ChatColor.GREEN + "Previous Page", List.of(ChatColor.GRAY + "View previous quests.")));
-        inventory.setItem(49, SkyblockGui.closeButton());
-        inventory.setItem(53, SkyblockGui.button(Material.ARROW, ChatColor.GREEN + "Next Page", List.of(ChatColor.GRAY + "View more quests.")));
-
-        player.openInventory(inventory);
+    private List<ConversationQuest> filterQuests(Player player, List<ConversationQuest> quests, QuestFilter filter) {
+        return quests.stream().filter(q -> {
+            boolean active = questManager.isQuestActive(player, q.id());
+            boolean completed = questManager.hasCompletedQuest(player, q.id());
+            return switch (filter) {
+                case ACTIVE -> active;
+                case COMPLETED -> completed;
+                case AVAILABLE -> !active && !completed && q.enabled();
+            };
+        }).toList();
     }
 
-    public void openAdminMenu(Player player) {
-        openAdminMenu(player, 0);
+    private ItemStack filterButton(QuestFilter filter, boolean active) {
+        return SkyblockGui.button(active ? Material.LIME_DYE : Material.GRAY_DYE, (active ? ChatColor.GREEN : ChatColor.GRAY) + filter.name(), List.of(ChatColor.GRAY + "Click to filter"));
     }
+
+    public void openAdminMenu(Player player) { openAdminMenu(player, 0); }
 
     public void openAdminMenu(Player player, int requestedPage) {
-        if (!player.hasPermission("grivience.admin")) {
-            player.sendMessage(ChatColor.RED + "You lack permission.");
-            return;
-        }
-
+        if (!player.hasPermission("grivience.admin")) return;
         List<ConversationQuest> quests = questManager.questsSorted();
         int page = normalizePage(requestedPage, quests.size());
-
-        Inventory inventory = Bukkit.createInventory(new AdminMenuHolder(page), 54, ADMIN_TITLE);
-        fillSkyblockBackground(inventory);
-        fillQuestPage(player, inventory, quests, page, true);
-
-        inventory.setItem(45, SkyblockGui.button(Material.ARROW, ChatColor.GREEN + "Previous Page", List.of(ChatColor.GRAY + "View previous quests.")));
-        inventory.setItem(48, SkyblockGui.button(Material.LIME_DYE, ChatColor.GREEN + "Player View", List.of(ChatColor.GRAY + "Switch to the player quest log.")));
-        inventory.setItem(49, SkyblockGui.button(Material.EMERALD, ChatColor.AQUA + "Create Quest", List.of(ChatColor.GRAY + "Create a new quest.")));
-        inventory.setItem(50, SkyblockGui.button(Material.HOPPER, ChatColor.YELLOW + "Reload Quests", List.of(ChatColor.GRAY + "Reload quests from disk.")));
-        inventory.setItem(53, SkyblockGui.button(Material.ARROW, ChatColor.GREEN + "Next Page", List.of(ChatColor.GRAY + "View more quests.")));
-
-        player.openInventory(inventory);
+        Inventory inv = Bukkit.createInventory(new AdminMenuHolder(page), 54, ADMIN_TITLE);
+        fillSkyblockBackground(inv);
+        fillQuestPage(player, inv, quests, page, true);
+        inv.setItem(45, navItem(Material.ARROW, ChatColor.GREEN + "Prev"));
+        inv.setItem(48, navItem(Material.LIME_DYE, ChatColor.GREEN + "Player View"));
+        inv.setItem(49, navItem(Material.EMERALD, ChatColor.AQUA + "Create Quest"));
+        inv.setItem(50, navItem(Material.HOPPER, ChatColor.YELLOW + "Reload"));
+        inv.setItem(53, navItem(Material.ARROW, ChatColor.GREEN + "Next"));
+        player.openInventory(inv);
     }
 
     public void openQuestEditor(Player player, String questId) {
-        if (!player.hasPermission("grivience.admin")) {
-            player.sendMessage(ChatColor.RED + "You lack permission.");
-            return;
-        }
-
-        ConversationQuest quest = questManager.quest(questId);
-        if (quest == null) {
-            player.sendMessage(ChatColor.RED + "Quest not found: " + questId);
-            return;
-        }
-
-        Inventory inventory = Bukkit.createInventory(new EditHolder(quest.id()), 54, EDIT_TITLE_PREFIX + quest.id());
-        fillSkyblockBackground(inventory);
-
-        inventory.setItem(4, infoItem(quest));
-        inventory.setItem(10, actionItem(Material.NAME_TAG, ChatColor.YELLOW + "Set Display Name",
-                List.of(ChatColor.GRAY + stripColor(questManager.color(quest.displayName())))));
-        inventory.setItem(11, actionItem(Material.PAPER, ChatColor.YELLOW + "Set Description",
-                List.of(ChatColor.GRAY + quest.description())));
-
-        String starter = quest.hasStarterNpc() ? quest.starterNpcId() : "none";
-        inventory.setItem(12, actionItem(Material.OAK_SIGN, ChatColor.YELLOW + "Set Starter NPC",
-                List.of(ChatColor.GRAY + starter, ChatColor.DARK_GRAY + "Use 'none' to clear")));
-
-        inventory.setItem(13, actionItem(Material.BELL, ChatColor.YELLOW + "Set Target NPC",
-                List.of(ChatColor.GRAY + quest.targetNpcId(), ChatColor.DARK_GRAY + "Required for completion")));
-
-        inventory.setItem(14, actionItem(
-                quest.repeatable() ? Material.CLOCK : Material.COBWEB,
-                ChatColor.YELLOW + "Toggle Repeatable",
-                List.of(statusLine("Repeatable", quest.repeatable()))
-        ));
-
-        inventory.setItem(15, actionItem(
-                quest.enabled() ? Material.LIME_DYE : Material.GRAY_DYE,
-                ChatColor.YELLOW + "Toggle Enabled",
-                List.of(statusLine("Enabled", quest.enabled()))
-        ));
-
-        inventory.setItem(16, actionItem(Material.CHEST, ChatColor.YELLOW + "Reward Commands",
-                List.of(ChatColor.GRAY + "Count: " + ChatColor.AQUA + quest.rewardCommands().size(),
-                        ChatColor.DARK_GRAY + "Click to edit")));
-
-        inventory.setItem(31, actionItem(Material.EMERALD, ChatColor.GREEN + "Start Quest (Self)", List.of(ChatColor.GRAY + "Test start flow")));
-        inventory.setItem(32, actionItem(Material.BARRIER, ChatColor.RED + "Cancel Quest (Self)", List.of(ChatColor.GRAY + "Clear active state")));
-        inventory.setItem(33, actionItem(Material.BLAZE_ROD, ChatColor.AQUA + "Simulate Target Talk", List.of(ChatColor.GRAY + "Triggers /quest talk <target>")));
-
-        inventory.setItem(22, actionItem(Material.TNT, ChatColor.RED + "Delete Quest",
-                List.of(ChatColor.GRAY + "Shift + Left click to delete")));
-
-        inventory.setItem(45, navItem(Material.ARROW, ChatColor.YELLOW + "Back"));
-        inventory.setItem(49, navItem(Material.BARRIER, ChatColor.RED + "Close"));
-
-        player.openInventory(inventory);
+        ConversationQuest q = questManager.quest(questId);
+        if (q == null) return;
+        Inventory inv = Bukkit.createInventory(new EditHolder(q.id()), 54, EDIT_TITLE_PREFIX + q.id());
+        fillSkyblockBackground(inv);
+        inv.setItem(4, infoItem(q));
+        inv.setItem(10, actionItem(Material.NAME_TAG, ChatColor.YELLOW + "Set Name", List.of(ChatColor.GRAY + stripColor(questManager.color(q.displayName())))));
+        inv.setItem(11, actionItem(Material.PAPER, ChatColor.YELLOW + "Set Desc", List.of(ChatColor.GRAY + q.description())));
+        inv.setItem(12, actionItem(Material.BOOK, ChatColor.YELLOW + "Objectives", List.of(ChatColor.GRAY + "Count: " + q.objectives().size())));
+        inv.setItem(13, actionItem(Material.REPEATER, ChatColor.YELLOW + "Prereqs", List.of(ChatColor.GRAY + "Count: " + q.prerequisites().size())));
+        inv.setItem(14, actionItem(q.repeatable() ? Material.CLOCK : Material.COBWEB, ChatColor.YELLOW + "Repeatable", List.of(statusLine("Repeatable", q.repeatable()))));
+        inv.setItem(15, actionItem(q.enabled() ? Material.LIME_DYE : Material.GRAY_DYE, ChatColor.YELLOW + "Enabled", List.of(statusLine("Enabled", q.enabled()))));
+        inv.setItem(16, actionItem(Material.CHEST, ChatColor.YELLOW + "Rewards", List.of(ChatColor.GRAY + "Count: " + q.rewardCommands().size())));
+        inv.setItem(19, actionItem(Material.OAK_SIGN, ChatColor.YELLOW + "Starter NPC", List.of(ChatColor.GRAY + (q.hasStarterNpc() ? q.starterNpcId() : "none"))));
+        inv.setItem(20, actionItem(Material.BELL, ChatColor.YELLOW + "Target NPC", List.of(ChatColor.GRAY + q.targetNpcId())));
+        inv.setItem(31, actionItem(Material.EMERALD, ChatColor.GREEN + "Start (Self)", List.of()));
+        inv.setItem(32, actionItem(Material.BARRIER, ChatColor.RED + "Cancel (Self)", List.of()));
+        inv.setItem(22, actionItem(Material.TNT, ChatColor.RED + "Delete", List.of(ChatColor.GRAY + "Shift-Click")));
+        inv.setItem(45, navItem(Material.ARROW, ChatColor.YELLOW + "Back"));
+        inv.setItem(49, navItem(Material.BARRIER, ChatColor.RED + "Close"));
+        player.openInventory(inv);
     }
 
-    public void openRewardEditor(Player player, String questId, int requestedPage) {
-        ConversationQuest quest = questManager.quest(questId);
-        if (quest == null) {
-            player.sendMessage(ChatColor.RED + "Quest not found: " + questId);
-            return;
+    public void openRewardEditor(Player player, String qId, int page) {
+        ConversationQuest q = questManager.quest(qId);
+        if (q == null) return;
+        Inventory inv = Bukkit.createInventory(new RewardsHolder(qId, page), 54, REWARD_TITLE_PREFIX + qId);
+        fillSkyblockBackground(inv);
+        List<String> rewards = q.rewardCommands();
+        for (int i = 0; i < Math.min(PAGE_SIZE, rewards.size() - page * PAGE_SIZE); i++) {
+            inv.setItem(i, actionItem(Material.PAPER, ChatColor.YELLOW + "Reward #" + (page * PAGE_SIZE + i + 1), List.of(ChatColor.GRAY + rewards.get(page * PAGE_SIZE + i))));
         }
+        inv.setItem(48, navItem(Material.ARROW, ChatColor.YELLOW + "Back"));
+        inv.setItem(49, navItem(Material.EMERALD, ChatColor.AQUA + "Add Reward"));
+        player.openInventory(inv);
+    }
 
-        int page = normalizePage(requestedPage, quest.rewardCommands().size());
-        Inventory inventory = Bukkit.createInventory(new RewardsHolder(quest.id(), page), 54, REWARD_TITLE_PREFIX + quest.id());
-        fillSkyblockBackground(inventory);
-
-        int start = page * PAGE_SIZE;
-        int end = Math.min(start + PAGE_SIZE, quest.rewardCommands().size());
-        for (int index = start; index < end; index++) {
-            String rewardCommand = quest.rewardCommands().get(index);
-            int slot = index - start;
-            inventory.setItem(slot, actionItem(Material.PAPER, ChatColor.AQUA + "Reward #" + (index + 1),
-                    List.of(ChatColor.GRAY + rewardCommand, ChatColor.DARK_GRAY + "Click to remove")));
+    public void openObjectiveEditor(Player player, String qId) {
+        ConversationQuest q = questManager.quest(qId);
+        if (q == null) return;
+        Inventory inv = Bukkit.createInventory(new ObjectivesHolder(qId), 54, OBJ_TITLE_PREFIX + qId);
+        fillSkyblockBackground(inv);
+        for (int i = 0; i < q.objectives().size(); i++) {
+            QuestObjective o = q.objectives().get(i);
+            inv.setItem(i, actionItem(Material.PAPER, ChatColor.AQUA + "Obj #" + (i + 1), List.of(ChatColor.GRAY + o.description(), ChatColor.GRAY + "Type: " + o.type())));
         }
+        inv.setItem(48, navItem(Material.ARROW, ChatColor.YELLOW + "Back"));
+        inv.setItem(49, navItem(Material.EMERALD, ChatColor.AQUA + "Add Obj"));
+        player.openInventory(inv);
+    }
 
-        inventory.setItem(45, navItem(Material.ARROW, ChatColor.YELLOW + "Previous"));
-        inventory.setItem(48, navItem(Material.ARROW, ChatColor.YELLOW + "Back"));
-        inventory.setItem(49, navItem(Material.EMERALD, ChatColor.AQUA + "Add Reward"));
-        inventory.setItem(50, navItem(Material.BARRIER, ChatColor.RED + "Clear Rewards"));
-        inventory.setItem(53, navItem(Material.ARROW, ChatColor.YELLOW + "Next"));
+    public void openPrerequisiteEditor(Player player, String qId) {
+        ConversationQuest q = questManager.quest(qId);
+        if (q == null) return;
+        Inventory inv = Bukkit.createInventory(new PrerequisitesHolder(qId), 54, PRE_TITLE_PREFIX + qId);
+        fillSkyblockBackground(inv);
+        for (int i = 0; i < q.prerequisites().size(); i++) {
+            inv.setItem(i, actionItem(Material.PAPER, ChatColor.AQUA + q.prerequisites().get(i), List.of(ChatColor.RED + "Click to remove")));
+        }
+        inv.setItem(48, navItem(Material.ARROW, ChatColor.YELLOW + "Back"));
+        inv.setItem(49, navItem(Material.EMERALD, ChatColor.AQUA + "Add Prereq"));
+        player.openInventory(inv);
+    }
 
-        player.openInventory(inventory);
+    public void openObjectiveTypeSelector(Player player, String qId) {
+        Inventory inv = Bukkit.createInventory(new ObjectiveTypeHolder(qId), 27, "Select Type");
+        fillSkyblockBackground(inv);
+        int s = 10;
+        for (QuestObjective.ObjectiveType t : QuestObjective.ObjectiveType.values()) {
+            inv.setItem(s++, actionItem(Material.PAPER, ChatColor.YELLOW + t.name(), List.of()));
+        }
+        player.openInventory(inv);
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (event.getClickedInventory() == null) {
-            return;
-        }
+        if (event.getClickedInventory() == null) return;
         InventoryHolder holder = event.getInventory().getHolder();
-        if (!(holder instanceof PlayerMenuHolder || holder instanceof AdminMenuHolder || holder instanceof EditHolder || holder instanceof RewardsHolder)) {
-            return;
-        }
-
+        if (!(holder instanceof QuestHolder)) return;
         event.setCancelled(true);
+        Player player = (Player) event.getWhoClicked();
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= event.getInventory().getSize()) return;
 
-        if (!(event.getWhoClicked() instanceof Player player)) {
-            return;
-        }
+        if (holder instanceof PlayerMenuHolder h) handlePlayerMenuClick(player, h, slot, event.isRightClick());
+        else if (holder instanceof AdminMenuHolder h) handleAdminMenuClick(player, h, slot);
+        else if (holder instanceof EditHolder h) handleEditClick(player, h, event);
+        else if (holder instanceof RewardsHolder h) handleRewardClick(player, h, event);
+        else if (holder instanceof ObjectivesHolder h) handleObjectiveClick(player, h, event);
+        else if (holder instanceof ObjectiveTypeHolder h) handleObjectiveTypeClick(player, h, slot);
+        else if (holder instanceof PrerequisitesHolder h) handlePrerequisiteClick(player, h, slot);
+    }
 
-        if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getInventory().getSize()) {
-            return;
+    private void handlePlayerMenuClick(Player p, PlayerMenuHolder h, int s, boolean r) {
+        if (s == 46) openPlayerMenu(p, QuestFilter.ACTIVE, 0);
+        else if (s == 47) openPlayerMenu(p, QuestFilter.AVAILABLE, 0);
+        else if (s == 48) openPlayerMenu(p, QuestFilter.COMPLETED, 0);
+        else if (s == 45) openPlayerMenu(p, h.filter, h.page - 1);
+        else if (s == 53) openPlayerMenu(p, h.filter, h.page + 1);
+        else if (s == 49) p.closeInventory();
+        else if (s < PAGE_SIZE) {
+            ConversationQuest q = questAt(filterQuests(p, questManager.questsSorted(), h.filter), h.page, s);
+            if (q != null) {
+                if (r) questManager.cancelQuest(p, q.id(), true);
+                else questManager.startQuest(p, q.id(), QuestTriggerSource.GUI, true);
+                openPlayerMenu(p, h.filter, h.page);
+            }
         }
+    }
 
-        if (holder instanceof PlayerMenuHolder playerMenuHolder) {
-            handlePlayerMenuClick(player, playerMenuHolder, event.getRawSlot(), event.isRightClick());
-            return;
+    private void handleAdminMenuClick(Player p, AdminMenuHolder h, int s) {
+        if (s == 45) openAdminMenu(p, h.page - 1);
+        else if (s == 53) openAdminMenu(p, h.page + 1);
+        else if (s == 48) openPlayerMenu(p);
+        else if (s == 49) queuePrompt(p, new Prompt(PromptType.CREATE_QUEST, "", h.page), ChatColor.YELLOW + "Quest ID:");
+        else if (s == 50) { questManager.reload(); openAdminMenu(p, h.page); }
+        else if (s < PAGE_SIZE) {
+            ConversationQuest q = questAt(questManager.questsSorted(), h.page, s);
+            if (q != null) openQuestEditor(p, q.id());
         }
-        if (holder instanceof AdminMenuHolder adminMenuHolder) {
-            handleAdminMenuClick(player, adminMenuHolder, event.getRawSlot());
-            return;
+    }
+
+    private void handleEditClick(Player p, EditHolder h, InventoryClickEvent e) {
+        String qId = h.questId;
+        ConversationQuest q = questManager.quest(qId);
+        if (q == null) { openAdminMenu(p); return; }
+        switch (e.getRawSlot()) {
+            case 10 -> queuePrompt(p, new Prompt(PromptType.SET_NAME, qId, 0), ChatColor.YELLOW + "Name:");
+            case 11 -> queuePrompt(p, new Prompt(PromptType.SET_DESCRIPTION, qId, 0), ChatColor.YELLOW + "Desc:");
+            case 12 -> openObjectiveEditor(p, qId);
+            case 13 -> openPrerequisiteEditor(p, qId);
+            case 14 -> { questManager.setRepeatable(qId, !q.repeatable()); openQuestEditor(p, qId); }
+            case 15 -> { questManager.setEnabled(qId, !q.enabled()); openQuestEditor(p, qId); }
+            case 16 -> openRewardEditor(p, qId, 0);
+            case 19 -> queuePrompt(p, new Prompt(PromptType.SET_STARTER, qId, 0), ChatColor.YELLOW + "Starter:");
+            case 20 -> queuePrompt(p, new Prompt(PromptType.SET_TARGET, qId, 0), ChatColor.YELLOW + "Target:");
+            case 31 -> { questManager.startQuest(p, qId, QuestTriggerSource.GUI, true); openQuestEditor(p, qId); }
+            case 32 -> { questManager.cancelQuest(p, qId, true); openQuestEditor(p, qId); }
+            case 22 -> { if (e.isShiftClick()) { questManager.deleteQuest(qId); openAdminMenu(p); } }
+            case 45 -> openAdminMenu(p);
+            case 49 -> p.closeInventory();
         }
-        if (holder instanceof EditHolder editHolder) {
-            handleEditClick(player, editHolder, event);
-            return;
+    }
+
+    private void handleRewardClick(Player p, RewardsHolder h, InventoryClickEvent e) {
+        if (e.getRawSlot() == 48) openQuestEditor(p, h.questId);
+        else if (e.getRawSlot() == 49) queuePrompt(p, new Prompt(PromptType.ADD_REWARD, h.questId, h.page), ChatColor.YELLOW + "Cmd:");
+    }
+
+    private void handleObjectiveClick(Player p, ObjectivesHolder h, InventoryClickEvent e) {
+        if (e.getRawSlot() == 48) openQuestEditor(p, h.questId);
+        else if (e.getRawSlot() == 49) openObjectiveTypeSelector(p, h.questId);
+        else {
+            ConversationQuest q = questManager.quest(h.questId);
+            if (q != null && e.getRawSlot() < q.objectives().size()) { q.objectives().remove(e.getRawSlot()); openObjectiveEditor(p, h.questId); }
         }
-        if (holder instanceof RewardsHolder rewardsHolder) {
-            handleRewardClick(player, rewardsHolder, event);
+    }
+
+    private void handleObjectiveTypeClick(Player p, ObjectiveTypeHolder h, int s) {
+        if (s >= 10 && s < 10 + QuestObjective.ObjectiveType.values().length) {
+            Prompt pr = new Prompt(PromptType.ADD_OBJ_DESC, h.questId, 0);
+            pr.tempType = QuestObjective.ObjectiveType.values()[s - 10];
+            queuePrompt(p, pr, ChatColor.YELLOW + "Description:");
+        }
+    }
+
+    private void handlePrerequisiteClick(Player p, PrerequisitesHolder h, int s) {
+        if (s == 48) openQuestEditor(p, h.questId);
+        else if (s == 49) queuePrompt(p, new Prompt(PromptType.ADD_PREREQUISITE, h.questId, 0), ChatColor.YELLOW + "Pre ID:");
+        else {
+            ConversationQuest q = questManager.quest(h.questId);
+            if (q != null && s < q.prerequisites().size()) { q.prerequisites().remove(s); openPrerequisiteEditor(p, h.questId); }
         }
     }
 
     @EventHandler
-    public void onChat(AsyncPlayerChatEvent event) {
-        Prompt prompt = prompts.remove(event.getPlayer().getUniqueId());
-        if (prompt == null) {
-            return;
-        }
-        event.setCancelled(true);
-        String message = event.getMessage().trim();
-        Bukkit.getScheduler().runTask(plugin, () -> processPrompt(event.getPlayer(), prompt, message));
+    public void onChat(AsyncPlayerChatEvent e) {
+        Prompt p = prompts.remove(e.getPlayer().getUniqueId());
+        if (p == null) return;
+        e.setCancelled(true);
+        Bukkit.getScheduler().runTask(plugin, () -> processPrompt(e.getPlayer(), p, e.getMessage().trim()));
     }
 
-    @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        prompts.remove(event.getPlayer().getUniqueId());
-    }
-
-    private void handlePlayerMenuClick(Player player, PlayerMenuHolder holder, int rawSlot, boolean rightClick) {
-        List<ConversationQuest> quests = questManager.questsSorted();
-        int page = holder.page();
-
-        if (rawSlot == 45) {
-            openPlayerMenu(player, page - 1);
-            return;
-        }
-        if (rawSlot == 49) {
-            player.closeInventory();
-            return;
-        }
-        if (rawSlot == 53) {
-            openPlayerMenu(player, page + 1);
-            return;
-        }
-
-        if (rawSlot >= PAGE_SIZE) {
-            return;
-        }
-
-        ConversationQuest quest = questAt(quests, page, rawSlot);
-        if (quest == null || !quest.enabled()) {
-            return;
-        }
-
-        if (rightClick) {
-            QuestManager.CancelResult cancelResult = questManager.cancelQuest(player, quest.id(), true);
-            if (cancelResult == QuestManager.CancelResult.NOT_ACTIVE) {
-                player.sendMessage(ChatColor.RED + "Quest is not active.");
+    private void processPrompt(Player p, Prompt pr, String m) {
+        if (m.equalsIgnoreCase("cancel")) { reopenAfterPrompt(p, pr); return; }
+        ConversationQuest q = questManager.quest(pr.questId);
+        switch (pr.type) {
+            case CREATE_QUEST -> { questManager.createQuest(m, m); openQuestEditor(p, m); }
+            case SET_NAME -> { questManager.setDisplayName(pr.questId, m); openQuestEditor(p, pr.questId); }
+            case SET_DESCRIPTION -> { questManager.setDescription(pr.questId, m); openQuestEditor(p, pr.questId); }
+            case ADD_REWARD -> { questManager.addRewardCommand(pr.questId, m); openRewardEditor(p, pr.questId, pr.page); }
+            case ADD_OBJ_DESC -> { Prompt next = new Prompt(PromptType.ADD_OBJ_TARGET, pr.questId, 0); next.tempData = m; next.tempType = pr.tempType; queuePrompt(p, next, ChatColor.YELLOW + "Target:"); }
+            case ADD_OBJ_TARGET -> { Prompt next = new Prompt(PromptType.ADD_OBJ_AMOUNT, pr.questId, 0); next.tempData = pr.tempData; next.tempData2 = m; next.tempType = pr.tempType; queuePrompt(p, next, ChatColor.YELLOW + "Amount:"); }
+            case ADD_OBJ_AMOUNT -> {
+                int a = 1; try { a = Integer.parseInt(m); } catch (Exception ignored) {}
+                if (q != null) q.objectives().add(new QuestObjective(pr.tempType, pr.tempData2.equalsIgnoreCase("none") ? "" : pr.tempData2, a, pr.tempData));
+                openObjectiveEditor(p, pr.questId);
             }
-        } else {
-            QuestManager.StartResult startResult = questManager.startQuest(player, quest.id(), QuestTriggerSource.GUI, true);
-            if (startResult == QuestManager.StartResult.ALREADY_ACTIVE) {
-                player.sendMessage(ChatColor.YELLOW + "Quest is already active.");
-            } else if (startResult == QuestManager.StartResult.ALREADY_COMPLETED) {
-                player.sendMessage(ChatColor.YELLOW + "You already completed this quest.");
-            } else if (startResult == QuestManager.StartResult.QUEST_DISABLED) {
-                player.sendMessage(ChatColor.RED + "This quest is disabled.");
-            }
-        }
-
-        openPlayerMenu(player, page);
-    }
-
-    private void handleAdminMenuClick(Player player, AdminMenuHolder holder, int rawSlot) {
-        if (!player.hasPermission("grivience.admin")) {
-            player.sendMessage(ChatColor.RED + "You lack permission.");
-            player.closeInventory();
-            return;
-        }
-
-        List<ConversationQuest> quests = questManager.questsSorted();
-        int page = holder.page();
-
-        if (rawSlot == 45) {
-            openAdminMenu(player, page - 1);
-            return;
-        }
-        if (rawSlot == 48) {
-            openPlayerMenu(player);
-            return;
-        }
-        if (rawSlot == 49) {
-            queuePrompt(player, new Prompt(PromptType.CREATE_QUEST, "", page),
-                    ChatColor.YELLOW + "Type a new quest id in chat (letters/numbers/_).",
-                    ChatColor.GRAY + "Type 'cancel' to abort.");
-            return;
-        }
-        if (rawSlot == 50) {
-            questManager.reload();
-            player.sendMessage(ChatColor.GREEN + "Quest files reloaded.");
-            openAdminMenu(player, page);
-            return;
-        }
-        if (rawSlot == 53) {
-            openAdminMenu(player, page + 1);
-            return;
-        }
-
-        if (rawSlot >= PAGE_SIZE) {
-            return;
-        }
-
-        ConversationQuest quest = questAt(quests, page, rawSlot);
-        if (quest != null) {
-            openQuestEditor(player, quest.id());
+            case ADD_PREREQUISITE -> { if (q != null) q.prerequisites().add(m.toLowerCase()); openPrerequisiteEditor(p, pr.questId); }
+            case SET_STARTER -> { questManager.setStarterNpc(pr.questId, m.equalsIgnoreCase("none") ? "" : m); openQuestEditor(p, pr.questId); }
+            case SET_TARGET -> { questManager.setTargetNpc(pr.questId, m); openQuestEditor(p, pr.questId); }
         }
     }
 
-    private void handleEditClick(Player player, EditHolder holder, InventoryClickEvent event) {
-        String questId = holder.questId();
-        int rawSlot = event.getRawSlot();
-
-        ConversationQuest quest = questManager.quest(questId);
-        if (quest == null) {
-            player.sendMessage(ChatColor.RED + "Quest no longer exists.");
-            openAdminMenu(player);
-            return;
-        }
-
-        switch (rawSlot) {
-            case 10 -> queuePrompt(player, new Prompt(PromptType.SET_NAME, quest.id(), 0),
-                    ChatColor.YELLOW + "Type the display name for quest '" + quest.id() + "'.",
-                    ChatColor.GRAY + "Use '&' for colors. Type 'cancel' to abort.");
-            case 11 -> queuePrompt(player, new Prompt(PromptType.SET_DESCRIPTION, quest.id(), 0),
-                    ChatColor.YELLOW + "Type the description for quest '" + quest.id() + "'.",
-                    ChatColor.GRAY + "Type 'cancel' to abort.");
-            case 12 -> queuePrompt(player, new Prompt(PromptType.SET_STARTER, quest.id(), 0),
-                    ChatColor.YELLOW + "Type starter ZNPCS NPC id for '" + quest.id() + "'.",
-                    ChatColor.GRAY + "Type 'none' to clear.");
-            case 13 -> queuePrompt(player, new Prompt(PromptType.SET_TARGET, quest.id(), 0),
-                    ChatColor.YELLOW + "Type target ZNPCS NPC id for '" + quest.id() + "'.",
-                    ChatColor.GRAY + "This is used for completion.");
-            case 14 -> {
-                questManager.setRepeatable(quest.id(), !quest.repeatable());
-                openQuestEditor(player, quest.id());
-            }
-            case 15 -> {
-                questManager.setEnabled(quest.id(), !quest.enabled());
-                openQuestEditor(player, quest.id());
-            }
-            case 16 -> openRewardEditor(player, quest.id(), 0);
-            case 22 -> {
-                if (event.isShiftClick() && event.isLeftClick()) {
-                    boolean deleted = questManager.deleteQuest(quest.id());
-                    if (deleted) {
-                        player.sendMessage(ChatColor.GREEN + "Deleted quest: " + quest.id());
-                        openAdminMenu(player);
-                    } else {
-                        player.sendMessage(ChatColor.RED + "Failed to delete quest.");
-                    }
-                } else {
-                    player.sendMessage(ChatColor.RED + "Shift + Left click to delete this quest.");
-                }
-            }
-            case 31 -> {
-                questManager.startQuest(player, quest.id(), QuestTriggerSource.GUI, true);
-                openQuestEditor(player, quest.id());
-            }
-            case 32 -> {
-                questManager.cancelQuest(player, quest.id(), true);
-                openQuestEditor(player, quest.id());
-            }
-            case 33 -> {
-                questManager.handleNpcConversation(player, quest.targetNpcId(), QuestTriggerSource.GUI, true);
-                openQuestEditor(player, quest.id());
-            }
-            case 45 -> openAdminMenu(player);
-            case 49 -> player.closeInventory();
-            default -> {
-            }
+    private void reopenAfterPrompt(Player p, Prompt pr) {
+        switch (pr.type) {
+            case CREATE_QUEST -> openAdminMenu(p, pr.page);
+            case ADD_REWARD -> openRewardEditor(p, pr.questId, pr.page);
+            case ADD_OBJ_DESC, ADD_OBJ_TARGET, ADD_OBJ_AMOUNT -> openObjectiveEditor(p, pr.questId);
+            case ADD_PREREQUISITE -> openPrerequisiteEditor(p, pr.questId);
+            default -> openQuestEditor(p, pr.questId);
         }
     }
 
-    private void handleRewardClick(Player player, RewardsHolder holder, InventoryClickEvent event) {
-        String questId = holder.questId();
-        ConversationQuest quest = questManager.quest(questId);
-        if (quest == null) {
-            player.sendMessage(ChatColor.RED + "Quest no longer exists.");
-            openAdminMenu(player);
-            return;
-        }
+    private void queuePrompt(Player p, Prompt pr, String... lines) {
+        prompts.put(p.getUniqueId(), pr); p.closeInventory();
+        for (String l : lines) p.sendMessage(l);
+    }
 
-        int page = holder.page();
-        int rawSlot = event.getRawSlot();
-
-        if (rawSlot == 45) {
-            openRewardEditor(player, questId, page - 1);
-            return;
-        }
-        if (rawSlot == 48) {
-            openQuestEditor(player, questId);
-            return;
-        }
-        if (rawSlot == 49) {
-            queuePrompt(player, new Prompt(PromptType.ADD_REWARD, questId, page),
-                    ChatColor.YELLOW + "Type reward command for quest '" + questId + "'.",
-                    ChatColor.GRAY + "Example: eco give {player} 5000");
-            return;
-        }
-        if (rawSlot == 50) {
-            if (event.isShiftClick()) {
-                questManager.clearRewardCommands(questId);
-                player.sendMessage(ChatColor.GREEN + "Cleared reward commands.");
-                openRewardEditor(player, questId, 0);
-            } else {
-                player.sendMessage(ChatColor.RED + "Shift-click to clear all rewards.");
-            }
-            return;
-        }
-        if (rawSlot == 53) {
-            openRewardEditor(player, questId, page + 1);
-            return;
-        }
-
-        if (rawSlot >= PAGE_SIZE) {
-            return;
-        }
-
-        int rewardIndex = page * PAGE_SIZE + rawSlot;
-        if (rewardIndex >= quest.rewardCommands().size()) {
-            return;
-        }
-
-        if (questManager.removeRewardCommand(questId, rewardIndex)) {
-            player.sendMessage(ChatColor.YELLOW + "Removed reward command #" + (rewardIndex + 1) + ".");
-            openRewardEditor(player, questId, page);
+    private void fillQuestPage(Player p, Inventory inv, List<ConversationQuest> qs, int pg, boolean admin) {
+        int start = pg * PAGE_SIZE;
+        for (int i = 0; i < Math.min(PAGE_SIZE, qs.size() - start); i++) {
+            inv.setItem(i, admin ? buildAdminQuestItem(qs.get(start + i)) : buildPlayerQuestItem(p, qs.get(start + i)));
         }
     }
 
-    private void processPrompt(Player player, Prompt prompt, String message) {
-        if (message.equalsIgnoreCase("cancel")) {
-            player.sendMessage(ChatColor.YELLOW + "Canceled.");
-            reopenAfterPrompt(player, prompt);
-            return;
+    private ItemStack buildPlayerQuestItem(Player p, ConversationQuest q) {
+        boolean act = questManager.isQuestActive(p, q.id());
+        boolean comp = questManager.hasCompletedQuest(p, q.id());
+        List<String> lore = new ArrayList<>(List.of(ChatColor.GRAY + q.description(), ""));
+        if (!q.objectives().isEmpty() && act) {
+            lore.add(ChatColor.WHITE + "Objectives:");
+            for (QuestObjective o : q.objectives()) lore.add(ChatColor.GRAY + "- " + o.description());
+            lore.add("");
         }
-
-        switch (prompt.type()) {
-            case CREATE_QUEST -> {
-                String id = ConversationQuest.normalizeId(message);
-                if (id.isBlank()) {
-                    player.sendMessage(ChatColor.RED + "Invalid quest id.");
-                    openAdminMenu(player, prompt.page());
-                    return;
-                }
-                if (!questManager.createQuest(id, id)) {
-                    player.sendMessage(ChatColor.RED + "Quest already exists or id is invalid.");
-                    openAdminMenu(player, prompt.page());
-                    return;
-                }
-                player.sendMessage(ChatColor.GREEN + "Created quest: " + id);
-                openQuestEditor(player, id);
-            }
-            case SET_NAME -> {
-                if (questManager.setDisplayName(prompt.questId(), message)) {
-                    player.sendMessage(ChatColor.GREEN + "Display name updated.");
-                } else {
-                    player.sendMessage(ChatColor.RED + "Quest not found.");
-                }
-                openQuestEditor(player, prompt.questId());
-            }
-            case SET_DESCRIPTION -> {
-                if (questManager.setDescription(prompt.questId(), message)) {
-                    player.sendMessage(ChatColor.GREEN + "Description updated.");
-                } else {
-                    player.sendMessage(ChatColor.RED + "Quest not found.");
-                }
-                openQuestEditor(player, prompt.questId());
-            }
-            case SET_STARTER -> {
-                String value = message.equalsIgnoreCase("none") ? "" : message;
-                if (questManager.setStarterNpc(prompt.questId(), value)) {
-                    player.sendMessage(ChatColor.GREEN + "Starter NPC updated.");
-                } else {
-                    player.sendMessage(ChatColor.RED + "Quest not found.");
-                }
-                openQuestEditor(player, prompt.questId());
-            }
-            case SET_TARGET -> {
-                String targetId = ConversationQuest.normalizeNpcId(message);
-                if (targetId.isBlank()) {
-                    player.sendMessage(ChatColor.RED + "Target NPC id cannot be empty.");
-                    openQuestEditor(player, prompt.questId());
-                    return;
-                }
-                if (questManager.setTargetNpc(prompt.questId(), targetId)) {
-                    player.sendMessage(ChatColor.GREEN + "Target NPC updated.");
-                } else {
-                    player.sendMessage(ChatColor.RED + "Quest not found.");
-                }
-                openQuestEditor(player, prompt.questId());
-            }
-            case ADD_REWARD -> {
-                if (questManager.addRewardCommand(prompt.questId(), message)) {
-                    player.sendMessage(ChatColor.GREEN + "Reward command added.");
-                } else {
-                    player.sendMessage(ChatColor.RED + "Could not add reward command.");
-                }
-                openRewardEditor(player, prompt.questId(), prompt.page());
-            }
-        }
+        lore.add(ChatColor.GRAY + "Status: " + questManager.progressLabel(p, q));
+        return actionItem(act ? Material.COMPASS : (comp ? Material.LIME_DYE : Material.BOOK), questManager.color(q.displayName()), lore);
     }
 
-    private void reopenAfterPrompt(Player player, Prompt prompt) {
-        switch (prompt.type()) {
-            case CREATE_QUEST -> openAdminMenu(player, prompt.page());
-            case ADD_REWARD -> openRewardEditor(player, prompt.questId(), prompt.page());
-            default -> openQuestEditor(player, prompt.questId());
-        }
+    private ItemStack buildAdminQuestItem(ConversationQuest q) {
+        return actionItem(q.enabled() ? Material.WRITTEN_BOOK : Material.BOOK, questManager.color(q.displayName()), List.of(ChatColor.GRAY + q.description(), ChatColor.DARK_GRAY + "ID: " + q.id(), statusLine("Enabled", q.enabled())));
     }
 
-    private void queuePrompt(Player player, Prompt prompt, String... lines) {
-        prompts.put(player.getUniqueId(), prompt);
-        player.closeInventory();
-        for (String line : lines) {
-            player.sendMessage(line);
-        }
-    }
-
-    private void fillQuestPage(Player player, Inventory inventory, List<ConversationQuest> quests, int page, boolean adminView) {
-        int start = page * PAGE_SIZE;
-        int end = Math.min(start + PAGE_SIZE, quests.size());
-        for (int index = start; index < end; index++) {
-            ConversationQuest quest = quests.get(index);
-            int slot = index - start;
-            ItemStack item = adminView
-                    ? buildAdminQuestItem(quest)
-                    : buildPlayerQuestItem(player, quest);
-            inventory.setItem(slot, item);
-        }
-    }
-
-    private ItemStack buildPlayerQuestItem(Player player, ConversationQuest quest) {
-        boolean active = questManager.isQuestActive(player.getUniqueId(), quest.id());
-        boolean completed = questManager.hasCompletedQuest(player.getUniqueId(), quest.id());
-
-        Material material;
-        if (!quest.enabled()) {
-            material = Material.GRAY_DYE;
-        } else if (active) {
-            material = Material.COMPASS;
-        } else if (completed && !quest.repeatable()) {
-            material = Material.LIME_DYE;
-        } else {
-            material = Material.BOOK;
-        }
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + quest.description());
-        lore.add(ChatColor.DARK_GRAY + "ID: " + quest.id());
-        lore.add(ChatColor.GRAY + "Status: " + questManager.progressLabel(player.getUniqueId(), quest));
-        lore.add(ChatColor.GRAY + "Starter NPC: " + ChatColor.AQUA + (quest.hasStarterNpc() ? quest.starterNpcId() : "none"));
-        lore.add(ChatColor.GRAY + "Target NPC: " + ChatColor.AQUA + quest.targetNpcId());
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "Left-click: Start quest");
-        lore.add(ChatColor.RED + "Right-click: Cancel quest");
-
-        return actionItem(material, questManager.color(quest.displayName()), lore);
-    }
-
-    private ItemStack buildAdminQuestItem(ConversationQuest quest) {
-        Material material = quest.enabled() ? Material.WRITTEN_BOOK : Material.BOOK;
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + quest.description());
-        lore.add(ChatColor.DARK_GRAY + "ID: " + quest.id());
-        lore.add(statusLine("Enabled", quest.enabled()));
-        lore.add(statusLine("Repeatable", quest.repeatable()));
-        lore.add(ChatColor.GRAY + "Starter NPC: " + ChatColor.AQUA + (quest.hasStarterNpc() ? quest.starterNpcId() : "none"));
-        lore.add(ChatColor.GRAY + "Target NPC: " + ChatColor.AQUA + quest.targetNpcId());
-        lore.add(ChatColor.GRAY + "Rewards: " + ChatColor.YELLOW + quest.rewardCommands().size());
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "Click to edit");
-
-        return actionItem(material, questManager.color(quest.displayName()), lore);
-    }
-
-    private ItemStack infoItem(ConversationQuest quest) {
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "ID: " + ChatColor.AQUA + quest.id());
-        lore.add(ChatColor.GRAY + "Description: " + ChatColor.WHITE + quest.description());
-        lore.add(ChatColor.GRAY + "Starter NPC: " + ChatColor.AQUA + (quest.hasStarterNpc() ? quest.starterNpcId() : "none"));
-        lore.add(ChatColor.GRAY + "Target NPC: " + ChatColor.AQUA + quest.targetNpcId());
-        lore.add(ChatColor.GRAY + "Repeatable: " + (quest.repeatable() ? ChatColor.GREEN + "Yes" : ChatColor.RED + "No"));
-        lore.add(ChatColor.GRAY + "Enabled: " + (quest.enabled() ? ChatColor.GREEN + "Yes" : ChatColor.RED + "No"));
-        lore.add(ChatColor.GRAY + "Rewards: " + ChatColor.YELLOW + quest.rewardCommands().size());
-        lore.add("");
-        lore.add(questManager.znpcsHint(quest));
-        return actionItem(Material.WRITABLE_BOOK, ChatColor.AQUA + "Quest Summary", lore);
-    }
-
-    private ItemStack actionItem(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack navItem(Material material, String name) {
-        return actionItem(material, name, List.of());
-    }
-
-    private void fillSkyblockBackground(Inventory inventory) {
-        SkyblockGui.fillAll(inventory, SkyblockGui.filler(Material.BLACK_STAINED_GLASS_PANE));
-        ItemStack border = SkyblockGui.filler(Material.GRAY_STAINED_GLASS_PANE);
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            boolean top = slot < 9;
-            boolean bottom = slot >= inventory.getSize() - 9;
-            boolean left = slot % 9 == 0;
-            boolean right = slot % 9 == 8;
-            if (top || bottom || left || right) {
-                inventory.setItem(slot, border.clone());
-            }
-        }
-    }
-
-    private String statusLine(String label, boolean state) {
-        return ChatColor.GRAY + label + ": " + (state ? ChatColor.GREEN + "ON" : ChatColor.RED + "OFF");
-    }
-
-    private String stripColor(String input) {
-        String stripped = ChatColor.stripColor(input);
-        return stripped == null ? "" : stripped;
-    }
-
-    private ConversationQuest questAt(List<ConversationQuest> quests, int page, int slot) {
-        int index = page * PAGE_SIZE + slot;
-        if (index < 0 || index >= quests.size()) {
-            return null;
-        }
-        return quests.get(index);
-    }
-
-    private int normalizePage(int requestedPage, int totalEntries) {
-        if (totalEntries <= 0) {
-            return 0;
-        }
-        int maxPage = (totalEntries - 1) / PAGE_SIZE;
-        return Math.max(0, Math.min(requestedPage, maxPage));
-    }
-
-    private interface QuestHolder extends InventoryHolder {
-        @Override
-        default Inventory getInventory() {
-            return null;
-        }
-    }
-
-    private record PlayerMenuHolder(int page) implements QuestHolder {
-    }
-
-    private record AdminMenuHolder(int page) implements QuestHolder {
-    }
-
-    private record EditHolder(String questId) implements QuestHolder {
-    }
-
-    private record RewardsHolder(String questId, int page) implements QuestHolder {
-    }
-
-    private record Prompt(PromptType type, String questId, int page) {
-    }
-
-    private enum PromptType {
-        CREATE_QUEST,
-        SET_NAME,
-        SET_DESCRIPTION,
-        SET_STARTER,
-        SET_TARGET,
-        ADD_REWARD
-    }
+    private ItemStack infoItem(ConversationQuest q) { return actionItem(Material.WRITABLE_BOOK, ChatColor.AQUA + "Summary", List.of(ChatColor.GRAY + "ID: " + q.id())); }
+    private ItemStack actionItem(Material m, String n, List<String> l) { ItemStack i = new ItemStack(m); ItemMeta mt = i.getItemMeta(); mt.setDisplayName(n); mt.setLore(l); i.setItemMeta(mt); return i; }
+    private ItemStack navItem(Material m, String n) { return actionItem(m, n, List.of()); }
+    private void fillSkyblockBackground(Inventory inv) { SkyblockGui.fillAll(inv, SkyblockGui.filler(Material.BLACK_STAINED_GLASS_PANE)); }
+    private String statusLine(String l, boolean s) { return ChatColor.GRAY + l + ": " + (s ? ChatColor.GREEN + "ON" : ChatColor.RED + "OFF"); }
+    private String stripColor(String i) { return ChatColor.stripColor(i); }
+    private ConversationQuest questAt(List<ConversationQuest> qs, int pg, int s) { int i = pg * PAGE_SIZE + s; return (i >= 0 && i < qs.size()) ? qs.get(i) : null; }
+    private int normalizePage(int p, int t) { if (t <= 0) return 0; int m = (t - 1) / PAGE_SIZE; return Math.max(0, Math.min(p, m)); }
+    private interface QuestHolder extends InventoryHolder { @Override default Inventory getInventory() { return null; } }
+    private record PlayerMenuHolder(QuestFilter filter, int page) implements QuestHolder {}
+    private record AdminMenuHolder(int page) implements QuestHolder {}
+    private record EditHolder(String questId) implements QuestHolder {}
+    private record RewardsHolder(String questId, int page) implements QuestHolder {}
+    private record ObjectivesHolder(String questId) implements QuestHolder {}
+    private record ObjectiveTypeHolder(String questId) implements QuestHolder {}
+    private record PrerequisitesHolder(String questId) implements QuestHolder {}
+    private static class Prompt { final PromptType type; final String questId; final int page; String tempData, tempData2; QuestObjective.ObjectiveType tempType; Prompt(PromptType t, String q, int p) { this.type = t; this.questId = q; this.page = p; } }
+    private enum PromptType { CREATE_QUEST, SET_NAME, SET_DESCRIPTION, SET_STARTER, SET_TARGET, ADD_REWARD, ADD_OBJ_DESC, ADD_OBJ_TARGET, ADD_OBJ_AMOUNT, ADD_PREREQUISITE }
 }

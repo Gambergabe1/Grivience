@@ -32,11 +32,19 @@ public final class MobHealthListener implements Listener {
         if (!ensureTracked(living)) {
             return;
         }
-        // Wait a tick so the damage is applied before reading health.
+        
+        // Immediate visual update for responsiveness
+        double finalDamage = event.getFinalDamage();
+        double predictedHealth = Math.max(0.0D, living.getHealth() - finalDamage);
+        MobHealthDisplay.update(living, baseNameKey, predictedHealth);
+
+        // Consistency check next tick
         new BukkitRunnable() {
             @Override
             public void run() {
-                MobHealthDisplay.update(living, baseNameKey);
+                if (living.isValid()) {
+                    MobHealthDisplay.update(living, baseNameKey);
+                }
             }
         }.runTask(plugin);
     }
@@ -49,10 +57,17 @@ public final class MobHealthListener implements Listener {
         if (!ensureTracked(living)) {
             return;
         }
+        
+        double amount = event.getAmount();
+        double predictedHealth = Math.min(living.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue(), living.getHealth() + amount);
+        MobHealthDisplay.update(living, baseNameKey, predictedHealth);
+        
         new BukkitRunnable() {
             @Override
             public void run() {
-                MobHealthDisplay.update(living, baseNameKey);
+                if (living.isValid()) {
+                    MobHealthDisplay.update(living, baseNameKey);
+                }
             }
         }.runTask(plugin);
     }
@@ -62,11 +77,17 @@ public final class MobHealthListener implements Listener {
     }
 
     private boolean ensureTracked(LivingEntity living) {
+        if (living == null) return false;
+        if (living instanceof org.bukkit.entity.Player) return false;
+        if (living instanceof org.bukkit.entity.ArmorStand) return false;
+        
+        // Skip NPCs (common metadata for ZNPCs, Citizens, etc.)
+        if (living.hasMetadata("NPC") || living.getPersistentDataContainer().has(new NamespacedKey("znpcs", "npc"), org.bukkit.persistence.PersistentDataType.INTEGER)) {
+            return false;
+        }
+
         if (living.getPersistentDataContainer().has(baseNameKey)) {
             return true;
-        }
-        if (!(living instanceof Monster)) {
-            return false;
         }
 
         String fallback = living.getCustomName() != null

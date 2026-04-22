@@ -2,9 +2,9 @@ package io.papermc.Grivience.quest;
 
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.skyblock.economy.ProfileEconomyService;
+import io.papermc.Grivience.util.CommandDispatchUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -17,9 +17,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public final class QuestManager {
@@ -53,6 +55,7 @@ public final class QuestManager {
     private final File progressFile;
 
     private final Map<String, ConversationQuest> quests = new LinkedHashMap<>();
+    // Quest progress is keyed by the active profile's canonical UUID so separate profiles do not share state.
     private final Map<UUID, Map<String, QuestProgress>> progressByPlayer = new HashMap<>();
 
     public QuestManager(GriviencePlugin plugin) {
@@ -220,7 +223,21 @@ public final class QuestManager {
             return StartResult.QUEST_DISABLED;
         }
 
-        QuestProgress progress = progress(player.getUniqueId(), quest.id(), true);
+        UUID progressId = resolveProgressId(player);
+        
+        // Check prerequisites
+        for (String preId : quest.prerequisites()) {
+            if (!hasCompletedQuest(progressId, preId)) {
+                if (notifyPlayer) {
+                    ConversationQuest pre = quest(preId);
+                    String name = pre != null ? color(pre.displayName()) : preId;
+                    player.sendMessage(ChatColor.RED + "You must complete " + name + ChatColor.RED + " first!");
+                }
+                return StartResult.QUEST_DISABLED;
+            }
+        }
+
+        QuestProgress progress = progress(progressId, quest.id(), true);
         if (progress.active()) {
             return StartResult.ALREADY_ACTIVE;
         }
@@ -233,8 +250,10 @@ public final class QuestManager {
 
         if (notifyPlayer) {
             player.sendMessage(ChatColor.GOLD + "[Quest] " + ChatColor.GREEN + "Started: " + color(quest.displayName()));
-            if (quest.hasTargetNpc()) {
+            if (quest.hasTargetNpc() && quest.objectives().isEmpty()) {
                 player.sendMessage(ChatColor.GRAY + "Talk to NPC " + ChatColor.AQUA + quest.targetNpcId() + ChatColor.GRAY + " to complete it.");
+            } else if (!quest.objectives().isEmpty()) {
+                player.sendMessage(ChatColor.GRAY + "Check your quest log (/quest) for objectives.");
             }
         }
 
@@ -253,7 +272,8 @@ public final class QuestManager {
             return CompleteResult.QUEST_DISABLED;
         }
 
-        QuestProgress progress = progress(player.getUniqueId(), quest.id(), false);
+        UUID progressId = resolveProgressId(player);
+        QuestProgress progress = progress(progressId, quest.id(), false);
         if (progress == null || !progress.active()) {
             return CompleteResult.NOT_ACTIVE;
         }
@@ -287,7 +307,8 @@ public final class QuestManager {
             return CancelResult.QUEST_NOT_FOUND;
         }
 
-        QuestProgress progress = progress(player.getUniqueId(), quest.id(), false);
+        UUID progressId = resolveProgressId(player);
+        QuestProgress progress = progress(progressId, quest.id(), false);
         if (progress == null || !progress.active()) {
             return CancelResult.NOT_ACTIVE;
         }
@@ -302,6 +323,46 @@ public final class QuestManager {
         return CancelResult.CANCELED;
     }
 
+    public synchronized void advanceObjective(Player player, QuestObjective.ObjectiveType type, String target, int amount) {
+        UUID progressId = resolveProgressId(player);
+        Map<String, QuestProgress> playerProgressMap = progressByPlayer.get(progressId);
+        if (playerProgressMap == null) return;
+
+        boolean changed = false;
+        for (Map.Entry<String, QuestProgress> entry : playerProgressMap.entrySet()) {
+            QuestProgress prog = entry.getValue();
+            if (!prog.active()) continue;
+            ConversationQuest quest = quests.get(entry.getKey());
+            if (quest == null) continue;
+
+            for (int i = 0; i < quest.objectives().size(); i++) {
+                QuestObjective obj = quest.objectives().get(i);
+                if (obj.type() == type && (obj.target().isEmpty() || obj.target().equalsIgnoreCase(target))) {
+                    int current = prog.getObjectiveProgress(i);
+                    if (current < obj.amount()) {
+                        prog.incrementObjectiveProgress(i, amount);
+                        changed = true;
+                        
+                        if (allObjectivesComplete(prog, quest)) {
+                            completeQuest(player, quest.id(), QuestTriggerSource.COMMAND, true);
+                        }
+                    }
+                }
+            }
+        }
+        if (changed) saveProgress();
+    }
+
+    private boolean allObjectivesComplete(QuestProgress progress, ConversationQuest quest) {
+        if (quest.objectives().isEmpty()) return true;
+        for (int i = 0; i < quest.objectives().size(); i++) {
+            if (!quest.objectives().get(i).isComplete(progress.getObjectiveProgress(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public synchronized int handleNpcConversation(Player player, String npcId, QuestTriggerSource source, boolean notifyPlayer) {
         String normalizedNpcId = ConversationQuest.normalizeNpcId(npcId);
         if (normalizedNpcId.isBlank()) {
@@ -309,6 +370,7 @@ public final class QuestManager {
         }
 
         int changedQuests = 0;
+        UUID progressId = resolveProgressId(player);
         for (ConversationQuest quest : quests.values()) {
             if (!quest.enabled()) {
                 continue;
@@ -320,7 +382,7 @@ public final class QuestManager {
                 continue;
             }
 
-            QuestProgress progress = progress(player.getUniqueId(), quest.id(), true);
+            QuestProgress progress = progress(progressId, quest.id(), true);
             boolean targetCanStartQuest = !quest.hasStarterNpc() && targetMatch;
 
             if ((starterMatch || targetCanStartQuest) && !progress.active()) {
@@ -352,22 +414,22 @@ public final class QuestManager {
     }
 
     public synchronized boolean isQuestActive(UUID playerId, String questId) {
-        QuestProgress progress = progress(playerId, ConversationQuest.normalizeId(questId), false);
+        QuestProgress progress = progress(resolveProgressId(playerId), ConversationQuest.normalizeId(questId), false);
         return progress != null && progress.active();
     }
 
     public synchronized boolean hasCompletedQuest(UUID playerId, String questId) {
-        QuestProgress progress = progress(playerId, ConversationQuest.normalizeId(questId), false);
+        QuestProgress progress = progress(resolveProgressId(playerId), ConversationQuest.normalizeId(questId), false);
         return progress != null && progress.hasCompletedAtLeastOnce();
     }
 
     public synchronized int completionCount(UUID playerId, String questId) {
-        QuestProgress progress = progress(playerId, ConversationQuest.normalizeId(questId), false);
+        QuestProgress progress = progress(resolveProgressId(playerId), ConversationQuest.normalizeId(questId), false);
         return progress == null ? 0 : progress.completions();
     }
 
     public synchronized List<ConversationQuest> activeQuests(UUID playerId) {
-        Map<String, QuestProgress> playerProgress = progressByPlayer.get(playerId);
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(resolveProgressId(playerId));
         if (playerProgress == null || playerProgress.isEmpty()) {
             return List.of();
         }
@@ -387,6 +449,9 @@ public final class QuestManager {
     }
 
     private QuestProgress progress(UUID playerId, String questId, boolean createIfMissing) {
+        if (playerId == null) {
+            return null;
+        }
         String normalizedQuestId = ConversationQuest.normalizeId(questId);
         if (normalizedQuestId.isBlank()) {
             return null;
@@ -408,12 +473,65 @@ public final class QuestManager {
         return questProgress;
     }
 
+    public synchronized boolean isQuestActive(Player player, String questId) {
+        UUID progressId = resolveProgressId(player);
+        QuestProgress progress = progress(progressId, ConversationQuest.normalizeId(questId), false);
+        return progress != null && progress.active();
+    }
+
+    public synchronized boolean hasCompletedQuest(Player player, String questId) {
+        UUID progressId = resolveProgressId(player);
+        QuestProgress progress = progress(progressId, ConversationQuest.normalizeId(questId), false);
+        return progress != null && progress.hasCompletedAtLeastOnce();
+    }
+
+    public synchronized int completionCount(Player player, String questId) {
+        UUID progressId = resolveProgressId(player);
+        QuestProgress progress = progress(progressId, ConversationQuest.normalizeId(questId), false);
+        return progress == null ? 0 : progress.completions();
+    }
+
+    public synchronized List<ConversationQuest> activeQuests(Player player) {
+        UUID progressId = resolveProgressId(player);
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(progressId);
+        if (playerProgress == null || playerProgress.isEmpty()) {
+            return List.of();
+        }
+
+        List<ConversationQuest> active = new ArrayList<>();
+        for (Map.Entry<String, QuestProgress> entry : playerProgress.entrySet()) {
+            if (!entry.getValue().active()) {
+                continue;
+            }
+            ConversationQuest quest = quests.get(entry.getKey());
+            if (quest != null) {
+                active.add(quest);
+            }
+        }
+        active.sort(Comparator.comparing(ConversationQuest::id));
+        return active;
+    }
+
+    public synchronized Set<String> completedQuestIds(UUID playerId) {
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(resolveProgressId(playerId));
+        if (playerProgress == null || playerProgress.isEmpty()) {
+            return Set.of();
+        }
+
+        Set<String> completed = new LinkedHashSet<>();
+        for (Map.Entry<String, QuestProgress> entry : playerProgress.entrySet()) {
+            if (entry.getValue() != null && entry.getValue().hasCompletedAtLeastOnce()) {
+                completed.add(entry.getKey());
+            }
+        }
+        return completed;
+    }
+
     private void runRewardCommands(Player player, ConversationQuest quest) {
         if (quest.rewardCommands().isEmpty()) {
             return;
         }
 
-        ConsoleCommandSender console = Bukkit.getConsoleSender();
         for (String command : quest.rewardCommands()) {
             if (command == null || command.isBlank()) {
                 continue;
@@ -429,7 +547,7 @@ public final class QuestManager {
             if (profileEconomy.executeEcoLikeCommand(player, parsed)) {
                 continue;
             }
-            boolean success = Bukkit.dispatchCommand(console, parsed);
+            boolean success = CommandDispatchUtil.dispatchConsole(plugin, parsed);
             if (!success) {
                 plugin.getLogger().warning("Failed reward command for quest '" + quest.id() + "': " + parsed);
             }
@@ -476,6 +594,24 @@ public final class QuestManager {
                 continue;
             }
 
+            List<QuestObjective> objectives = new ArrayList<>();
+            ConfigurationSection objSection = questSection.getConfigurationSection("objectives");
+            if (objSection != null) {
+                for (String objKey : objSection.getKeys(false)) {
+                    ConfigurationSection o = objSection.getConfigurationSection(objKey);
+                    if (o == null) continue;
+                    try {
+                        QuestObjective.ObjectiveType type = QuestObjective.ObjectiveType.valueOf(o.getString("type", "TALK_TO_NPC").toUpperCase());
+                        objectives.add(new QuestObjective(
+                                type,
+                                o.getString("target", ""),
+                                o.getInt("amount", 1),
+                                o.getString("description", "Objective")
+                        ));
+                    } catch (IllegalArgumentException ignored) {}
+                }
+            }
+
             ConversationQuest quest = new ConversationQuest(
                     questId,
                     questSection.getString("display-name", key),
@@ -483,6 +619,8 @@ public final class QuestManager {
                     questSection.getString("starter-npc", ""),
                     questSection.getString("target-npc", ""),
                     questSection.getStringList("rewards"),
+                    questSection.getStringList("prerequisites"),
+                    objectives,
                     questSection.getBoolean("repeatable", false),
                     questSection.getBoolean("enabled", true)
             );
@@ -527,6 +665,19 @@ public final class QuestManager {
             yaml.set(base + "starter-npc", quest.starterNpcId());
             yaml.set(base + "target-npc", quest.targetNpcId());
             yaml.set(base + "rewards", new ArrayList<>(quest.rewardCommands()));
+            yaml.set(base + "prerequisites", new ArrayList<>(quest.prerequisites()));
+            
+            if (!quest.objectives().isEmpty()) {
+                for (int i = 0; i < quest.objectives().size(); i++) {
+                    QuestObjective obj = quest.objectives().get(i);
+                    String objBase = base + "objectives.obj" + i + ".";
+                    yaml.set(objBase + "type", obj.type().name());
+                    yaml.set(objBase + "target", obj.target());
+                    yaml.set(objBase + "amount", obj.amount());
+                    yaml.set(objBase + "description", obj.description());
+                }
+            }
+
             yaml.set(base + "repeatable", quest.repeatable());
             yaml.set(base + "enabled", quest.enabled());
         }
@@ -546,7 +697,10 @@ public final class QuestManager {
         }
 
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(progressFile);
-        ConfigurationSection playersSection = yaml.getConfigurationSection("players");
+        ConfigurationSection playersSection = yaml.getConfigurationSection("profiles");
+        if (playersSection == null) {
+            playersSection = yaml.getConfigurationSection("players");
+        }
         if (playersSection == null) {
             return;
         }
@@ -577,6 +731,17 @@ public final class QuestManager {
                 QuestProgress progress = new QuestProgress();
                 progress.setActive(stateSection.getBoolean("active", false));
                 progress.setCompletions(stateSection.getInt("completions", 0));
+                
+                ConfigurationSection objProgSection = stateSection.getConfigurationSection("objectives");
+                if (objProgSection != null) {
+                    for (String idxKey : objProgSection.getKeys(false)) {
+                        try {
+                            int idx = Integer.parseInt(idxKey);
+                            progress.setObjectiveProgress(idx, objProgSection.getInt(idxKey));
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+
                 if (progress.active() || progress.completions() > 0) {
                     questProgressMap.put(questId, progress);
                 }
@@ -598,9 +763,16 @@ public final class QuestManager {
                 if (!progress.active() && progress.completions() <= 0) {
                     continue;
                 }
-                String base = "players." + playerId + ".quests." + questEntry.getKey() + ".";
+                String base = "profiles." + playerId + ".quests." + questEntry.getKey() + ".";
                 yaml.set(base + "active", progress.active());
                 yaml.set(base + "completions", progress.completions());
+                
+                Map<Integer, Integer> objProg = progress.getAllObjectiveProgress();
+                if (!objProg.isEmpty()) {
+                    for (Map.Entry<Integer, Integer> objEntry : objProg.entrySet()) {
+                        yaml.set(base + "objectives." + objEntry.getKey(), objEntry.getValue());
+                    }
+                }
             }
         }
 
@@ -616,7 +788,7 @@ public final class QuestManager {
     }
 
     public String progressLabel(UUID playerId, ConversationQuest quest) {
-        QuestProgress progress = progress(playerId, quest.id(), false);
+        QuestProgress progress = progress(resolveProgressId(playerId), quest.id(), false);
         if (progress == null) {
             return ChatColor.GRAY + "Not started";
         }
@@ -630,6 +802,129 @@ public final class QuestManager {
             return ChatColor.GREEN + "Completed";
         }
         return ChatColor.GRAY + "Not started";
+    }
+
+    public String progressLabel(Player player, ConversationQuest quest) {
+        QuestProgress progress = progress(resolveProgressId(player), quest.id(), false);
+        if (progress == null) {
+            return ChatColor.GRAY + "Not started";
+        }
+        if (progress.active()) {
+            return ChatColor.YELLOW + "In progress";
+        }
+        if (progress.hasCompletedAtLeastOnce()) {
+            if (quest.repeatable()) {
+                return ChatColor.GREEN + "Completed " + progress.completions() + "x";
+            }
+            return ChatColor.GREEN + "Completed";
+        }
+        return ChatColor.GRAY + "Not started";
+    }
+
+    private UUID resolveProgressId(Player player) {
+        if (player == null) {
+            return null;
+        }
+
+        UUID ownerId = player.getUniqueId();
+        if (ownerId == null) {
+            return null;
+        }
+
+        io.papermc.Grivience.skyblock.profile.ProfileManager profileManager = plugin.getProfileManager();
+        if (profileManager == null) {
+            return ownerId;
+        }
+
+        io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile = profileManager.getSelectedProfile(player);
+        if (profile == null) {
+            return ownerId;
+        }
+
+        UUID progressId = canonicalProgressId(profile);
+        migrateLegacyProgress(ownerId, progressId);
+        return progressId == null ? ownerId : progressId;
+    }
+
+    private UUID resolveProgressId(UUID playerId) {
+        if (playerId == null) {
+            return null;
+        }
+
+        io.papermc.Grivience.skyblock.profile.ProfileManager profileManager = plugin.getProfileManager();
+        if (profileManager == null) {
+            return playerId;
+        }
+
+        io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile = profileManager.findProfileById(playerId);
+        if (profile != null) {
+            UUID progressId = canonicalProgressId(profile);
+            migrateLegacyProgress(playerId, progressId);
+            return progressId == null ? playerId : progressId;
+        }
+
+        UUID selectedProfileId = profileManager.getSelectedProfileId(playerId);
+        if (selectedProfileId == null) {
+            selectedProfileId = profileManager.getFirstProfileId(playerId);
+            if (selectedProfileId == null) {
+                return playerId;
+            }
+        }
+
+        io.papermc.Grivience.skyblock.profile.SkyBlockProfile selectedProfile = profileManager.findProfileById(selectedProfileId);
+        UUID progressId = canonicalProgressId(selectedProfile);
+        migrateLegacyProgress(playerId, progressId);
+        return progressId == null ? playerId : progressId;
+    }
+
+    private UUID canonicalProgressId(io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        UUID canonicalProfileId = profile.getCanonicalProfileId();
+        return canonicalProfileId != null ? canonicalProfileId : profile.getProfileId();
+    }
+
+    private void migrateLegacyProgress(UUID legacyId, UUID progressId) {
+        if (legacyId == null || progressId == null || legacyId.equals(progressId)) {
+            return;
+        }
+
+        Map<String, QuestProgress> legacyProgress = progressByPlayer.get(legacyId);
+        if (legacyProgress == null || legacyProgress.isEmpty()) {
+            return;
+        }
+
+        Map<String, QuestProgress> targetProgress = progressByPlayer.computeIfAbsent(progressId, ignored -> new HashMap<>());
+        boolean changed = false;
+        for (Map.Entry<String, QuestProgress> entry : legacyProgress.entrySet()) {
+            if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null) {
+                continue;
+            }
+
+            String questId = ConversationQuest.normalizeId(entry.getKey());
+            QuestProgress existing = targetProgress.get(questId);
+            if (existing == null) {
+                QuestProgress migrated = new QuestProgress();
+                migrated.setActive(entry.getValue().active());
+                migrated.setCompletions(entry.getValue().completions());
+                targetProgress.put(questId, migrated);
+                changed = true;
+                continue;
+            }
+
+            if (entry.getValue().active() && !existing.active()) {
+                existing.setActive(true);
+                changed = true;
+            }
+            if (entry.getValue().completions() > existing.completions()) {
+                existing.setCompletions(entry.getValue().completions());
+                changed = true;
+            }
+        }
+
+        progressByPlayer.remove(legacyId);
+        saveProgress();
     }
 
     public synchronized List<String> questIds() {

@@ -58,18 +58,63 @@ public class GlobalEventCommand implements CommandExecutor, TabCompleter {
                 eventManager.stopGlobalXpBoost();
                 sender.sendMessage(ChatColor.GREEN + "Stopped Global XP Boost.");
             }
+            case "booster" -> {
+                if (args.length < 4) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /globalevent booster <type> <multiplier> <duration_minutes>");
+                    sender.sendMessage(ChatColor.GRAY + "Types: EXPERIENCE, MINION_SPEED, DAMAGE, MINEHUB_HEART, ENDMINES_HEART");
+                    return true;
+                }
+                String typeStr = args[1].toUpperCase();
+                GlobalEventManager.BoosterType type;
+                try {
+                    type = GlobalEventManager.BoosterType.valueOf(typeStr);
+                } catch (IllegalArgumentException e) {
+                    sender.sendMessage(ChatColor.RED + "Invalid booster type: " + typeStr);
+                    return true;
+                }
+
+                double multiplier;
+                int duration;
+                try {
+                    multiplier = Double.parseDouble(args[2]);
+                    duration = Integer.parseInt(args[3]);
+                } catch (NumberFormatException e) {
+                    sender.sendMessage(ChatColor.RED + "Invalid multiplier or duration. Please enter numbers.");
+                    return true;
+                }
+
+                eventManager.startBooster(type, multiplier, duration);
+                sender.sendMessage(ChatColor.GREEN + "Started Global " + type.getDisplayName() + " Boost: " + multiplier + "x for " + duration + " minutes.");
+            }
+            case "stopbooster" -> {
+                if (args.length < 2) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /globalevent stopbooster <type>");
+                    return true;
+                }
+                String typeStr = args[1].toUpperCase();
+                try {
+                    GlobalEventManager.BoosterType type = GlobalEventManager.BoosterType.valueOf(typeStr);
+                    eventManager.stopBooster(type);
+                    sender.sendMessage(ChatColor.GREEN + "Stopped Global " + type.getDisplayName() + " Boost.");
+                } catch (IllegalArgumentException e) {
+                    sender.sendMessage(ChatColor.RED + "Invalid booster type: " + typeStr);
+                }
+            }
             case "status" -> {
                 List<String> active = eventManager.getActiveEvents();
                 if (active.isEmpty()) {
                     sender.sendMessage(ChatColor.YELLOW + "No global events are currently active.");
                 } else {
-                    sender.sendMessage(ChatColor.GOLD + "--- Active Global Events ---");
+                    sender.sendMessage(ChatColor.GOLD + "--- Active Global Events & Boosters ---");
                     for (String e : active) {
                         sender.sendMessage(ChatColor.WHITE + "- " + e);
                     }
-                    long remaining = eventManager.getXpBoostRemainingMillis();
-                    if (remaining > 0) {
-                        sender.sendMessage(ChatColor.GOLD + "XP Boost Time Remaining: " + ChatColor.YELLOW + (remaining / 60000L) + " minutes");
+                    
+                    for (GlobalEventManager.BoosterType type : GlobalEventManager.BoosterType.values()) {
+                        long remaining = eventManager.getRemainingMillis(type);
+                        if (remaining > 0) {
+                            sender.sendMessage(type.getColor() + type.getDisplayName() + ChatColor.GOLD + " Time Remaining: " + ChatColor.YELLOW + (remaining / 60000L) + " minutes");
+                        }
                     }
                 }
             }
@@ -81,6 +126,8 @@ public class GlobalEventCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(ChatColor.GOLD + "--- Global Event Admin Commands ---");
+        sender.sendMessage(ChatColor.YELLOW + "/globalevent booster <type> <mult> <min> " + ChatColor.GRAY + "- Start a global booster");
+        sender.sendMessage(ChatColor.YELLOW + "/globalevent stopbooster <type> " + ChatColor.GRAY + "- Stop a global booster");
         sender.sendMessage(ChatColor.YELLOW + "/globalevent startboost <multiplier> <duration> " + ChatColor.GRAY + "- Start a global XP boost");
         sender.sendMessage(ChatColor.YELLOW + "/globalevent stopboost " + ChatColor.GRAY + "- Stop active global XP boost");
         sender.sendMessage(ChatColor.YELLOW + "/globalevent status " + ChatColor.GRAY + "- View current active events");
@@ -89,8 +136,14 @@ public class GlobalEventCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return Stream.of("startboost", "stopboost", "status")
+            return Stream.of("booster", "stopbooster", "startboost", "stopboost", "status")
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+        if (args.length == 2 && (args[0].equalsIgnoreCase("booster") || args[0].equalsIgnoreCase("stopbooster"))) {
+            return Stream.of(GlobalEventManager.BoosterType.values())
+                    .map(Enum::name)
+                    .filter(s -> s.startsWith(args[1].toUpperCase()))
                     .collect(Collectors.toList());
         }
         return new ArrayList<>();

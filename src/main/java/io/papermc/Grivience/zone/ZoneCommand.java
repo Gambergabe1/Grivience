@@ -58,6 +58,12 @@ public final class ZoneCommand implements CommandExecutor, TabCompleter {
             case "setcolor" -> handleSetColor(sender, args);
             case "setpriority" -> handleSetPriority(sender, args);
             case "setenabled" -> handleSetEnabled(sender, args);
+            case "setpvp" -> handleSetPvP(sender, args);
+            case "setmobspawn" -> handleSetMobSpawn(sender, args);
+            case "setbreak" -> handleSetBreak(sender, args);
+            case "setradius" -> handleSetRadius(sender, args);
+            case "attach" -> handleAttach(sender, args);
+            case "setexpiry" -> handleSetExpiry(sender, args);
             case "setdesc" -> handleSetDesc(sender, args);
             case "info" -> handleInfo(sender, args);
             case "list" -> handleList(sender);
@@ -85,6 +91,12 @@ public final class ZoneCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " setcolor <color>" + ChatColor.GRAY + " - Set display color");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " setpriority <number>" + ChatColor.GRAY + " - Set priority (higher = override)");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " setenabled <true|false>" + ChatColor.GRAY + " - Enable/disable zone");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " setpvp <id> <true|false>" + ChatColor.GRAY + " - Allow/deny PvP");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " setmobspawn <id> <true|false>" + ChatColor.GRAY + " - Allow/deny mob spawning");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " setbreak <id> <true|false>" + ChatColor.GRAY + " - Allow/deny block breaking");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " setradius <id> <radius>" + ChatColor.GRAY + " - Set spherical radius (-1 to disable)");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " attach <id> [player_name]" + ChatColor.GRAY + " - Attach zone to an entity/player");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " setexpiry <id> <seconds>" + ChatColor.GRAY + " - Set temporary lifetime");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " setdesc <description>" + ChatColor.GRAY + " - Set description");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " info [id]" + ChatColor.GRAY + " - View zone info");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " list" + ChatColor.GRAY + " - List all zones");
@@ -348,6 +360,141 @@ public final class ZoneCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GREEN + "Description updated.");
     }
 
+    private void handleSetPvP(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "Usage: /zone setpvp <id> <true|false>");
+            return;
+        }
+        String id = args[1];
+        Zone zone = zoneManager.getZone(id);
+        if (zone == null) {
+            sender.sendMessage(ChatColor.RED + "Zone '" + id + "' not found.");
+            return;
+        }
+        boolean allow = args[2].equalsIgnoreCase("true");
+        zone.setCanPvP(allow);
+        zoneManager.saveZones();
+        sender.sendMessage(ChatColor.GREEN + "PvP " + (allow ? "allowed" : "denied") + " in zone " + id + ".");
+    }
+
+    private void handleSetMobSpawn(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "Usage: /zone setmobspawn <id> <true|false>");
+            return;
+        }
+        String id = args[1];
+        Zone zone = zoneManager.getZone(id);
+        if (zone == null) {
+            sender.sendMessage(ChatColor.RED + "Zone '" + id + "' not found.");
+            return;
+        }
+        boolean allow = args[2].equalsIgnoreCase("true");
+        zone.setCanSpawnMobs(allow);
+        zoneManager.saveZones();
+        sender.sendMessage(ChatColor.GREEN + "Mob spawning " + (allow ? "allowed" : "denied") + " in zone " + id + ".");
+    }
+
+    private void handleSetBreak(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "Usage: /zone setbreak <id> <true|false>");
+            return;
+        }
+        String id = args[1];
+        Zone zone = zoneManager.getZone(id);
+        if (zone == null) {
+            sender.sendMessage(ChatColor.RED + "Zone '" + id + "' not found.");
+            return;
+        }
+        boolean allow = args[2].equalsIgnoreCase("true");
+        zone.setCanBreakBlocks(allow);
+        zoneManager.saveZones();
+        sender.sendMessage(ChatColor.GREEN + "Block breaking " + (allow ? "allowed" : "denied") + " in zone " + id + ".");
+    }
+
+    private void handleSetRadius(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "Usage: /zone setradius <id> <radius>");
+            sender.sendMessage(ChatColor.GRAY + "Set radius to -1 to use cuboid bounds.");
+            return;
+        }
+        String id = args[1];
+        Zone zone = zoneManager.getZone(id);
+        if (zone == null) {
+            sender.sendMessage(ChatColor.RED + "Zone '" + id + "' not found.");
+            return;
+        }
+        double radius;
+        try {
+            radius = Double.parseDouble(args[2]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(ChatColor.RED + "Radius must be a number.");
+            return;
+        }
+        zone.setRadius(radius);
+        zoneManager.saveZones();
+        sender.sendMessage(ChatColor.GREEN + "Radius for zone " + id + " set to " + radius + ".");
+    }
+
+    private void handleAttach(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Usage: /zone attach <id> [player_name|none]");
+            return;
+        }
+        String id = args[1];
+        Zone zone = zoneManager.getZone(id);
+        if (zone == null) {
+            sender.sendMessage(ChatColor.RED + "Zone '" + id + "' not found.");
+            return;
+        }
+        
+        if (args.length < 3 || args[2].equalsIgnoreCase("none")) {
+            zone.setAttachedEntityId(null);
+            zoneManager.saveZones();
+            sender.sendMessage(ChatColor.GREEN + "Zone " + id + " is no longer attached to any entity.");
+            return;
+        }
+
+        Player target = Bukkit.getPlayer(args[2]);
+        if (target == null) {
+            sender.sendMessage(ChatColor.RED + "Player '" + args[2] + "' not found.");
+            return;
+        }
+
+        zone.setAttachedEntityId(target.getUniqueId());
+        zone.updateLocation(target.getLocation());
+        zoneManager.saveZones();
+        sender.sendMessage(ChatColor.GREEN + "Zone " + id + " is now attached to " + target.getName() + ".");
+    }
+
+    private void handleSetExpiry(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "Usage: /zone setexpiry <id> <seconds>");
+            sender.sendMessage(ChatColor.GRAY + "Set seconds to -1 for permanent.");
+            return;
+        }
+        String id = args[1];
+        Zone zone = zoneManager.getZone(id);
+        if (zone == null) {
+            sender.sendMessage(ChatColor.RED + "Zone '" + id + "' not found.");
+            return;
+        }
+        long seconds;
+        try {
+            seconds = Long.parseLong(args[2]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(ChatColor.RED + "Seconds must be a number.");
+            return;
+        }
+        
+        if (seconds < 0) {
+            zone.setExpiryTime(-1);
+        } else {
+            zone.setExpiryTime(System.currentTimeMillis() + (seconds * 1000));
+        }
+        zoneManager.saveZones();
+        sender.sendMessage(ChatColor.GREEN + "Expiry for zone " + id + " updated.");
+    }
+
     private void handleInfo(CommandSender sender, String[] args) {
         Player player = sender instanceof Player p ? p : null;
         
@@ -379,15 +526,40 @@ public final class ZoneCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GRAY + "World: " + ChatColor.YELLOW + zone.getWorld());
         sender.sendMessage(ChatColor.GRAY + "Priority: " + ChatColor.YELLOW + zone.getPriority());
         sender.sendMessage(ChatColor.GRAY + "Enabled: " + ChatColor.YELLOW + zone.isEnabled());
+        sender.sendMessage(ChatColor.GRAY + "PvP: " + (zone.canPvP() ? ChatColor.GREEN + "Allowed" : ChatColor.RED + "Denied"));
+        sender.sendMessage(ChatColor.GRAY + "Mob Spawning: " + (zone.canSpawnMobs() ? ChatColor.GREEN + "Allowed" : ChatColor.RED + "Denied"));
+        sender.sendMessage(ChatColor.GRAY + "Block Breaking: " + (zone.canBreakBlocks() ? ChatColor.GREEN + "Allowed" : ChatColor.RED + "Denied"));
         
+        if (zone.getRadius() > 0) {
+            sender.sendMessage(ChatColor.GRAY + "Type: " + ChatColor.AQUA + "Spherical (" + zone.getRadius() + "m)");
+        } else {
+            sender.sendMessage(ChatColor.GRAY + "Type: " + ChatColor.AQUA + "Cuboid");
+        }
+
+        if (zone.getAttachedEntityId() != null) {
+            sender.sendMessage(ChatColor.GRAY + "Attached: " + ChatColor.YELLOW + zone.getAttachedEntityId());
+        }
+
+        if (zone.getExpiryTime() > 0) {
+            long remaining = (zone.getExpiryTime() - System.currentTimeMillis()) / 1000;
+            sender.sendMessage(ChatColor.GRAY + "Expires: " + ChatColor.RED + remaining + "s");
+        }
+
         if (zone.getDescription() != null && !zone.getDescription().isEmpty()) {
             sender.sendMessage(ChatColor.GRAY + "Description: " + ChatColor.YELLOW + zone.getDescription());
         }
         
-        if (zone.getPos1() != null && zone.getPos2() != null) {
-            sender.sendMessage(ChatColor.GRAY + "Position 1: " + ChatColor.YELLOW + formatLocation(zone.getPos1()));
-            sender.sendMessage(ChatColor.GRAY + "Position 2: " + ChatColor.YELLOW + formatLocation(zone.getPos2()));
-            sender.sendMessage(ChatColor.GRAY + "Size: " + ChatColor.YELLOW + String.format("%.0f", zone.getSize()) + " blocks³");
+        if (zone.getPos1() != null) {
+            if (zone.getRadius() > 0) {
+                sender.sendMessage(ChatColor.GRAY + "Center: " + ChatColor.YELLOW + formatLocation(zone.getPos1()));
+            } else if (zone.getPos2() != null) {
+                sender.sendMessage(ChatColor.GRAY + "Position 1: " + ChatColor.YELLOW + formatLocation(zone.getPos1()));
+                sender.sendMessage(ChatColor.GRAY + "Position 2: " + ChatColor.YELLOW + formatLocation(zone.getPos2()));
+                sender.sendMessage(ChatColor.GRAY + "Size: " + ChatColor.YELLOW + String.format("%.0f", zone.getSize()) + " blocks³");
+            } else {
+                sender.sendMessage(ChatColor.GRAY + "Position 1: " + ChatColor.YELLOW + formatLocation(zone.getPos1()));
+                sender.sendMessage(ChatColor.GRAY + "Bounds: " + ChatColor.RED + "Incomplete");
+            }
         } else {
             sender.sendMessage(ChatColor.GRAY + "Bounds: " + ChatColor.RED + "Not set");
         }
@@ -468,7 +640,8 @@ public final class ZoneCommand implements CommandExecutor, TabCompleter {
             List<String> commands = Arrays.asList(
                 "help", "create", "delete", "select", "setpos1", "setpos2",
                 "setname", "setdisplayname", "setcolor", "setpriority",
-                "setenabled", "setdesc", "info", "list", "reload", "wand"
+                "setenabled", "setpvp", "setmobspawn", "setbreak", 
+                "setradius", "attach", "setexpiry", "setdesc", "info", "list", "reload", "wand"
             );
             return filterPrefix(commands, args[0]);
         }
@@ -476,7 +649,8 @@ public final class ZoneCommand implements CommandExecutor, TabCompleter {
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
             if (List.of("delete", "select", "setname", "setdisplayname", "setcolor", 
-                       "setpriority", "setenabled", "setdesc", "info").contains(sub)) {
+                       "setpriority", "setenabled", "setpvp", "setmobspawn", "setbreak",
+                       "setradius", "attach", "setexpiry", "setdesc", "info").contains(sub)) {
                 return filterPrefix(zoneManager.getZoneIds(), args[1]);
             }
         }
@@ -486,8 +660,13 @@ public final class ZoneCommand implements CommandExecutor, TabCompleter {
             if (sub.equals("setcolor")) {
                 return filterPrefix(getValidColors(), args[2].toUpperCase());
             }
-            if (sub.equals("setenabled")) {
+            if (List.of("setenabled", "setpvp", "setmobspawn", "setbreak").contains(sub)) {
                 return filterPrefix(Arrays.asList("true", "false"), args[2]);
+            }
+            if (sub.equals("attach")) {
+                List<String> players = Bukkit.getOnlinePlayers().stream().map(Player::getName).collect(Collectors.toList());
+                players.add("none");
+                return filterPrefix(players, args[2]);
             }
         }
 

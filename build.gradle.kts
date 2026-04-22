@@ -30,10 +30,15 @@ repositories {
         name = "codemc-snapshots"
         url = uri("https://repo.codemc.org/repository/maven-snapshots/")
     }
+    maven {
+        name = "extendedclip"
+        url = uri("https://repo.extendedclip.com/releases/")
+    }
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.5-R0.1-SNAPSHOT")
+    compileOnly("me.clip:placeholderapi:2.12.2")
     compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.3.5") {
         exclude(group = "com.google.guava", module = "guava")
         exclude(group = "com.google.code.gson", module = "gson")
@@ -47,7 +52,13 @@ dependencies {
 
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.mockito:mockito-core:5.12.0")
     testImplementation("io.papermc.paper:paper-api:1.21.5-R0.1-SNAPSHOT")
+    testImplementation("me.clip:placeholderapi:2.12.2")
+}
+
+tasks.jar {
+    archiveClassifier.set("plain")
 }
 
 tasks.shadowJar {

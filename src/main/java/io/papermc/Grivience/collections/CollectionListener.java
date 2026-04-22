@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -188,9 +187,8 @@ public class CollectionListener implements Listener {
         
         for (ItemStack drop : event.getDrops()) {
             if (drop == null || drop.getType() == Material.AIR) continue;
-            
-            String itemId = mapToCollectionItemId(drop.getType());
-            collectionsManager.addCollection(player, itemId, drop.getAmount());
+
+            collectionsManager.addCollectionFromDrop(player, drop);
         }
     }
 
@@ -205,9 +203,8 @@ public class CollectionListener implements Listener {
         if (event.getCaught() instanceof Item caughtItem) {
             ItemStack stack = caughtItem.getItemStack();
             if (stack == null || stack.getType() == Material.AIR) return;
-            
-            String itemId = mapToCollectionItemId(stack.getType());
-            collectionsManager.addCollection(player, itemId, stack.getAmount());
+
+            collectionsManager.addCollectionFromDrop(player, stack);
         }
     }
 
@@ -235,35 +232,28 @@ public class CollectionListener implements Listener {
             return;
         }
 
-        ItemStack tool = player.getInventory().getItemInMainHand();
-        Collection<ItemStack> drops = block.getDrops(tool, player);
+        Collection<ItemStack> drops = resolveBreakDrops(block, player);
         for (ItemStack drop : drops) {
             if (drop == null || drop.getType() == Material.AIR) {
                 continue;
             }
-            String itemId = mapToCollectionItemId(drop.getType());
-            collectionsManager.addCollection(player, itemId, drop.getAmount());
+            collectionsManager.addCollectionFromDrop(player, drop);
         }
     }
 
-    private String mapToCollectionItemId(Material dropType) {
-        if (dropType == null) {
-            return "";
+    private Collection<ItemStack> resolveBreakDrops(Block block, Player player) {
+        if (block == null) {
+            return List.of();
         }
-
-        // Skyblock-style collections often track processed items (e.g., "iron_ingot") even if vanilla drops raw ore.
-        return switch (dropType) {
-            case RAW_IRON, IRON_ORE, DEEPSLATE_IRON_ORE -> "iron_ingot";
-            case RAW_GOLD, GOLD_ORE, DEEPSLATE_GOLD_ORE, NETHER_GOLD_ORE -> "gold_ingot";
-            case COAL_ORE, DEEPSLATE_COAL_ORE -> "coal";
-            case DIAMOND_ORE, DEEPSLATE_DIAMOND_ORE -> "diamond";
-            case EMERALD_ORE, DEEPSLATE_EMERALD_ORE -> "emerald";
-            case LAPIS_ORE, DEEPSLATE_LAPIS_ORE -> "lapis_lazuli";
-            case REDSTONE_ORE, DEEPSLATE_REDSTONE_ORE -> "redstone";
-            case NETHER_QUARTZ_ORE -> "quartz";
-            case MELON_SLICE -> "melon";
-            default -> dropType.name().toLowerCase(Locale.ROOT);
-        };
+        ItemStack tool = player == null ? null : player.getInventory().getItemInMainHand();
+        if (tool == null || tool.getType().isAir()) {
+            return block.getDrops();
+        }
+        Collection<ItemStack> drops = block.getDrops(tool, player);
+        if (drops == null || drops.isEmpty()) {
+            return block.getDrops();
+        }
+        return drops;
     }
 
     private boolean shouldTrackPlaced(Material type) {

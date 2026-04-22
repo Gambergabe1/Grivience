@@ -10,6 +10,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +48,8 @@ public final class BazaarCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
             case "menu", "main", "open" -> guiManager.openMain(player);
+            
+            case "godpotion" -> buyGodPotion(player);
             
             case "buy" -> {
                 if (args.length < 3) {
@@ -189,6 +192,34 @@ public final class BazaarCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/" + label + " bag" + ChatColor.GRAY + " - View shopping bag");
         player.sendMessage(ChatColor.YELLOW + "/" + label + " search <query>" + ChatColor.GRAY + " - Search items");
         player.sendMessage(ChatColor.YELLOW + "/" + label + " price <product>" + ChatColor.GRAY + " - Check prices");
+        player.sendMessage(ChatColor.YELLOW + "/" + label + " godpotion" + ChatColor.GRAY + " - Buy a God Potion (1,000,000 coins)");
+    }
+
+    private void buyGodPotion(Player player) {
+        double cost = 1000000.0;
+        io.papermc.Grivience.skyblock.economy.ProfileEconomyService economy = new io.papermc.Grivience.skyblock.economy.ProfileEconomyService(shopManager.getPlugin());
+        
+        if (economy.purse(player) < cost) {
+            player.sendMessage(ChatColor.RED + "You need " + String.format("%,.0f", cost) + " coins to buy a God Potion!");
+            return;
+        }
+
+        if (player.getInventory().firstEmpty() == -1) {
+            player.sendMessage(ChatColor.RED + "Your inventory is full!");
+            return;
+        }
+
+        if (economy.withdraw(player, cost)) {
+            ItemStack potion = shopManager.getPlugin().getCustomItemService().createItemByKey("GOD_POTION");
+            if (potion != null) {
+                player.getInventory().addItem(potion);
+                player.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "PURCHASE! " + ChatColor.YELLOW + "You bought a God Potion for " + ChatColor.GOLD + String.format("%,.0f", cost) + " coins!");
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+            } else {
+                economy.deposit(player, cost);
+                player.sendMessage(ChatColor.RED + "An error occurred while creating the God Potion. Your coins have been refunded.");
+            }
+        }
     }
 
     @Override
@@ -196,7 +227,7 @@ public final class BazaarCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             List<String> root = new ArrayList<>(List.of(
                 "menu", "buy", "sell", "place", "cancel",
-                "orders", "bag", "search", "price", "help"
+                "orders", "bag", "search", "price", "help", "godpotion"
             ));
             return filterPrefix(root, args[0]);
         }

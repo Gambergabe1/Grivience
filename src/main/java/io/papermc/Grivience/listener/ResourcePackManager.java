@@ -88,7 +88,10 @@ public final class ResourcePackManager implements Listener {
             return;
         }
         String fileName = config.getString("resource-pack.local.file", "resource-pack.zip");
-        File packFile = new File(plugin.getDataFolder(), fileName);
+        File packFile = resolveLocalPackFile(fileName);
+        if (packFile == null) {
+            return;
+        }
         if (!packFile.exists()) {
             plugin.getLogger().warning("Local resource pack enabled but file '" + packFile.getAbsolutePath() + "' is missing.");
             return;
@@ -109,6 +112,23 @@ public final class ResourcePackManager implements Listener {
             enabled = true;
         } catch (IOException ex) {
             plugin.getLogger().warning("Failed to start local resource pack server: " + ex.getMessage());
+        }
+    }
+
+    private File resolveLocalPackFile(String configuredPath) {
+        String path = configuredPath == null || configuredPath.isBlank() ? "resource-pack.zip" : configuredPath.trim();
+        File candidate = new File(plugin.getDataFolder(), path);
+        try {
+            File base = plugin.getDataFolder().getCanonicalFile();
+            File canonical = candidate.getCanonicalFile();
+            if (!canonical.toPath().startsWith(base.toPath())) {
+                plugin.getLogger().warning("Rejected local resource pack path outside plugin data folder: " + path);
+                return null;
+            }
+            return canonical;
+        } catch (IOException ex) {
+            plugin.getLogger().warning("Failed to resolve local resource pack file: " + ex.getMessage());
+            return null;
         }
     }
 

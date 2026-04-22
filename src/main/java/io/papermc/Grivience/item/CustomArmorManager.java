@@ -2,12 +2,15 @@ package io.papermc.Grivience.item;
 
 import io.papermc.Grivience.GriviencePlugin;
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.entity.Player;
 
@@ -65,10 +68,23 @@ public final class CustomArmorManager {
         }
         meta.setDisplayName(rarity.color() + baseName);
         meta.setLore(normalizeLore(rawLore, rarity, pieceType));
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_UNBREAKABLE);
+        meta.setUnbreakable(true);
 
         if (pieceConfig.isGlowing()) {
             meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+        }
+
+        if (meta instanceof Damageable damageable && damageable.getDamage() > 0) {
+            damageable.setDamage(0);
+        }
+
+        if (meta instanceof LeatherArmorMeta leatherMeta) {
+            Color leatherColor = parseLeatherColor(pieceConfig.getColor());
+            if (leatherColor != null) {
+                leatherMeta.setColor(leatherColor);
+                meta = leatherMeta;
+            }
         }
 
         meta.getPersistentDataContainer().set(armorSetKey, PersistentDataType.STRING, setId);
@@ -112,6 +128,39 @@ public final class CustomArmorManager {
 
         item.setItemMeta(meta);
         return item;
+    }
+
+    private Color parseLeatherColor(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+
+        String normalized = raw.trim();
+        if (normalized.startsWith("#")) {
+            normalized = normalized.substring(1);
+        }
+
+        if (normalized.matches("[0-9a-fA-F]{6}")) {
+            try {
+                int rgb = Integer.parseInt(normalized, 16);
+                return Color.fromRGB(rgb);
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
+        }
+
+        String[] parts = normalized.split(",");
+        if (parts.length != 3) {
+            return null;
+        }
+        try {
+            int red = Integer.parseInt(parts[0].trim());
+            int green = Integer.parseInt(parts[1].trim());
+            int blue = Integer.parseInt(parts[2].trim());
+            return Color.fromRGB(red, green, blue);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private List<String> normalizeLore(List<String> lore, ItemRarity rarity, ArmorPieceType pieceType) {
@@ -319,6 +368,31 @@ public final class CustomArmorManager {
         return total;
     }
 
+    public int countEquippedPieces(Player player, String setId) {
+        if (player == null || setId == null || setId.isBlank()) {
+            return 0;
+        }
+
+        int pieces = 0;
+        for (ItemStack piece : player.getInventory().getArmorContents()) {
+            if (piece == null) {
+                continue;
+            }
+            String equippedSetId = getArmorSetId(piece);
+            if (setId.equalsIgnoreCase(equippedSetId)) {
+                pieces++;
+            }
+        }
+        return pieces;
+    }
+
+    public boolean hasEquippedPieces(Player player, String setId, int requiredPieces) {
+        if (requiredPieces <= 0) {
+            return true;
+        }
+        return countEquippedPieces(player, setId) >= requiredPieces;
+    }
+
     public boolean isCustomArmor(ItemStack item) {
         return getArmorSetId(item) != null;
     }
@@ -365,8 +439,22 @@ public final class CustomArmorManager {
                 double critChance = plugin.getConfig().getDouble(piecePath + ".crit-chance", 0.0D);
                 double critDamage = plugin.getConfig().getDouble(piecePath + ".crit-damage", 0.0D);
                 double farmingFortune = plugin.getConfig().getDouble(piecePath + ".farming-fortune", 0.0D);
+                String color = plugin.getConfig().getString(piecePath + ".color");
 
-                pieces.put(pieceType, new ArmorPieceConfig(material, pieceName, lore, armorValue, toughness, glowing, manaBonus, healthBonus, critChance, critDamage, farmingFortune));
+                pieces.put(pieceType, new ArmorPieceConfig(
+                        material,
+                        pieceName,
+                        lore,
+                        armorValue,
+                        toughness,
+                        glowing,
+                        manaBonus,
+                        healthBonus,
+                        critChance,
+                        critDamage,
+                        farmingFortune,
+                        color
+                ));
             }
         }
 
@@ -450,11 +538,12 @@ public final class CustomArmorManager {
         private final double critChanceBonus;
         private final double critDamageBonus;
         private final double farmingFortuneBonus;
+        private final String color;
 
         public ArmorPieceConfig(Material material, String displayName, List<String> lore,
                                 int armorValue, double toughness, boolean glowing, double manaBonus,
                                 double healthBonus, double critChanceBonus, double critDamageBonus,
-                                double farmingFortuneBonus) {
+                                double farmingFortuneBonus, String color) {
             this.material = material;
             this.displayName = displayName;
             this.lore = lore;
@@ -466,6 +555,7 @@ public final class CustomArmorManager {
             this.critChanceBonus = critChanceBonus;
             this.critDamageBonus = critDamageBonus;
             this.farmingFortuneBonus = farmingFortuneBonus;
+            this.color = color;
         }
 
         public Material getMaterial() {
@@ -510,6 +600,10 @@ public final class CustomArmorManager {
 
         public double getFarmingFortuneBonus() {
             return farmingFortuneBonus;
+        }
+
+        public String getColor() {
+            return color;
         }
     }
 }

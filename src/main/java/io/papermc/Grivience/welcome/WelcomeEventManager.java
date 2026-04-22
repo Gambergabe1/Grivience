@@ -267,12 +267,28 @@ public class WelcomeEventManager {
     }
 
     private void giveStarterTools(Player player) {
-        addItemOrDrop(player, starterGear(Material.WOODEN_PICKAXE, "Starter Pickaxe", "Starter Tool", "For mining stone and ores"));
+        // Core tools
+        addItemOrDrop(player, starterGear(Material.DIAMOND_PICKAXE, "Starter Pickaxe", "Starter Tool", "For mining stone and ores"));
         addItemOrDrop(player, starterGear(Material.WOODEN_AXE, "Starter Axe", "Starter Tool", "For chopping wood"));
         addItemOrDrop(player, starterGear(Material.WOODEN_HOE, "Starter Hoe", "Starter Tool", "For farming crops"));
+        
+        // Newbie Katana
+        ItemStack katana = plugin.getCustomItemService().createWeapon(io.papermc.Grivience.item.CustomWeaponType.NEWBIE_KATANA);
+        if (katana != null && katana.getItemMeta() != null) {
+            ItemMeta meta = katana.getItemMeta();
+            List<String> lore = meta.getLore();
+            if (lore == null) lore = new java.util.ArrayList<>();
+            lore.add("");
+            lore.add(ChatColor.RED + "" + ChatColor.ITALIC + "Non-Tradeable");
+            meta.setLore(lore);
+            katana.setItemMeta(meta);
+            addItemOrDrop(player, katana);
+        }
+
         addItemOrDrop(player, starterItem(Material.WHEAT_SEEDS, 16, "Starter Seeds", "Starter Item", "Plant and grow wheat", false));
 
         player.sendMessage(ChatColor.GREEN + "+ " + ChatColor.YELLOW + "Starter Tool Set " + ChatColor.GRAY + "(Non-Tradeable)");
+        player.sendMessage(ChatColor.GREEN + "+ " + ChatColor.GOLD + "Newbie Katana " + ChatColor.GRAY + "(Starter Weapon)");
     }
 
     private void sendGuideMessage(Player player) {
@@ -364,6 +380,7 @@ public class WelcomeEventManager {
                 statusLore.add(ChatColor.GRAY + "- " + ChatColor.GOLD + formatCoins(starterMoney) + ChatColor.GRAY + " coins");
                 statusLore.add(ChatColor.GRAY + "- Mining/Farming XP boosts (" + xpBoostManager.getDefaultDurationMinutes() + " min)");
                 statusLore.add(ChatColor.GRAY + "- Starter armor set");
+                statusLore.add(ChatColor.GRAY + "- " + ChatColor.GOLD + "Newbie Katana" + ChatColor.GRAY + " + Diamond Pickaxe");
                 statusLore.add(ChatColor.GRAY + "- Starter tools + seeds");
             }
             statusMeta.setLore(statusLore);

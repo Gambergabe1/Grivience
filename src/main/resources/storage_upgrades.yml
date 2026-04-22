@@ -191,6 +191,51 @@ upgrades:
         name: "&4&lMaximum Warehouse"
         commands: []
 
+  # Accessory Bag - Specialized talisman/accessory storage
+  accessory_bag:
+    enabled: true
+    tiers:
+      tier-1:
+        slots: 9
+        cost: 0
+        name: "&7Small Accessory Bag"
+        commands: []
+      tier-2:
+        slots: 18
+        cost: 2500
+        name: "&aAccessory Bag I"
+        commands: []
+      tier-3:
+        slots: 27
+        cost: 7500
+        name: "&bAccessory Bag II"
+        commands: []
+      tier-4:
+        slots: 36
+        cost: 15000
+        name: "&6Accessory Bag III"
+        commands: []
+      tier-5:
+        slots: 45
+        cost: 30000
+        name: "&dAccessory Bag IV"
+        commands: []
+      tier-6:
+        slots: 54
+        cost: 50000
+        name: "&5Accessory Bag V"
+        commands: []
+      tier-7:
+        slots: 63
+        cost: 85000
+        name: "&cAccessory Bag VI"
+        commands: []
+      tier-8:
+        slots: 72
+        cost: 125000
+        name: "&4Accessory Bag VII"
+        commands: []
+
 # General Settings
 settings:
   # Enable auto-save for storage data

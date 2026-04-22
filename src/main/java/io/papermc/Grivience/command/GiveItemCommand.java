@@ -1,6 +1,5 @@
 package io.papermc.Grivience.command;
 
-import io.papermc.Grivience.item.CustomItemService;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -19,10 +18,11 @@ import java.util.Locale;
  * Usage: /gi <item_id> [amount] [player]
  */
 public final class GiveItemCommand implements CommandExecutor, TabCompleter {
-    private final CustomItemService customItemService;
+    private static final int MAX_GIVE_AMOUNT = 2304;
+    private final AdminItemResolver itemResolver;
 
-    public GiveItemCommand(CustomItemService customItemService) {
-        this.customItemService = customItemService;
+    public GiveItemCommand(AdminItemResolver itemResolver) {
+        this.itemResolver = itemResolver;
     }
 
     @Override
@@ -48,6 +48,11 @@ public final class GiveItemCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(ChatColor.RED + "Invalid amount: " + args[1]);
                 return true;
             }
+            if (amount <= 0) {
+                sender.sendMessage(ChatColor.RED + "Amount must be at least 1.");
+                return true;
+            }
+            amount = Math.min(amount, MAX_GIVE_AMOUNT);
         }
 
         if (args.length >= 3) {
@@ -64,9 +69,15 @@ public final class GiveItemCommand implements CommandExecutor, TabCompleter {
             target = player;
         }
 
-        ItemStack item = customItemService.createItemByKey(itemId);
+        ItemStack item = itemResolver.resolve(itemId, target);
         if (item == null) {
             sender.sendMessage(ChatColor.RED + "Unknown custom item: " + itemId);
+            List<String> suggestions = itemResolver.matchingKeys(itemId, 12);
+            if (!suggestions.isEmpty()) {
+                sender.sendMessage(ChatColor.GRAY + "Matches: " + String.join(", ", suggestions));
+            } else {
+                sender.sendMessage(ChatColor.GRAY + "Use tab-complete to browse item ids.");
+            }
             return true;
         }
 
@@ -106,14 +117,7 @@ public final class GiveItemCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
-            List<String> keys = customItemService.allItemKeys();
-            List<String> suggestions = new ArrayList<>();
-            for (String key : keys) {
-                if (key.toLowerCase(Locale.ROOT).startsWith(prefix)) {
-                    suggestions.add(key);
-                }
-            }
-            return suggestions;
+            return new ArrayList<>(itemResolver.matchingKeys(prefix, 100));
         }
 
         if (args.length == 2) {

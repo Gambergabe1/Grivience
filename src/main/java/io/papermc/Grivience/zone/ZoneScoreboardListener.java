@@ -10,10 +10,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -23,17 +26,19 @@ import java.util.UUID;
 public final class ZoneScoreboardListener implements Listener {
     private final GriviencePlugin plugin;
     private final ZoneManager zoneManager;
-    
-    // Track player's current zone to detect changes
+
+    // Track player's current zone to detect changes.
     private final Map<UUID, String> playerCurrentZone = new HashMap<>();
-    
-    // Cooldown to prevent rapid updates
+
+    // Cooldown to prevent rapid updates.
     private final Map<UUID, Long> updateCooldown = new HashMap<>();
-    private final long updateCooldownMs = 500; // 500ms between zone updates
-    
+    private final long updateCooldownMs = 500L;
+
     private BukkitTask checkTask;
     private boolean enabled;
     private int checkIntervalTicks;
+    private int checkCursor;
+    private long checkAccumulator;
 
     public ZoneScoreboardListener(GriviencePlugin plugin, ZoneManager zoneManager) {
         this.plugin = plugin;
@@ -46,10 +51,13 @@ public final class ZoneScoreboardListener implements Listener {
 
     public void reload() {
         stop();
-        
+
         enabled = zoneManager.isEnabled();
-        checkIntervalTicks = plugin.getConfig().getInt("zones.scoreboard-update-interval", 20);
-        
+        checkIntervalTicks = Math.max(1, plugin.getConfig().getInt("zones.scoreboard-update-interval", 20));
+        playerCurrentZone.clear();
+        updateCooldown.clear();
+        zoneManager.clearPlayerCaches();
+
         if (enabled) {
             startPeriodicCheck();
         }
@@ -60,18 +68,38 @@ public final class ZoneScoreboardListener implements Listener {
             checkTask.cancel();
             checkTask = null;
         }
+        checkCursor = 0;
+        checkAccumulator = 0L;
     }
 
     private void startPeriodicCheck() {
-        checkTask = Bukkit.getScheduler().runTaskTimer(plugin, this::checkAllPlayers, 20L, checkIntervalTicks);
+        checkTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickPeriodicCheck, 20L, 1L);
     }
 
-    private void checkAllPlayers() {
-        if (!enabled) return;
-        
-        for (Player player : plugin.getServer().getOnlinePlayers()) {
-            checkPlayerZone(player);
+    private void tickPeriodicCheck() {
+        if (!enabled) {
+            return;
         }
+
+        Player[] online = plugin.getServer().getOnlinePlayers().toArray(Player[]::new);
+        if (online.length == 0) {
+            checkCursor = 0;
+            checkAccumulator = 0L;
+            return;
+        }
+
+        long effectiveIntervalTicks = effectiveCheckIntervalTicks();
+        checkAccumulator += online.length;
+        int playersThisTick = (int) Math.min(online.length, checkAccumulator / effectiveIntervalTicks);
+        if (playersThisTick <= 0) {
+            return;
+        }
+        checkAccumulator %= effectiveIntervalTicks;
+
+        for (int i = 0; i < playersThisTick; i++) {
+            checkPlayerZone(online[(checkCursor + i) % online.length]);
+        }
+        checkCursor = (checkCursor + playersThisTick) % online.length;
     }
 
     @EventHandler
@@ -79,10 +107,8 @@ public final class ZoneScoreboardListener implements Listener {
         if (!enabled || !zoneManager.isShowOnJoin()) {
             return;
         }
-        
+
         Player player = event.getPlayer();
-        
-        // Schedule check after player fully joins
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (player.isOnline()) {
                 checkPlayerZone(player);
@@ -92,14 +118,14 @@ public final class ZoneScoreboardListener implements Listener {
 
     @EventHandler
     public void onWorldChange(PlayerChangedWorldEvent event) {
-        if (!enabled) return;
-        
+        if (!enabled) {
+            return;
+        }
+
         Player player = event.getPlayer();
-        
-        // Clear cached zone for player
-        playerCurrentZone.remove(player.getUniqueId());
-        
-        // Check new world zones after short delay
+        clearCachedZone(player);
+        zoneManager.clearPlayerCache(player);
+
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (player.isOnline()) {
                 checkPlayerZone(player);
@@ -108,70 +134,93 @@ public final class ZoneScoreboardListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onMove(PlayerMoveEvent event) {
-        if (!enabled || !zoneManager.isUpdateOnChange()) return;
-        
-        // Only check if player moved to a different block
-        if (event.getFrom().getBlockX() == event.getTo().getBlockX() &&
-            event.getFrom().getBlockY() == event.getTo().getBlockY() &&
-            event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
+    public void onTeleport(PlayerTeleportEvent event) {
+        if (!enabled) {
             return;
         }
-        
+
         Player player = event.getPlayer();
-        
-        // Check cooldown
+        zoneManager.clearPlayerCache(player);
+        checkPlayerZone(player);
+        updateCooldown.put(player.getUniqueId(), System.currentTimeMillis());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        if (!enabled || !zoneManager.isUpdateOnChange()) {
+            return;
+        }
+        if (event.getTo() == null) {
+            return;
+        }
+
+        if (event.getFrom().getBlockX() == event.getTo().getBlockX()
+                && event.getFrom().getBlockY() == event.getTo().getBlockY()
+                && event.getFrom().getBlockZ() == event.getTo().getBlockZ()
+                && Objects.equals(event.getFrom().getWorld(), event.getTo().getWorld())) {
+            return;
+        }
+
+        Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
         long now = System.currentTimeMillis();
         Long lastUpdate = updateCooldown.get(playerId);
-        
+
         if (lastUpdate != null && now - lastUpdate < updateCooldownMs) {
             return;
         }
-        
+
         checkPlayerZone(player);
         updateCooldown.put(playerId, now);
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        playerCurrentZone.remove(player.getUniqueId());
+        updateCooldown.remove(player.getUniqueId());
+        zoneManager.clearPlayerCache(player);
     }
 
     /**
      * Check if player's zone has changed and update scoreboard.
      */
     private void checkPlayerZone(Player player) {
-        if (!player.isOnline()) return;
-        
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+
         UUID playerId = player.getUniqueId();
-        Zone currentZone = zoneManager.getZoneAt(player.getLocation());
-        String currentZoneId = currentZone != null ? currentZone.getId() : null;
+        Zone currentZone = zoneManager.getZoneAt(player);
+        String currentZoneId = currentZone == null ? null : currentZone.getId();
         String previousZoneId = playerCurrentZone.get(playerId);
-        
-        // Check if zone changed
-        if (currentZoneId == null && previousZoneId == null) {
-            return; // Still no zone
+
+        if (Objects.equals(currentZoneId, previousZoneId)) {
+            return;
         }
-        
-        if (currentZoneId != null && currentZoneId.equals(previousZoneId)) {
-            return; // Same zone
+
+        if (currentZoneId == null) {
+            playerCurrentZone.remove(playerId);
+        } else {
+            playerCurrentZone.put(playerId, currentZoneId);
         }
-        
-        // Zone changed - update scoreboard
-        playerCurrentZone.put(playerId, currentZoneId);
-        
-        String zoneName = zoneManager.getZoneName(player);
-        
-        // Notify player of zone change
+
+        String zoneName = currentZone == null
+                ? zoneManager.getDefaultZoneName()
+                : zoneManager.getZoneDisplayName(currentZoneId);
+
         if (zoneManager.isShowOnJoin() || previousZoneId != null) {
-            String previousName = previousZoneId != null 
-                ? zoneManager.getZone(previousZoneId).getColoredDisplayName()
-                : zoneManager.getDefaultZoneName();
-            
+            String previousName = previousZoneId != null
+                    ? zoneManager.getZoneDisplayName(previousZoneId)
+                    : zoneManager.getDefaultZoneName();
+
             if (currentZone != null) {
                 player.sendMessage(ChatColor.GRAY + "Entering: " + zoneName);
             } else {
                 player.sendMessage(ChatColor.GRAY + "Leaving: " + previousName);
             }
         }
-        
-        // Trigger scoreboard refresh if using SkyblockScoreboardManager
+
         refreshScoreboard(player);
     }
 
@@ -180,12 +229,9 @@ public final class ZoneScoreboardListener implements Listener {
      * This integrates with SkyblockScoreboardManager.
      */
     private void refreshScoreboard(Player player) {
-        // The scoreboard manager will automatically pick up the zone name
-        // when it next renders. We can force an immediate update by
-        // scheduling a task to re-render.
-        
-        // Note: This assumes SkyblockScoreboardManager is managing the scoreboard
-        // The zone name will be fetched via ZoneManager.getZoneName() when rendering
+        if (plugin.getSkyblockScoreboardManager() != null) {
+            plugin.getSkyblockScoreboardManager().updateForPlayer(player);
+        }
     }
 
     /**
@@ -193,7 +239,9 @@ public final class ZoneScoreboardListener implements Listener {
      */
     public Zone getCurrentZone(Player player) {
         String zoneId = playerCurrentZone.get(player.getUniqueId());
-        if (zoneId == null) return null;
+        if (zoneId == null) {
+            return null;
+        }
         return zoneManager.getZone(zoneId);
     }
 
@@ -208,10 +256,21 @@ public final class ZoneScoreboardListener implements Listener {
      * Clear cached zone for a player.
      */
     public void clearCachedZone(Player player) {
+        if (player == null) {
+            return;
+        }
         playerCurrentZone.remove(player.getUniqueId());
+        updateCooldown.remove(player.getUniqueId());
     }
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    private long effectiveCheckIntervalTicks() {
+        if (plugin.getServerPerformanceMonitor() == null) {
+            return checkIntervalTicks;
+        }
+        return plugin.getServerPerformanceMonitor().scalePeriod(checkIntervalTicks, 2, 4);
     }
 }

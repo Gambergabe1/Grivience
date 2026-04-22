@@ -1051,6 +1051,9 @@ collections:
         reward-1:
           type: SKYBLOCK_XP
           skyblock-xp: 4
+        reward-2:
+          type: RECIPE
+          recipe-id: personal_compactor_3000
       tier-5:
         amount: 1000
         reward-1:
@@ -1066,6 +1069,9 @@ collections:
         reward-1:
           type: SKYBLOCK_XP
           skyblock-xp: 4
+        reward-2:
+          type: RECIPE
+          recipe-id: super_compactor_3000
       tier-8:
         amount: 10000
         reward-1:
@@ -1412,6 +1418,9 @@ collections:
         reward-1:
           type: SKYBLOCK_XP
           skyblock-xp: 4
+        reward-2:
+          type: RECIPE
+          recipe-id: personal_compactor_4000
       tier-8:
         amount: 25000
         reward-1:
@@ -1422,6 +1431,94 @@ collections:
         reward-1:
           type: SKYBLOCK_XP
           skyblock-xp: 4
+        reward-2:
+          type: RECIPE
+          recipe-id: personal_compactor_5000
+      tier-10:
+        amount: 100000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-11:
+        amount: 250000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: RECIPE
+          recipe-id: personal_compactor_6000
+      tier-12:
+        amount: 500000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-13:
+        amount: 1000000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: RECIPE
+          recipe-id: personal_compactor_7000
+
+  titanium:
+    name: "§fTitanium"
+    description: "Extracted from deep volcanic mines"
+    icon: IRON_INGOT
+    category: MINING
+    enabled: true
+    items:
+      - titanium
+    tiers:
+      tier-1:
+        amount: 10
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: FORGE
+          forge-id: refined_titanium_forging
+      tier-5:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: FORGE
+          forge-id: titanium_block_forging
+      tier-7:
+        amount: 2500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 5000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+        reward-2:
+          type: RECIPE
+          recipe-id: enchanted_titanium_block
 
   quartz:
     name: "§fQuartz"
@@ -1694,6 +1791,116 @@ collections:
           skyblock-xp: 4
       tier-9:
         amount: 50000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  kunzite:
+    name: "§dKunzite"
+    description: "A luminous pink crystal harvested from the End Hub"
+    icon: PINK_STAINED_GLASS
+    category: MINING
+    enabled: true
+    items:
+      - kunzite
+    tiers:
+      tier-1:
+        amount: 10
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 2000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 4000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+
+  sapphire:
+    name: "§bSapphire"
+    description: "A rare blue gemstone from the Minehub"
+    icon: PRISMARINE_CRYSTALS
+    category: MINING
+    enabled: true
+    items:
+      - sapphire
+    tiers:
+      tier-1:
+        amount: 10
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-2:
+        amount: 25
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-3:
+        amount: 50
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-4:
+        amount: 100
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-5:
+        amount: 250
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-6:
+        amount: 500
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-7:
+        amount: 1000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-8:
+        amount: 2000
+        reward-1:
+          type: SKYBLOCK_XP
+          skyblock-xp: 4
+      tier-9:
+        amount: 4000
         reward-1:
           type: SKYBLOCK_XP
           skyblock-xp: 4

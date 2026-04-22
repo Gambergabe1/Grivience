@@ -149,7 +149,15 @@ public class CraftingManager implements Listener {
                         manager.openCraftingMenu(player);
                         player.sendMessage(ChatColor.YELLOW + "Found " + results.size() + " matches. Please be more specific.");
                     } else {
-                        player.sendMessage(ChatColor.RED + "No recipes found matching '" + query + "'.");
+                        List<CraftingGuideCatalog.GuideMaterial> materialMatches = manager.getGuiManager().findMaterials(query);
+                        if (materialMatches.size() == 1) {
+                            manager.getGuiManager().openMaterialGuide(player, materialMatches.get(0).key());
+                        } else if (!materialMatches.isEmpty()) {
+                            manager.getGuiManager().openMaterialIndex(player);
+                            player.sendMessage(ChatColor.YELLOW + "Found " + materialMatches.size() + " crafting materials. Please be more specific.");
+                        } else {
+                            player.sendMessage(ChatColor.RED + "No recipes or crafting materials found matching '" + query + "'.");
+                        }
                     }
                 } else {
                     manager.openCraftingMenu(player);
@@ -169,6 +177,11 @@ public class CraftingManager implements Listener {
                 for (SkyblockRecipe recipe : RecipeRegistry.getAll()) {
                     if (recipe.getName().toLowerCase().startsWith(query)) {
                         suggestions.add(recipe.getName());
+                    }
+                }
+                for (String materialName : manager.getGuiManager().materialSearchTerms()) {
+                    if (materialName.toLowerCase().startsWith(query) && !suggestions.contains(materialName)) {
+                        suggestions.add(materialName);
                     }
                 }
                 return suggestions;

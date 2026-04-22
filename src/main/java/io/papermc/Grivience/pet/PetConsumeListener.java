@@ -32,6 +32,10 @@ public final class PetConsumeListener implements Listener {
         Player player = event.getPlayer();
         if (petManager.unlockPet(player, petId)) {
             event.setCancelled(true);
+            long xp = petManager.getStoredXp(item);
+            if (xp > 0) {
+                petManager.setPetXp(player, petId, xp);
+            }
             item.setAmount(item.getAmount() - 1);
             player.sendMessage(ChatColor.GOLD + "Added " + ChatColor.AQUA + petId + ChatColor.GOLD + " to your pet collection.");
         }

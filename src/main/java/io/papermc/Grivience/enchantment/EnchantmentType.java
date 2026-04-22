@@ -12,6 +12,7 @@ public enum EnchantmentType {
     EPIC(ChatColor.DARK_PURPLE, "Epic", 4),
     LEGENDARY(ChatColor.GOLD, "Legendary", 5),
     MYTHIC(ChatColor.LIGHT_PURPLE, "Mythic", 6),
+    DRAGON_TRACKER(ChatColor.LIGHT_PURPLE, "Dragon Tracker", 6),
     SPECIAL(ChatColor.AQUA, "Special", 7),
     VERY_SPECIAL(ChatColor.DARK_AQUA, "Very Special", 8);
 

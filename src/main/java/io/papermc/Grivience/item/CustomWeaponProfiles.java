@@ -18,6 +18,8 @@ public final class CustomWeaponProfiles {
         }
 
         return switch (type) {
+            case WARDENS_CLEAVER -> new StatProfile(30.0D, 12.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+            case NEWBIE_KATANA -> new StatProfile(20.0D, 10.0D, 5.0D, 10.0D, 0.0D, 0.0D);
             case ONI_CLEAVER -> new StatProfile(125.0D, 45.0D, 0.0D, 0.0D, 0.0D, 0.0D);
             case TENGU_GALEBLADE -> new StatProfile(110.0D, 20.0D, 18.0D, 20.0D, 0.0D, 0.0D);
             case TENGU_STORMBOW -> new StatProfile(118.0D, 16.0D, 22.0D, 24.0D, 0.0D, 0.0D);
@@ -34,6 +36,16 @@ public final class CustomWeaponProfiles {
             case FLYING_RAIJIN -> new StatProfile(210.0D, 100.0D, 10.0D, 35.0D, 0.0D, 0.0D);
             case HAYABUSA_KATANA -> new StatProfile(175.0D, 55.0D, 32.0D, 28.0D, 0.0D, 0.0D);
             case RAIJIN_SHORTBOW -> new StatProfile(140.0D, 24.0D, 30.0D, 42.0D, 0.0D, 0.0D);
+            case RIFTBLADE -> new StatProfile(85.0D, 25.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+            case VOID_ASPECT_BLADE -> new StatProfile(130.0D, 45.0D, 10.0D, 0.0D, 0.0D, 0.0D);
+            case RIFTBREAKER -> new StatProfile(185.0D, 70.0D, 0.0D, 25.0D, 0.0D, 0.0D);
+            case SOVEREIGN_ASPECT -> new StatProfile(260.0D, 110.0D, 0.0D, 40.0D, 0.0D, 150.0D);
+            case VOIDFANG_DAGGER -> new StatProfile(140.0D, 35.0D, 20.0D, 0.0D, 25.0D, 0.0D);
+            case WARP_BOW -> new StatProfile(120.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+            case VOIDSHOT_BOW -> new StatProfile(165.0D, 0.0D, 10.0D, 0.0D, 0.0D, 0.0D);
+            case RIFTSTORM_BOW -> new StatProfile(210.0D, 0.0D, 0.0D, 30.0D, 0.0D, 0.0D);
+            case ORBITAL_LONGBOW -> new StatProfile(270.0D, 0.0D, 0.0D, 50.0D, 0.0D, 0.0D);
+            case DRAGON_HUNTER_SHORTBOW -> new StatProfile(310.0D, 120.0D, 60.0D, 45.0D, 0.0D, 0.0D);
 
             // Mage Weapons - Staffs
             case ARCANE_STAFF -> new StatProfile(85.0D, 15.0D, 5.0D, 15.0D, 0.0D, 120.0D);
@@ -68,4 +80,3 @@ public final class CustomWeaponProfiles {
         public static final StatProfile ZERO = new StatProfile(0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
     }
 }
-

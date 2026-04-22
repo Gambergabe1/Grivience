@@ -1,6 +1,11 @@
 package io.papermc.Grivience.minion;
 
 import io.papermc.Grivience.GriviencePlugin;
+import io.papermc.Grivience.event.GlobalEventManager;
+import io.papermc.Grivience.item.CustomItemService;
+import io.papermc.Grivience.item.EnchantedFarmItemType;
+import io.papermc.Grivience.util.EnchantedItemRecipeCatalog;
+import io.papermc.Grivience.util.EnchantedItemRecipePattern;
 import io.papermc.Grivience.skyblock.island.Island;
 import io.papermc.Grivience.skyblock.island.IslandManager;
 import io.papermc.Grivience.skyblock.profile.ProfileManager;
@@ -28,8 +33,10 @@ import org.bukkit.persistence.PersistentDataType;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -51,6 +58,8 @@ public final class MinionManager {
     private static final double OVERCLOCK_CHIP_SPEED_MULTIPLIER = 1.15D;
     private static final double ASTRAL_RESONATOR_SPEED_MULTIPLIER = 1.08D;
     private static final double ASTRAL_RESONATOR_FRAGMENT_CHANCE_BONUS = 0.05D;
+    private static final double DISPLAY_SEARCH_RADIUS_XZ = 1.5D;
+    private static final double DISPLAY_SEARCH_RADIUS_Y = 3.0D;
 
     private static final Map<String, IngredientDefinition> INGREDIENTS = buildIngredientDefinitions();
     private static final List<IngredientRecipe> INGREDIENT_RECIPES = buildIngredientRecipes();
@@ -65,6 +74,10 @@ public final class MinionManager {
             .filter(IngredientDefinition::customOnly)
             .map(IngredientDefinition::id)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
+
+    static {
+        validateEnchantedRecipeCoverage();
+    }
 
     private final GriviencePlugin plugin;
     private final IslandManager islandManager;
@@ -95,6 +108,7 @@ public final class MinionManager {
 
     private int processingTaskId = -1;
     private int autoSaveTaskId = -1;
+    private int displayAuditTaskId = -1;
     private boolean dirty = false;
 
     public MinionManager(GriviencePlugin plugin, IslandManager islandManager) {
@@ -112,6 +126,10 @@ public final class MinionManager {
         loadData();
         startTasks();
         Bukkit.getScheduler().runTask(plugin, this::spawnAllDisplays);
+    }
+
+    public GriviencePlugin getPlugin() {
+        return plugin;
     }
 
     public void reloadFromConfig() {
@@ -191,6 +209,26 @@ public final class MinionManager {
         IngredientDefinition definition = ingredient(ingredientId);
         if (definition == null || amount <= 0) {
             return null;
+        }
+
+        CustomItemService itemService = plugin.getCustomItemService();
+        if (itemService != null) {
+            // Check for Farm outputs first (existing logic)
+            EnchantedFarmItemType farmType = EnchantedFarmItemType.parse(definition.id());
+            if (farmType != null) {
+                ItemStack customFarmItem = itemService.createEnchantedFarmItem(farmType);
+                if (customFarmItem != null && !customFarmItem.getType().isAir()) {
+                    customFarmItem.setAmount(Math.min(amount, customFarmItem.getMaxStackSize()));
+                    return customFarmItem;
+                }
+            }
+            
+            // Check for generalized custom items (Sapphire, etc.)
+            ItemStack customItem = itemService.createItemByKey(definition.id());
+            if (customItem != null && !customItem.getType().isAir()) {
+                customItem.setAmount(Math.min(amount, customItem.getMaxStackSize()));
+                return customItem;
+            }
         }
 
         ItemStack stack = new ItemStack(definition.material(), Math.min(amount, definition.material().getMaxStackSize()));
@@ -322,6 +360,21 @@ public final class MinionManager {
             return false;
         }
         return stack.getType() == definition.material();
+    }
+
+    /**
+     * Exposes Super Compactor transforms in normalized ingredient-id form.
+     * Personal Compactor uses this so both systems share the same compacting recipes.
+     */
+    public List<SuperCompactorRuleInfo> superCompactorRules() {
+        List<SuperCompactorRuleInfo> out = new ArrayList<>(SUPER_COMPACTOR_RULES.size());
+        for (SuperCompactorRule rule : SUPER_COMPACTOR_RULES) {
+            if (rule == null || rule.inputAmount() <= 0 || rule.outputAmount() <= 0) {
+                continue;
+            }
+            out.add(new SuperCompactorRuleInfo(rule.inputId(), rule.inputAmount(), rule.outputId(), rule.outputAmount()));
+        }
+        return out;
     }
 
     public boolean tryPlaceMinion(Player player, Block clickedBlock, BlockFace face, ItemStack inHand) {
@@ -753,6 +806,41 @@ public final class MinionManager {
         return base;
     }
 
+    public ItemStack createRecipeDisplayItem(String itemId, int amount) {
+        ItemStack base = stackFromStoredId(itemId);
+        if (base == null || base.getType().isAir()) {
+            return null;
+        }
+        base = base.clone();
+        base.setAmount(Math.max(1, amount));
+        return base;
+    }
+
+    public ItemStack createRecipeRequirementDisplayItem(String requirement, int amount) {
+        if (requirement == null || requirement.isBlank()) {
+            return null;
+        }
+
+        String normalized = requirement.trim().toLowerCase(Locale.ROOT);
+        String[] parts = normalized.split(":", 2);
+        String kind = parts.length >= 2 ? parts[0] : "ing";
+        String id = parts.length >= 2 ? parts[1] : normalized;
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+
+        return switch (kind) {
+            case "ing" -> createRecipeDisplayItem(id, amount);
+            case "upg" -> createUpgradeItem(id, amount);
+            case "fuel" -> createFuelItem(id, amount);
+            case "mat" -> {
+                Material material = Material.matchMaterial(id.toUpperCase(Locale.ROOT));
+                yield material == null || material.isAir() ? null : new ItemStack(material, Math.max(1, amount));
+            }
+            default -> createRecipeDisplayItem(id, amount);
+        };
+    }
+
     public boolean addFuelToMinion(Player player, UUID minionId, ItemStack stack) {
         if (player == null || minionId == null || stack == null || stack.getType().isAir()) {
             return false;
@@ -909,7 +997,8 @@ public final class MinionManager {
             return -1;
         }
         int level = Math.max(1, island.getUpgradeLevel());
-        return islandBaseLimit + Math.max(0, level - 1) * limitPerIslandLevel;
+        int bonus = island.getMinionLimitUpgrade();
+        return islandBaseLimit + Math.max(0, level - 1) * limitPerIslandLevel + bonus;
     }
 
     public int getStorageCap(MinionType type, int tier) {
@@ -974,6 +1063,10 @@ public final class MinionManager {
             Bukkit.getScheduler().cancelTask(autoSaveTaskId);
             autoSaveTaskId = -1;
         }
+        if (displayAuditTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(displayAuditTaskId);
+            displayAuditTaskId = -1;
+        }
         saveData();
     }
 
@@ -983,6 +1076,9 @@ public final class MinionManager {
         }
         if (autoSaveTaskId != -1) {
             Bukkit.getScheduler().cancelTask(autoSaveTaskId);
+        }
+        if (displayAuditTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(displayAuditTaskId);
         }
 
         processingTaskId = Bukkit.getScheduler().runTaskTimer(
@@ -997,6 +1093,14 @@ public final class MinionManager {
                 this::saveIfDirty,
                 autoSaveIntervalTicks,
                 autoSaveIntervalTicks
+        ).getTaskId();
+
+        long displayAuditPeriod = Math.max(100L, tickIntervalTicks * 10L);
+        displayAuditTaskId = Bukkit.getScheduler().runTaskTimer(
+                plugin,
+                this::auditDisplays,
+                displayAuditPeriod,
+                displayAuditPeriod
         ).getTaskId();
     }
 
@@ -1022,8 +1126,20 @@ public final class MinionManager {
                 removeMinion(minion, true);
                 continue;
             }
-            spawnOrAttachDisplay(minion);
             processSingleMinion(minion, island, now);
+        }
+    }
+
+    private void auditDisplays() {
+        if (!enabled || minionsById.isEmpty()) {
+            return;
+        }
+        if (plugin.getServerPerformanceMonitor() != null
+                && !plugin.getServerPerformanceMonitor().shouldProcess("minions-display-audit", 2, 4)) {
+            return;
+        }
+        for (MinionInstance minion : minionsById.values()) {
+            ensureDisplayAttached(minion);
         }
     }
 
@@ -1057,12 +1173,19 @@ public final class MinionManager {
         UUID islandId = island == null ? null : island.getId();
         double constellationSpeedMultiplier = constellationSpeedMultiplierForIsland(islandId);
         double constellationFragmentChance = constellationFragmentChanceForIsland(islandId);
+        int effectiveMaxActionsPerTick = effectiveMaxActionsPerTick();
 
-        while (cursor < processUntil && actionsProcessed < maxActionsPerTick) {
+        while (cursor < processUntil && actionsProcessed < effectiveMaxActionsPerTick) {
             FuelDefinition fuel = activeFuelAt(minion, cursor);
             double speedMultiplier = fuel == null ? 1.0D : Math.max(0.05D, fuel.speedMultiplier());
             speedMultiplier *= upgradeSpeedMultiplier(minion);
             speedMultiplier *= constellationSpeedMultiplier;
+            
+            // Global Booster Integration
+            if (plugin.getGlobalEventManager() != null) {
+                speedMultiplier *= plugin.getGlobalEventManager().getMultiplier(GlobalEventManager.BoosterType.MINION_SPEED);
+            }
+
             double secondsPerAction = getSecondsPerAction(minion.type(), minion.tier()) / speedMultiplier;
             long intervalMs = Math.max(100L, (long) Math.round(secondsPerAction * 1000L));
             long nextActionAt = cursor + intervalMs;
@@ -1095,6 +1218,13 @@ public final class MinionManager {
             updateDisplay(minion);
             markDirty();
         }
+    }
+
+    private int effectiveMaxActionsPerTick() {
+        if (plugin.getServerPerformanceMonitor() == null) {
+            return maxActionsPerTick;
+        }
+        return plugin.getServerPerformanceMonitor().scaleBudget(maxActionsPerTick, 70, 45, 60);
     }
 
     private boolean generateAndStore(MinionInstance minion, int outputMultiplier, double constellationFragmentChance) {
@@ -1486,7 +1616,53 @@ public final class MinionManager {
             }
             minion.setDisplayEntityId(null);
         }
+        if (removeDisplayEntity) {
+            removeNearbyDisplayEntities(minion, null);
+        }
         markDirty();
+    }
+
+    private List<ArmorStand> findNearbyDisplayEntities(MinionInstance minion) {
+        if (minion == null) {
+            return List.of();
+        }
+        Location location = minion.location();
+        if (location == null || location.getWorld() == null) {
+            return List.of();
+        }
+        String minionIdRaw = minion.id().toString();
+        List<ArmorStand> matches = new ArrayList<>();
+        for (Entity nearby : location.getWorld().getNearbyEntities(
+                location,
+                DISPLAY_SEARCH_RADIUS_XZ,
+                DISPLAY_SEARCH_RADIUS_Y,
+                DISPLAY_SEARCH_RADIUS_XZ
+        )) {
+            if (!(nearby instanceof ArmorStand armorStand) || !nearby.isValid()) {
+                continue;
+            }
+            String rawId = armorStand.getPersistentDataContainer().get(minionEntityIdKey, PersistentDataType.STRING);
+            if (rawId == null || rawId.isBlank()) {
+                continue;
+            }
+            if (rawId.equalsIgnoreCase(minionIdRaw)) {
+                matches.add(armorStand);
+            }
+        }
+        return matches;
+    }
+
+    private void removeNearbyDisplayEntities(MinionInstance minion, UUID keepEntityId) {
+        for (ArmorStand stand : findNearbyDisplayEntities(minion)) {
+            UUID standId = stand.getUniqueId();
+            if (keepEntityId != null && keepEntityId.equals(standId)) {
+                continue;
+            }
+            minionIdByDisplayEntity.remove(standId);
+            if (stand.isValid()) {
+                stand.remove();
+            }
+        }
     }
 
     private void spawnAllDisplays() {
@@ -1495,33 +1671,48 @@ public final class MinionManager {
         }
     }
 
-    private void spawnOrAttachDisplay(MinionInstance minion) {
-        if (minion == null || minion.location() == null || minion.location().getWorld() == null) {
+    private void ensureDisplayAttached(MinionInstance minion) {
+        DisplayBinding binding = bindDisplay(minion);
+        if (binding == null || binding.stand() == null || !binding.changed()) {
             return;
         }
+        applyDisplayAppearance(binding.stand(), minion);
+        updateDisplayName(binding.stand(), minion);
+    }
 
+    private void spawnOrAttachDisplay(MinionInstance minion) {
+        DisplayBinding binding = bindDisplay(minion);
+        if (binding == null || binding.stand() == null) {
+            return;
+        }
+        applyDisplayAppearance(binding.stand(), minion);
+        updateDisplayName(binding.stand(), minion);
+    }
+
+    private DisplayBinding bindDisplay(MinionInstance minion) {
+        if (minion == null || minion.location() == null || minion.location().getWorld() == null) {
+            return null;
+        }
+        boolean updatedDisplayId = false;
+        boolean createdOrAttached = false;
         ArmorStand stand = null;
         UUID displayId = minion.displayEntityId();
         if (displayId != null) {
             Entity existing = Bukkit.getEntity(displayId);
             if (existing instanceof ArmorStand armorStand && existing.isValid()) {
                 stand = armorStand;
+            } else {
+                minionIdByDisplayEntity.remove(displayId);
+                minion.setDisplayEntityId(null);
+                updatedDisplayId = true;
             }
         }
 
         if (stand == null) {
-            for (Entity nearby : minion.location().getWorld().getNearbyEntities(minion.location(), 1.0D, 2.0D, 1.0D)) {
-                if (!(nearby instanceof ArmorStand armorStand)) {
-                    continue;
-                }
-                String rawId = armorStand.getPersistentDataContainer().get(minionEntityIdKey, PersistentDataType.STRING);
-                if (rawId == null) {
-                    continue;
-                }
-                if (rawId.equalsIgnoreCase(minion.id().toString())) {
-                    stand = armorStand;
-                    break;
-                }
+            List<ArmorStand> nearbyDisplays = findNearbyDisplayEntities(minion);
+            if (!nearbyDisplays.isEmpty()) {
+                stand = nearbyDisplays.get(0);
+                createdOrAttached = true;
             }
         }
 
@@ -1546,26 +1737,62 @@ public final class MinionManager {
                         minion.id().toString()
                 );
             });
-            minion.setDisplayEntityId(stand.getUniqueId());
-            markDirty();
+            createdOrAttached = true;
         } else {
             stand.getPersistentDataContainer().set(minionEntityIdKey, PersistentDataType.STRING, minion.id().toString());
-            minion.setDisplayEntityId(stand.getUniqueId());
         }
 
-        minionIdByDisplayEntity.put(stand.getUniqueId(), minion.id());
-        styleDisplay(stand, minion);
+        UUID previousDisplayId = minion.displayEntityId();
+        UUID standId = stand.getUniqueId();
+        if (!standId.equals(previousDisplayId)) {
+            if (previousDisplayId != null) {
+                minionIdByDisplayEntity.remove(previousDisplayId);
+            }
+            minion.setDisplayEntityId(standId);
+            updatedDisplayId = true;
+        }
+
+        if (createdOrAttached || updatedDisplayId) {
+            removeNearbyDisplayEntities(minion, standId);
+        }
+        minionIdByDisplayEntity.put(standId, minion.id());
+        if (updatedDisplayId) {
+            markDirty();
+        }
+        return new DisplayBinding(stand, createdOrAttached || updatedDisplayId);
     }
 
-    private void styleDisplay(ArmorStand stand, MinionInstance minion) {
+    private void applyDisplayAppearance(ArmorStand stand, MinionInstance minion) {
         if (stand == null || minion == null) {
             return;
         }
+        stand.setGravity(false);
+        stand.setInvulnerable(true);
+        stand.setPersistent(true);
+        stand.setSilent(true);
         stand.setVisible(true);
+        stand.setMarker(false);
         stand.setSmall(true);
         stand.setArms(true);
         stand.setBasePlate(false);
+        stand.setCollidable(false);
+        stand.setCanPickupItems(false);
         stand.setCustomNameVisible(true);
+        EntityEquipment equipment = stand.getEquipment();
+        if (equipment != null) {
+            equipment.setHelmet(new ItemStack(minion.type().iconMaterial()));
+            equipment.setChestplate(new ItemStack(Material.CHAINMAIL_CHESTPLATE));
+            equipment.setLeggings(new ItemStack(Material.CHAINMAIL_LEGGINGS));
+            equipment.setBoots(new ItemStack(Material.CHAINMAIL_BOOTS));
+            equipment.setItemInMainHand(new ItemStack(minion.type().baseCraftTool()));
+            equipment.setItemInOffHand(null);
+        }
+    }
+
+    private void updateDisplayName(ArmorStand stand, MinionInstance minion) {
+        if (stand == null || minion == null) {
+            return;
+        }
         FuelDefinition fuel = activeFuelAt(minion, System.currentTimeMillis());
         boolean hasFuel = fuel != null;
         boolean hasHopper = shippingUpgrade(minion) != null;
@@ -1584,15 +1811,6 @@ public final class MinionManager {
                         + (constellationTier > 0 ? ChatColor.LIGHT_PURPLE + "C" + constellationTier : ChatColor.DARK_GRAY + "C0")
                         + ChatColor.DARK_GRAY + "]"
         );
-        EntityEquipment equipment = stand.getEquipment();
-        if (equipment != null) {
-            equipment.setHelmet(new ItemStack(minion.type().iconMaterial()));
-            equipment.setChestplate(new ItemStack(Material.CHAINMAIL_CHESTPLATE));
-            equipment.setLeggings(new ItemStack(Material.CHAINMAIL_LEGGINGS));
-            equipment.setBoots(new ItemStack(Material.CHAINMAIL_BOOTS));
-            equipment.setItemInMainHand(new ItemStack(minion.type().baseCraftTool()));
-            equipment.setItemInOffHand(null);
-        }
     }
 
     private void updateDisplay(MinionInstance minion) {
@@ -1604,7 +1822,7 @@ public final class MinionManager {
             spawnOrAttachDisplay(minion);
             return;
         }
-        styleDisplay(stand, minion);
+        updateDisplayName(stand, minion);
     }
 
     public int countIngredient(Player player, String ingredientId) {
@@ -1726,7 +1944,10 @@ public final class MinionManager {
             if (stack == null || stack.getType().isAir()) {
                 return 0;
             }
-            max = Math.min(max, stack.getAmount() / required);
+            // Protect against overstacked items (like 32000 items in a slot) 
+            // by capping to the legal max stack size.
+            int legalAmount = Math.min(stack.getAmount(), stack.getMaxStackSize());
+            max = Math.min(max, legalAmount / required);
         }
         return max == Integer.MAX_VALUE ? 0 : Math.max(0, max);
     }
@@ -1988,9 +2209,12 @@ public final class MinionManager {
         addIngredient(map, "enchanted_sugar_cane", "Enchanted Sugar Cane", Material.SUGAR_CANE, true);
         addIngredient(map, "enchanted_nether_stalk", "Enchanted Nether Wart", Material.NETHER_WART, true);
         addIngredient(map, "enchanted_mycelium", "Enchanted Mycelium", Material.MYCELIUM, true);
+        addIngredient(map, "sapphire", "Sapphire", Material.BLUE_DYE, true);
+        addIngredient(map, "enchanted_sapphire", "Enchanted Sapphire", Material.BLUE_DYE, true);
         addIngredient(map, "sulphur", "Sulphur", Material.GUNPOWDER, true);
         addIngredient(map, "corrupted_fragment", "Corrupted Fragment", Material.PRISMARINE_SHARD, true);
         addIngredient(map, "constellation_fragment", "Constellation Fragment", Material.AMETHYST_SHARD, true);
+        addMissingEnchantedFarmIngredients(map);
 
         return map;
     }
@@ -2005,75 +2229,130 @@ public final class MinionManager {
         map.put(id, new IngredientDefinition(id, displayName, material, customOnly));
     }
 
+    private static void addIngredientIfAbsent(
+            Map<String, IngredientDefinition> map,
+            String id,
+            String displayName,
+            Material material,
+            boolean customOnly
+    ) {
+        if (id == null || id.isBlank() || material == null || material.isAir() || map.containsKey(id)) {
+            return;
+        }
+        addIngredient(map, id, displayName, material, customOnly);
+    }
+
+    private static void addMissingEnchantedFarmIngredients(Map<String, IngredientDefinition> map) {
+        for (EnchantedFarmItemType type : EnchantedFarmItemType.values()) {
+            if (type == null) {
+                continue;
+            }
+            if (type.baseMaterial() != null) {
+                String rawId = ingredientIdFromFarmMaterial(type.baseMaterial());
+                addIngredientIfAbsent(map, rawId, prettyIngredientName(rawId), type.baseMaterial(), false);
+            }
+            String outputId = normalizeIngredientId(type.id());
+            addIngredientIfAbsent(
+                    map,
+                    outputId,
+                    ChatColor.stripColor(type.displayName()),
+                    materialForFarmIngredient(type),
+                    true
+            );
+        }
+    }
+
     private static List<IngredientRecipe> buildIngredientRecipes() {
         List<IngredientRecipe> recipes = new ArrayList<>();
 
-        recipes.add(crossRecipe("enchanted_cobblestone", "cobblestone"));
-        recipes.add(crossRecipe("enchanted_coal", "coal"));
-        recipes.add(crossRecipe("enchanted_coal_block", "enchanted_coal"));
-        recipes.add(crossRecipe("enchanted_iron", "iron_ingot"));
-        recipes.add(crossRecipe("enchanted_iron_block", "enchanted_iron"));
-        recipes.add(crossRecipe("enchanted_gold", "gold_ingot"));
-        recipes.add(crossRecipe("enchanted_gold_block", "enchanted_gold"));
-        recipes.add(crossRecipe("enchanted_redstone", "redstone"));
-        recipes.add(crossRecipe("enchanted_redstone_block", "enchanted_redstone"));
-        recipes.add(crossRecipe("enchanted_lapis_lazuli", "lapis_lazuli"));
-        recipes.add(crossRecipe("enchanted_lapis_lazuli_block", "enchanted_lapis_lazuli"));
-        recipes.add(crossRecipe("enchanted_diamond", "diamond"));
-        recipes.add(crossRecipe("enchanted_diamond_block", "enchanted_diamond"));
-        recipes.add(crossRecipe("enchanted_emerald", "emerald"));
-        recipes.add(crossRecipe("enchanted_emerald_block", "enchanted_emerald"));
-        recipes.add(crossRecipe("enchanted_carrot", "carrot_item"));
-        recipes.add(crossRecipe("enchanted_potato", "potato_item"));
-        recipes.add(crossRecipe("enchanted_baked_potato", "enchanted_potato"));
-        recipes.add(crossRecipe("enchanted_sugar", "sugar_cane"));
-        recipes.add(crossRecipe("enchanted_sugar_cane", "enchanted_sugar"));
-        recipes.add(crossRecipe("enchanted_nether_stalk", "nether_stalk"));
-        recipes.add(crossRecipe("enchanted_mycelium", "mycelium"));
-        recipes.add(fullRecipe("enchanted_hay_block", "hay_block", 16));
-        recipes.add(crossCenterRecipe("enchanted_golden_carrot", "enchanted_carrot", 32, "golden_carrot", 32));
+        for (Map.Entry<String, String> entry : EnchantedItemRecipeCatalog.canonicalInputs().entrySet()) {
+            recipes.add(canonicalEnchantedRecipe(entry.getKey(), entry.getValue()));
+        }
 
         return List.copyOf(recipes);
     }
 
-    private static IngredientRecipe crossRecipe(String outputId, String inputId) {
-        int[] costs = new int[9];
+    private static void validateEnchantedRecipeCoverage() {
+        Set<String> catalogOutputs = new LinkedHashSet<>(EnchantedItemRecipeCatalog.canonicalInputs().keySet());
+        Set<String> ingredientOutputs = new LinkedHashSet<>();
+        for (IngredientRecipe recipe : INGREDIENT_RECIPES) {
+            if (recipe == null) {
+                continue;
+            }
+            String outputId = normalizeIngredientId(recipe.outputIngredientId());
+            if (outputId == null || !outputId.startsWith("enchanted_")) {
+                continue;
+            }
+            if (!ingredientOutputs.add(outputId)) {
+                throw new IllegalStateException("Duplicate enchanted ingredient recipe detected for " + outputId);
+            }
+            if (!catalogOutputs.contains(outputId)) {
+                throw new IllegalStateException("Enchanted ingredient recipe is missing from the canonical catalog: " + outputId);
+            }
+        }
+
+        if (!ingredientOutputs.equals(catalogOutputs)) {
+            Set<String> missing = new LinkedHashSet<>(catalogOutputs);
+            missing.removeAll(ingredientOutputs);
+            Set<String> unexpected = new LinkedHashSet<>(ingredientOutputs);
+            unexpected.removeAll(catalogOutputs);
+            throw new IllegalStateException("Enchanted ingredient recipe coverage mismatch. Missing=" + missing + ", unexpected=" + unexpected);
+        }
+
+        Set<String> utilityOutputs = new LinkedHashSet<>();
+        for (UtilityRecipe recipe : UTILITY_RECIPES) {
+            if (recipe == null) {
+                continue;
+            }
+            String outputId = normalizeIngredientId(recipe.outputId());
+            if (outputId == null || !outputId.startsWith("enchanted_")) {
+                continue;
+            }
+            if (!utilityOutputs.add(outputId)) {
+                throw new IllegalStateException("Duplicate enchanted utility recipe detected for " + outputId);
+            }
+            if (ingredientOutputs.contains(outputId)) {
+                throw new IllegalStateException("Enchanted output is defined by both ingredient and utility recipes: " + outputId);
+            }
+        }
+    }
+
+    private static IngredientRecipe canonicalEnchantedRecipe(String outputId, String inputId) {
+        int[] costs = EnchantedItemRecipePattern.slotCosts();
         String[] ingredientIds = new String[9];
-        int[] slots = {1, 3, 4, 5, 7};
-        for (int slot : slots) {
-            costs[slot] = 32;
+        for (int slot : EnchantedItemRecipePattern.REQUIRED_SLOTS) {
             ingredientIds[slot] = inputId;
         }
         return new IngredientRecipe(outputId, 1, costs, ingredientIds);
     }
 
-    private static IngredientRecipe fullRecipe(String outputId, String inputId, int amountPerSlot) {
-        int[] costs = new int[9];
-        String[] ingredientIds = new String[9];
-        for (int slot = 0; slot < 9; slot++) {
-            costs[slot] = amountPerSlot;
-            ingredientIds[slot] = inputId;
+    private static String ingredientIdFromFarmMaterial(Material material) {
+        if (material == null) {
+            return null;
         }
-        return new IngredientRecipe(outputId, 1, costs, ingredientIds);
+        return switch (material) {
+            case CARROT -> "carrot_item";
+            case POTATO -> "potato_item";
+            case NETHER_WART -> "nether_stalk";
+            default -> material.getKey().getKey();
+        };
     }
 
-    private static IngredientRecipe crossCenterRecipe(
-            String outputId,
-            String outerIngredientId,
-            int outerAmount,
-            String centerIngredientId,
-            int centerAmount
-    ) {
-        int[] costs = new int[9];
-        String[] ingredientIds = new String[9];
-        int[] outerSlots = {1, 3, 5, 7};
-        for (int slot : outerSlots) {
-            costs[slot] = outerAmount;
-            ingredientIds[slot] = outerIngredientId;
+    private static Material materialForFarmIngredient(EnchantedFarmItemType type) {
+        if (type == null) {
+            return Material.PAPER;
         }
-        costs[4] = centerAmount;
-        ingredientIds[4] = centerIngredientId;
-        return new IngredientRecipe(outputId, 1, costs, ingredientIds);
+        if (type.baseMaterial() != null) {
+            return type.baseMaterial();
+        }
+        return switch (type) {
+            case ENCHANTED_HAY_BALE -> Material.HAY_BLOCK;
+            case ENCHANTED_BAKED_POTATO -> Material.BAKED_POTATO;
+            case ENCHANTED_SUGAR_CANE -> Material.SUGAR_CANE;
+            case ENCHANTED_GLISTERING_MELON -> Material.GLISTERING_MELON_SLICE;
+            case ENCHANTED_CACTUS_GREEN -> Material.GREEN_DYE;
+            default -> Material.PAPER;
+        };
     }
 
     private ItemStack createUtilityItem(String utilityType, String utilityId, int amount) {
@@ -2863,9 +3142,6 @@ public final class MinionManager {
             }
             minionsById.put(minion.id(), minion);
             minionIdsByIsland.computeIfAbsent(minion.islandId(), ignored -> ConcurrentHashMap.newKeySet()).add(minion.id());
-            if (minion.displayEntityId() != null) {
-                minionIdByDisplayEntity.put(minion.displayEntityId(), minion.id());
-            }
             loaded++;
         }
 
@@ -2943,10 +3219,35 @@ public final class MinionManager {
     public record CraftingMatch(ItemStack result, int[] slotCosts) {
     }
 
-    private record IngredientDefinition(String id, String displayName, Material material, boolean customOnly) {
+    public record IngredientDefinition(String id, String displayName, Material material, boolean customOnly) {
     }
 
-    private record IngredientRecipe(String outputIngredientId, int outputAmount, int[] slotCosts, String[] slotIngredientIds) {
+    public record IngredientRecipe(String outputIngredientId, int outputAmount, int[] slotCosts, String[] slotIngredientIds) {
+    }
+
+    public static Map<String, IngredientDefinition> getIngredients() {
+        return Collections.unmodifiableMap(INGREDIENTS);
+    }
+
+    public static List<IngredientRecipe> getIngredientRecipes() {
+        return INGREDIENT_RECIPES;
+    }
+
+    public static List<UtilityRecipeInfo> getUtilityRecipes() {
+        List<UtilityRecipeInfo> info = new ArrayList<>(UTILITY_RECIPES.size());
+        for (UtilityRecipe recipe : UTILITY_RECIPES) {
+            if (recipe == null) {
+                continue;
+            }
+            info.add(new UtilityRecipeInfo(
+                    recipe.outputType(),
+                    recipe.outputId(),
+                    recipe.outputAmount(),
+                    recipe.slotCosts().clone(),
+                    recipe.requirements().clone()
+            ));
+        }
+        return List.copyOf(info);
     }
 
     private record FuelDefinition(
@@ -2977,6 +3278,26 @@ public final class MinionManager {
     }
 
     private record UtilityRecipe(String outputType, String outputId, int outputAmount, int[] slotCosts, String[] requirements) {
+    }
+
+    public record UtilityRecipeInfo(String outputType, String outputId, int outputAmount, int[] slotCosts, String[] requirements) {
+        public UtilityRecipeInfo {
+            slotCosts = slotCosts == null ? new int[0] : slotCosts.clone();
+            requirements = requirements == null ? new String[0] : requirements.clone();
+        }
+
+        @Override
+        public int[] slotCosts() {
+            return slotCosts.clone();
+        }
+
+        @Override
+        public String[] requirements() {
+            return requirements.clone();
+        }
+    }
+
+    public record SuperCompactorRuleInfo(String inputId, int inputAmount, String outputId, int outputAmount) {
     }
 
     private record CompactRule(String inputId, int inputAmount, String outputId, int outputAmount) {
@@ -3014,5 +3335,8 @@ public final class MinionManager {
     }
 
     public record MinionItemData(MinionType type, int tier) {
+    }
+
+    private record DisplayBinding(ArmorStand stand, boolean changed) {
     }
 }

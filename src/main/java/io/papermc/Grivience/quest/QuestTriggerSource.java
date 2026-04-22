@@ -4,5 +4,6 @@ public enum QuestTriggerSource {
     COMMAND,
     GUI,
     ZNPCS_EVENT,
-    MANUAL
+    MANUAL,
+    SYSTEM
 }

@@ -73,7 +73,7 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!sender.hasPermission("grivience.admin")) {
-            sender.sendMessage(ChatColor.RED + "You do not have permission to set the farm hub.");
+            sender.sendMessage(ChatColor.RED + "You do not have permission to set the " + farmHubDisplayName().toLowerCase(Locale.ROOT) + ".");
             return true;
         }
 
@@ -89,7 +89,7 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
             plugin.getFastTravelManager().syncHubWarpsFromConfig();
         }
 
-        sender.sendMessage(ChatColor.GREEN + "Farm Hub location set to " + loc.getWorld().getName() + " (" + 
+        sender.sendMessage(ChatColor.GREEN + farmHubDisplayName() + " location set to " + loc.getWorld().getName() + " (" +
             String.format("%.1f", loc.getX()) + ", " + String.format("%.1f", loc.getY()) + ", " + 
             String.format("%.1f", loc.getZ()) + ") yaw " + String.format("%.1f", loc.getYaw()) + 
             " pitch " + String.format("%.1f", loc.getPitch()) + ".");
@@ -102,13 +102,13 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (!sender.hasPermission("grivience.admin")) {
-            sender.sendMessage(ChatColor.RED + "You do not have permission to set the farm hub area.");
+            sender.sendMessage(ChatColor.RED + "You do not have permission to set the " + farmHubDisplayName().toLowerCase(Locale.ROOT) + " area.");
             return true;
         }
 
         Location pos = player.getLocation().getBlock().getLocation();
         selectionPos1.put(player.getUniqueId(), pos);
-        sender.sendMessage(ChatColor.GREEN + "Farm Hub area position 1 set at " + formatBlockPos(pos) + ".");
+        sender.sendMessage(ChatColor.GREEN + farmHubDisplayName() + " area position 1 set at " + formatBlockPos(pos) + ".");
         sender.sendMessage(ChatColor.GRAY + "Now run " + ChatColor.YELLOW + "/farmhub setpos2" + ChatColor.GRAY + " then " + ChatColor.YELLOW + "/farmhub setarea");
         return true;
     }
@@ -119,13 +119,13 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (!sender.hasPermission("grivience.admin")) {
-            sender.sendMessage(ChatColor.RED + "You do not have permission to set the farm hub area.");
+            sender.sendMessage(ChatColor.RED + "You do not have permission to set the " + farmHubDisplayName().toLowerCase(Locale.ROOT) + " area.");
             return true;
         }
 
         Location pos = player.getLocation().getBlock().getLocation();
         selectionPos2.put(player.getUniqueId(), pos);
-        sender.sendMessage(ChatColor.GREEN + "Farm Hub area position 2 set at " + formatBlockPos(pos) + ".");
+        sender.sendMessage(ChatColor.GREEN + farmHubDisplayName() + " area position 2 set at " + formatBlockPos(pos) + ".");
         sender.sendMessage(ChatColor.GRAY + "Run " + ChatColor.YELLOW + "/farmhub setarea" + ChatColor.GRAY + " to apply.");
         return true;
     }
@@ -136,7 +136,7 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (!sender.hasPermission("grivience.admin")) {
-            sender.sendMessage(ChatColor.RED + "You do not have permission to set the farm hub area.");
+            sender.sendMessage(ChatColor.RED + "You do not have permission to set the " + farmHubDisplayName().toLowerCase(Locale.ROOT) + " area.");
             return true;
         }
 
@@ -171,7 +171,7 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
         plugin.saveConfig();
         syncFarmHubZone(pos1, pos2);
 
-        sender.sendMessage(ChatColor.GREEN + "Farm Hub crop regeneration area saved.");
+        sender.sendMessage(ChatColor.GREEN + farmHubDisplayName() + " crop regeneration area saved.");
         sender.sendMessage(ChatColor.GRAY + "World: " + ChatColor.YELLOW + pos1.getWorld().getName());
         sender.sendMessage(ChatColor.GRAY + "Pos1: " + ChatColor.YELLOW + formatBlockPos(pos1));
         sender.sendMessage(ChatColor.GRAY + "Pos2: " + ChatColor.YELLOW + formatBlockPos(pos2));
@@ -197,7 +197,7 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
         long farmlandHydrateInterval = plugin.getConfig().getLong("skyblock.farmhub-farmland.hydrate-interval-ticks", 100L);
         long maintenanceScanPerRun = plugin.getConfig().getLong("skyblock.farmhub-maintenance.scan-blocks-per-run", 25000L);
 
-        sender.sendMessage(ChatColor.GOLD + "Farm Hub Crop Area");
+        sender.sendMessage(ChatColor.GOLD + farmHubDisplayName() + " Crop Area");
         sender.sendMessage(ChatColor.GRAY + "Enabled: " + (enabled ? ChatColor.GREEN + "true" : ChatColor.RED + "false"));
         sender.sendMessage(ChatColor.GRAY + "World: " + ChatColor.YELLOW + world);
         sender.sendMessage(ChatColor.GRAY + "Pos1: " + ChatColor.YELLOW + x1 + ", " + y1 + ", " + z1);
@@ -220,18 +220,18 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
         if (farmhubWorld != null) {
             farmhubLocation = getSpawnLocation(farmhubWorld);
         } else {
-            player.sendMessage(ChatColor.RED + "Farm Hub world '" + getFarmhubWorldName() + "' not found. Contact an administrator.");
+            player.sendMessage(ChatColor.RED + farmHubDisplayName() + " world '" + getFarmhubWorldName() + "' not found. Contact an administrator.");
             return;
         }
 
         if (farmhubLocation == null) {
-            player.sendMessage(ChatColor.RED + "Failed to locate farm hub spawn. Contact an administrator.");
+            player.sendMessage(ChatColor.RED + "Failed to locate " + farmHubDisplayName().toLowerCase(Locale.ROOT) + " spawn. Contact an administrator.");
             return;
         }
 
         player.teleport(farmhubLocation);
         player.playSound(farmhubLocation, org.bukkit.Sound.ENTITY_PLAYER_TELEPORT, 1.0F, 1.0F);
-        player.sendMessage(ChatColor.GREEN + "Teleported to the Farm Hub!");
+        player.sendMessage(ChatColor.GREEN + "Teleported to the " + farmHubDisplayName() + "!");
     }
 
     private String getFarmhubWorldName() {
@@ -271,13 +271,26 @@ public final class FarmHubCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!zoneManager.hasZone(FARM_HUB_ZONE_ID)) {
-            zoneManager.createZone(FARM_HUB_ZONE_ID, "farm_hub", "Farm Hub");
+            zoneManager.createZone(FARM_HUB_ZONE_ID, "farm_hub", farmHubDisplayName());
         }
 
         zoneManager.updateZoneBounds(FARM_HUB_ZONE_ID, pos1, pos2);
-        zoneManager.setZoneDisplay(FARM_HUB_ZONE_ID, "Farm Hub", ChatColor.GREEN, 95);
-        zoneManager.setZoneDescription(FARM_HUB_ZONE_ID, "Farm Hub crop regeneration area.");
+        zoneManager.setZoneDisplay(FARM_HUB_ZONE_ID, farmHubDisplayName(), ChatColor.GREEN, 95);
+        zoneManager.setZoneDescription(FARM_HUB_ZONE_ID, farmHubDisplayName() + " crop regeneration area.");
         zoneManager.setZoneEnabled(FARM_HUB_ZONE_ID, true);
+    }
+
+    private String farmHubDisplayName() {
+        return usesHubDisplayName() ? "Hub" : "Farm Hub";
+    }
+
+    private boolean usesHubDisplayName() {
+        String farmhubWorld = getFarmhubWorldName();
+        String hubWorld = plugin.getConfig().getString("skyblock.hub-world", "world");
+        if (farmhubWorld == null || hubWorld == null) {
+            return false;
+        }
+        return farmhubWorld.equalsIgnoreCase(hubWorld);
     }
 
     private String formatBlockPos(Location loc) {

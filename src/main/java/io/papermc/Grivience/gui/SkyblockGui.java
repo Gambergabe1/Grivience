@@ -61,20 +61,40 @@ public final class SkyblockGui {
     }
 
     public static ItemStack closeButton() {
-        return button(
+        return taggedItem(
                 Material.BARRIER,
                 ChatColor.RED + "Close",
-                List.of(ChatColor.GRAY + "Close this menu.")
+                List.of(ChatColor.GRAY + "Close this menu."),
+                "action", "close"
         );
     }
 
     public static ItemStack backButton(String destination) {
         String to = destination == null || destination.isBlank() ? "previous menu" : destination;
-        return button(
+        return taggedItem(
                 Material.ARROW,
                 ChatColor.GREEN + "Go Back",
-                List.of(ChatColor.GRAY + "To " + to + ".")
+                List.of(ChatColor.GRAY + "To " + to + "."),
+                "action", "back"
         );
+    }
+
+    public static ItemStack border() {
+        return filler(Material.GRAY_STAINED_GLASS_PANE);
+    }
+
+    public static ItemStack taggedItem(Material material, String name, List<String> lore, String tagKey, String tagValue) {
+        ItemStack item = button(material, name, lore);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.getPersistentDataContainer().set(
+                new org.bukkit.NamespacedKey("grivience", "gui_tag_" + tagKey),
+                org.bukkit.persistence.PersistentDataType.STRING,
+                tagValue
+            );
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     public static ItemStack button(Material material, String name, List<String> lore) {

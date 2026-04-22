@@ -3,6 +3,7 @@ package io.papermc.Grivience.dungeon;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.gui.SkyblockGui;
 import io.papermc.Grivience.skyblock.economy.ProfileEconomyService;
+import io.papermc.Grivience.util.CommandDispatchUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -193,7 +194,7 @@ public final class RewardChestManager implements Listener {
             if (profileEconomy.executeEcoLikeCommand(player, parsed)) {
                 continue;
             }
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed);
+            CommandDispatchUtil.dispatchConsole(plugin, parsed);
         }
     }
 

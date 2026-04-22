@@ -18,22 +18,41 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
+import org.bukkit.profile.PlayerProfile;
+import org.bukkit.profile.PlayerTextures;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.net.URLEncoder;
 
-public final class PetManager {
+import org.bukkit.Location;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.util.Vector;
+
+public final class PetManager implements Listener {
     private static final String PET_MODIFIER_NAME_PREFIX = "grivience_pet_";
     private static final int DEFAULT_LEGACY_EFFECT_CLEANUP_MIN_DURATION_TICKS = 20 * 60 * 8;
 
     private final GriviencePlugin plugin;
     private final NamespacedKey petIdKey;
+    private final NamespacedKey petXpKey;
     private final NamespacedKey petAppliedEffectsKey;
     private final Map<String, PetDefinition> pets = new HashMap<>();
     private final File petsFile;
@@ -44,6 +63,10 @@ public final class PetManager {
     // Tracks which potion effects were last applied by the pet system per player (so we don't
     // accidentally remove unrelated effects from other systems).
     private final Map<UUID, Set<PotionEffectType>> appliedPetEffects = new HashMap<>();
+
+    // Visual pet tracking
+    private final Map<UUID, ArmorStand> activeVisualPets = new HashMap<>();
+    private org.bukkit.scheduler.BukkitTask visualTask;
 
     private boolean expEnabled;
     private double miningFishingXpMultiplier;
@@ -57,12 +80,64 @@ public final class PetManager {
     public PetManager(GriviencePlugin plugin) {
         this.plugin = plugin;
         this.petIdKey = new NamespacedKey(plugin, "pet_id");
+        this.petXpKey = new NamespacedKey(plugin, "pet_xp");
         this.petAppliedEffectsKey = new NamespacedKey(plugin, "pet_effect_types");
         this.petsFile = new File(plugin.getDataFolder(), "pets.yml");
         this.legacyPetDataFile = new File(plugin.getDataFolder(), "pet-data.yml");
         ensureDefaultPetsFile();
         loadPets();
         reloadSettings();
+        
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        startVisualTask();
+    }
+
+    private void startVisualTask() {
+        if (visualTask != null) visualTask.cancel();
+        visualTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::updateVisualPets, 1L, 1L);
+    }
+
+    private void updateVisualPets() {
+        for (Map.Entry<UUID, ArmorStand> entry : activeVisualPets.entrySet()) {
+            Player player = Bukkit.getPlayer(entry.getKey());
+            ArmorStand pet = entry.getValue();
+            
+            if (player == null || !player.isOnline() || !pet.isValid() || !pet.getWorld().equals(player.getWorld())) {
+                continue;
+            }
+
+            Location target = player.getLocation().clone().add(0, 1.2, 0);
+            
+            // Offset to the side and slightly behind
+            Vector direction = player.getLocation().getDirection().setY(0).normalize();
+            Vector side = new Vector(-direction.getZ(), 0, direction.getX()).normalize();
+            
+            // Hover position (oscillating slightly)
+            double time = System.currentTimeMillis() / 1000.0;
+            double hover = Math.sin(time * 2.0) * 0.15;
+            
+            Location hoverLoc = target.clone()
+                    .add(direction.multiply(-0.8))
+                    .add(side.multiply(0.8))
+                    .add(0, hover, 0);
+
+            // Smooth interpolation
+            Location current = pet.getLocation();
+            Vector vel = hoverLoc.toVector().subtract(current.toVector());
+            double dist = vel.length();
+            
+            if (dist > 8.0) {
+                pet.teleport(hoverLoc);
+            } else if (dist > 0.05) {
+                // Move towards hover location
+                pet.teleport(current.add(vel.multiply(0.15)));
+            }
+            
+            // Look at player or in player direction
+            Location petLoc = pet.getLocation();
+            petLoc.setDirection(player.getLocation().getDirection());
+            pet.teleport(petLoc);
+        }
     }
 
     public void setLevelManager(io.papermc.Grivience.stats.SkyblockLevelManager levelManager) {
@@ -70,8 +145,20 @@ public final class PetManager {
     }
 
     public void reloadPets() {
+        shutdown();
         loadPets();
         reloadSettings();
+        respawnAllVisualPets();
+    }
+
+    public void respawnAllVisualPets() {
+        startVisualTask();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            String equipped = equippedPet(player);
+            if (equipped != null) {
+                spawnVisualPet(player, equipped);
+            }
+        }
     }
 
     public boolean isExpEnabled() {
@@ -96,6 +183,7 @@ public final class PetManager {
     public void registerRecipes() {
         for (PetDefinition def : pets.values()) {
             NamespacedKey key = new NamespacedKey(plugin, "pet_" + def.id());
+            plugin.getServer().removeRecipe(key);
             org.bukkit.inventory.ShapelessRecipe recipe = new org.bukkit.inventory.ShapelessRecipe(key, createPetItem(def.id(), null));
             recipe.addIngredient(Material.EGG);
             recipe.addIngredient(def.icon() != null ? def.icon() : Material.LEAD);
@@ -156,7 +244,8 @@ public final class PetManager {
                 max.petLuck() * scale,
                 max.seaCreatureChance() * scale,
                 max.trueDefense() * scale,
-                max.abilityDamage() * scale
+                max.abilityDamage() * scale,
+                max.farmingFortune() * scale
         );
     }
 
@@ -255,7 +344,7 @@ public final class PetManager {
         if (meta instanceof SkullMeta skull && def.headTexture() != null && !def.headTexture().isBlank()) {
             PlayerProfile profile = textureCache.computeIfAbsent(def.headTexture(), this::buildHeadProfile);
             if (profile != null) {
-                skull.setPlayerProfile(profile);
+                skull.setOwnerProfile(profile);
             }
         }
         
@@ -263,89 +352,128 @@ public final class PetManager {
         int level = progress.level();
 
         // 100% Accurate Hypixel Skyblock Name Format: [Lvl X] [Pet Name]
-        meta.setDisplayName(ChatColor.GRAY + "[Lvl " + level + "] " + def.rarity().color() + def.displayName());
+        String rawDisplayName = "&7[Lvl " + level + "] " + def.rarity().color() + def.displayName();
+        meta.displayName(LegacyComponentSerializer.legacyAmpersand().deserialize(rawDisplayName)
+                .decoration(TextDecoration.ITALIC, false));
 
-        List<String> lore = new ArrayList<>();
+        List<Component> lore = new ArrayList<>();
         
         // Skill Type Line (e.g. Combat Pet)
-        lore.add(ChatColor.DARK_GRAY + capitalize(def.skillType().name()) + " Pet");
-        lore.add("");
+        lore.add(Component.text(capitalize(def.skillType().name()) + " Pet", NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.empty());
 
         // Stats section (Dynamic based on level)
         PetStatBonuses stats = def.stats();
         if (stats != null) {
             double scale = (double) level / 100.0;
-            appendStat(lore, "Health", stats.health() * scale, ChatColor.RED);
-            appendStat(lore, "Defense", stats.defense() * scale, ChatColor.GREEN);
-            appendStat(lore, "Strength", stats.strength() * scale, ChatColor.RED);
-            appendStat(lore, "Crit Chance", stats.critChance() * scale, ChatColor.BLUE, "%");
-            appendStat(lore, "Crit Damage", stats.critDamage() * scale, ChatColor.BLUE, "%");
-            appendStat(lore, "Intelligence", stats.intelligence() * scale, ChatColor.AQUA);
-            appendStat(lore, "Speed", stats.speed() * scale, ChatColor.WHITE);
-            appendStat(lore, "Attack Speed", stats.attackSpeed() * scale, ChatColor.YELLOW);
-            appendStat(lore, "Ferocity", stats.ferocity() * scale, ChatColor.RED);
-            appendStat(lore, "Magic Find", stats.magicFind() * scale, ChatColor.AQUA);
-            appendStat(lore, "Pet Luck", stats.petLuck() * scale, ChatColor.LIGHT_PURPLE);
-            appendStat(lore, "Sea Creature Chance", stats.seaCreatureChance() * scale, ChatColor.DARK_AQUA, "%");
-            appendStat(lore, "True Defense", stats.trueDefense() * scale, ChatColor.WHITE);
-            appendStat(lore, "Ability Damage", stats.abilityDamage() * scale, ChatColor.RED, "%");
-            lore.add("");
+            appendStatComponent(lore, "Health", stats.health() * scale, NamedTextColor.RED, "");
+            appendStatComponent(lore, "Defense", stats.defense() * scale, NamedTextColor.GREEN, "");
+            appendStatComponent(lore, "Strength", stats.strength() * scale, NamedTextColor.RED, "");
+            appendStatComponent(lore, "Crit Chance", stats.critChance() * scale, NamedTextColor.BLUE, "%");
+            appendStatComponent(lore, "Crit Damage", stats.critDamage() * scale, NamedTextColor.BLUE, "%");
+            appendStatComponent(lore, "Intelligence", stats.intelligence() * scale, NamedTextColor.AQUA, "");
+            appendStatComponent(lore, "Speed", stats.speed() * scale, NamedTextColor.WHITE, "");
+            appendStatComponent(lore, "Attack Speed", stats.attackSpeed() * scale, NamedTextColor.YELLOW, "");
+            appendStatComponent(lore, "Ferocity", stats.ferocity() * scale, NamedTextColor.RED, "");
+            appendStatComponent(lore, "Magic Find", stats.magicFind() * scale, NamedTextColor.AQUA, "");
+            appendStatComponent(lore, "Pet Luck", stats.petLuck() * scale, NamedTextColor.LIGHT_PURPLE, "");
+            appendStatComponent(lore, "Sea Creature Chance", stats.seaCreatureChance() * scale, NamedTextColor.DARK_AQUA, "%");
+            appendStatComponent(lore, "True Defense", stats.trueDefense() * scale, NamedTextColor.WHITE, "");
+            appendStatComponent(lore, "Ability Damage", stats.abilityDamage() * scale, NamedTextColor.RED, "%");
+            lore.add(Component.empty());
         }
-
 
         // Abilities section (Dynamic based on level and rarity)
         for (PetDefinition.PetAbility ability : def.abilities()) {
             if (def.rarity().ordinal() < ability.minRarity().ordinal()) continue;
             
-            lore.add(ChatColor.GOLD + ability.name());
+            lore.add(Component.text(ability.name(), NamedTextColor.GOLD)
+                    .decoration(TextDecoration.ITALIC, false));
             double val = ability.getValue(level);
             for (String descLine : ability.description()) {
-                lore.add(ChatColor.GRAY + ChatColor.translateAlternateColorCodes('&', descLine.replace("{value}", String.format("%.1f", val))));
+                String processed = "&7" + descLine.replace("{value}", String.format(Locale.US, "%.1f", val));
+                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(processed)
+                        .decoration(TextDecoration.ITALIC, false));
             }
-            lore.add("");
+            lore.add(Component.empty());
         }
 
         // Pet Item Slot (Accurate to Skyblock)
-        lore.add(ChatColor.GRAY + "Held Item: " + ChatColor.RED + "None");
-        lore.add("");
+        lore.add(Component.text("Held Item: ", NamedTextColor.GRAY)
+                .append(Component.text("None", NamedTextColor.RED))
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.empty());
 
-        // Progress bar / XP section
-        if (progress.level() >= def.maxLevel()) {
-            lore.add(ChatColor.DARK_GRAY + "MAX LEVEL");
-        } else {
+        // XP Bar
+        if (level < def.maxLevel()) {
             long into = progress.expIntoLevel();
             long toNext = progress.expToNextLevel();
             double pct = (double) into / toNext * 100.0;
             
-            lore.add(ChatColor.GRAY + "Progress to Level " + (level + 1) + ": " + ChatColor.YELLOW + String.format("%.1f%%", pct));
-            lore.add(progressBar(into, toNext));
-            lore.add(ChatColor.GRAY + "(" + formatXp(into) + "/" + formatXp(toNext) + ")");
+            lore.add(Component.text("Progress to Level " + (level + 1) + ": ", NamedTextColor.GRAY)
+                    .append(Component.text(String.format(Locale.US, "%.1f%%", pct), NamedTextColor.YELLOW))
+                    .decoration(TextDecoration.ITALIC, false));
+            
+            int bars = 20;
+            int filled = (int) (pct / 100.0 * bars);
+            StringBuilder barStr = new StringBuilder("&2");
+            for (int i = 0; i < bars; i++) {
+                if (i == filled) barStr.append("&8");
+                barStr.append("-");
+            }
+            lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(barStr.toString())
+                    .decoration(TextDecoration.ITALIC, false));
+            
+            lore.add(Component.text(String.format(Locale.US, "%,d", into), NamedTextColor.YELLOW)
+                    .append(Component.text("/", NamedTextColor.GOLD))
+                    .append(Component.text(String.format(Locale.US, "%,d", toNext), NamedTextColor.YELLOW))
+                    .decoration(TextDecoration.ITALIC, false));
+        } else {
+            lore.add(Component.text("MAX LEVEL", NamedTextColor.DARK_GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
         }
-        lore.add("");
-
-        // Rarity line (100% Accurate Footer)
-        lore.add(def.rarity().color() + ChatColor.BOLD.toString() + def.rarity().name().toUpperCase(Locale.ROOT));
-
-        if (isInGui) {
+        
+        if (isInGui && viewer != null) {
             String equipped = equippedPet(viewer);
+            lore.add(Component.empty());
             if (id.equalsIgnoreCase(equipped)) {
-                lore.add("");
-                lore.add(ChatColor.RED + "Click to despawn!");
+                lore.add(Component.text("Click to despawn!", NamedTextColor.RED)
+                        .decoration(TextDecoration.ITALIC, false));
             } else {
-                lore.add("");
-                lore.add(ChatColor.YELLOW + "Click to summon!");
+                lore.add(Component.text("Click to summon!", NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false));
             }
         } else {
-            lore.add("");
-            lore.add(ChatColor.YELLOW + "Right-click to add to pets menu!");
-            lore.add(ChatColor.DARK_GRAY + "Keep as item to trade.");
+            lore.add(Component.empty());
+            lore.add(Component.text("Right-click to add to pets menu!", NamedTextColor.YELLOW)
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("Keep as item to trade.", NamedTextColor.DARK_GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
         }
 
-        meta.setLore(lore);
+        lore.add(Component.empty());
+        lore.add(Component.text(def.rarity().name(), def.rarity().adventureColor())
+                .decoration(TextDecoration.BOLD, true)
+                .decoration(TextDecoration.ITALIC, false));
+
+        meta.lore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         meta.getPersistentDataContainer().set(petIdKey, PersistentDataType.STRING, def.id());
+        if (!isInGui) {
+            meta.getPersistentDataContainer().set(petXpKey, PersistentDataType.LONG, progress.totalExp());
+        }
         item.setItemMeta(meta);
         return item;
+    }
+
+    private void appendStatComponent(List<Component> lore, String name, double val, net.kyori.adventure.text.format.TextColor color, String suffix) {
+        if (val == 0) return;
+        String sign = val > 0 ? "+" : "";
+        Component comp = Component.text(name + ": ", NamedTextColor.GRAY)
+                .append(Component.text(sign + String.format(Locale.US, "%.1f", val) + suffix, color))
+                .decoration(TextDecoration.ITALIC, false);
+        lore.add(comp);
     }
 
     private String capitalize(String s) {
@@ -387,6 +515,35 @@ public final class PetManager {
         return item.getItemMeta().getPersistentDataContainer().get(petIdKey, PersistentDataType.STRING);
     }
 
+    public long getStoredXp(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return 0L;
+        Long xp = item.getItemMeta().getPersistentDataContainer().get(petXpKey, PersistentDataType.LONG);
+        return xp != null ? xp : 0L;
+    }
+
+    public void setPetXp(Player player, String petId, long xp) {
+        if (player == null || petId == null || xp < 0L) return;
+        io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile = requireProfile(player);
+        if (profile == null) return;
+        String normalizedId = petId.toLowerCase(Locale.ROOT);
+        PetDefinition def = pets.get(normalizedId);
+        if (def == null) return;
+        
+        io.papermc.Grivience.skyblock.profile.SkyBlockProfile.PetData data = profile.getPetData().get(normalizedId);
+        if (data == null) {
+            data = new io.papermc.Grivience.skyblock.profile.SkyBlockProfile.PetData(normalizedId);
+            profile.setPetData(normalizedId, data);
+        }
+        
+        int maxLevel = Math.max(1, Math.min(def.maxLevel(), PetXpTable.maxTableLevel()));
+        long capTotal = PetXpTable.totalExpForLevel(def.rarity(), maxLevel);
+        long actualXp = Math.min(xp, capTotal);
+        
+        data.setXp(actualXp);
+        data.setLevel(PetXpTable.levelForTotalExp(def.rarity(), actualXp, maxLevel));
+        saveProfile(profile);
+    }
+
     public void equip(Player player, String id) {
         if (player == null) {
             return;
@@ -407,6 +564,7 @@ public final class PetManager {
                 }
             }
             clearEffects(player);
+            despawnVisualPet(player);
             saveProfile(profile);
             return;
         }
@@ -426,8 +584,185 @@ public final class PetManager {
         PetDefinition def = pets.get(normalizedId);
         if (def != null) {
             applyEffects(player, def);
+            spawnVisualPet(player, normalizedId);
         }
         saveProfile(profile);
+    }
+
+    public void spawnVisualPet(Player player, String petId) {
+        despawnVisualPet(player);
+        
+        PetDefinition def = pets.get(petId);
+        if (def == null) return;
+
+        Location spawnLoc = player.getLocation().add(0, 1, 0);
+        ArmorStand stand = player.getWorld().spawn(spawnLoc, ArmorStand.class, as -> {
+            as.setVisible(false);
+            as.setGravity(false);
+            as.setSmall(true);
+            as.setMarker(false); // Marker causes nametag to be at feet
+            as.setInvulnerable(true);
+            as.setBasePlate(false);
+            as.setArms(false);
+            as.setCanPickupItems(false);
+            as.setCustomNameVisible(true);
+            
+            // Disable ticking if possible for performance
+            try {
+                as.getClass().getMethod("setCanTick", boolean.class).invoke(as, false);
+            } catch (Exception ignored) {}
+
+            // Set custom name with level and rarity color
+            int level = getLevel(player, petId);
+            String rawName = "&7[Lvl " + level + "] " + def.rarity().color() + player.getName() + "'s " + ChatColor.stripColor(def.displayName());
+            as.customName(LegacyComponentSerializer.legacyAmpersand().deserialize(rawName));
+            
+            // Set head texture
+            ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+            applyTexture(head, def.headTexture());
+            as.getEquipment().setHelmet(head);
+        });
+
+        activeVisualPets.put(player.getUniqueId(), stand);
+    }
+
+    public void despawnVisualPet(Player player) {
+        ArmorStand stand = activeVisualPets.remove(player.getUniqueId());
+        if (stand != null) {
+            stand.remove();
+        }
+    }
+
+    public void shutdown() {
+        if (visualTask != null) visualTask.cancel();
+        for (ArmorStand stand : activeVisualPets.values()) {
+            if (stand != null) stand.remove();
+        }
+        activeVisualPets.clear();
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        String equipped = equippedPet(event.getPlayer());
+        if (equipped != null) {
+            // Delay slightly to ensure world is loaded and profile is ready
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (event.getPlayer().isOnline()) {
+                    spawnVisualPet(event.getPlayer(), equipped);
+                }
+            }, 20L);
+        }
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        despawnVisualPet(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        String equipped = equippedPet(event.getPlayer());
+        if (equipped != null) {
+            spawnVisualPet(event.getPlayer(), equipped);
+        }
+    }
+
+    public double getAbilityMultiplier(Player attacker, Entity victim) {
+        String petId = equippedPet(attacker);
+        if (petId == null) return 1.0D;
+
+        if (petId.equalsIgnoreCase("dragon")) {
+            // Dragon pet: Dragon Claw ability
+            if (victim instanceof org.bukkit.entity.EnderDragon || victim instanceof org.bukkit.entity.EnderCrystal) {
+                int level = getLevel(attacker, "dragon");
+                return 1.0 + (10.0 + (level - 1) * 0.40D) / 100.0;
+            }
+        } else if (petId.equalsIgnoreCase("enderman")) {
+            // Ender Affinity: Damage to End mobs
+            if (victim.getType().name().contains("ENDER") || victim.getType().name().contains("SHULKER")) {
+                int level = getLevel(attacker, "enderman");
+                return 1.0 + (10.0 + (level - 1) * 0.30D) / 100.0;
+            }
+        } else if (petId.equalsIgnoreCase("lion")) {
+            // King of the Jungle: +5-20% Damage
+            int level = getLevel(attacker, "lion");
+            return 1.0 + (5.0 + (level - 1) * 0.15D) / 100.0;
+        } else if (petId.equalsIgnoreCase("wither_skeleton")) {
+            // Death's Touch: +10-30% damage to skeletons
+            if (victim.getType() == org.bukkit.entity.EntityType.SKELETON || victim.getType() == org.bukkit.entity.EntityType.WITHER_SKELETON) {
+                int level = getLevel(attacker, "wither_skeleton");
+                return 1.0 + (10.0 + (level - 1) * 0.20D) / 100.0;
+            }
+        } else if (petId.equalsIgnoreCase("blaze") && attacker.getWorld().getEnvironment() == org.bukkit.World.Environment.NETHER) {
+            // Nether Affinity: +5-20% damage in nether
+            int level = getLevel(attacker, "blaze");
+            return 1.0 + (5.0 + (level - 1) * 0.15D) / 100.0;
+        }
+        return 1.0D;
+    }
+
+    public double getIncomingDamageMultiplier(Player player) {
+        String petId = equippedPet(player);
+        if (petId == null) return 1.0D;
+
+        if (petId.equalsIgnoreCase("turtle")) {
+            // Turtle pet: Shell Shield ability
+            int level = getLevel(player, "turtle");
+            double reduction = (5.0 + (level - 1) * 0.15D) / 100.0;
+            return 1.0 - reduction;
+        } else if (petId.equalsIgnoreCase("blaze") && player.getWorld().getEnvironment() == org.bukkit.World.Environment.NETHER) {
+            // Nether Affinity: +10% Damage reduction in nether
+            int level = getLevel(player, "blaze");
+            double reduction = (10.0 + (level - 1) * 0.10D) / 100.0;
+            return 1.0 - reduction;
+        }
+        return 1.0D;
+    }
+
+    public double getManaCostMultiplier(Player player) {
+        String petId = equippedPet(player);
+        if (petId == null) return 1.0D;
+
+        if (petId.equalsIgnoreCase("sheep")) {
+            // Mana Saver: 5-20% reduction
+            int level = getLevel(player, "sheep");
+            double reduction = (5.0 + (level - 1) * 0.15D) / 100.0;
+            return 1.0 - reduction;
+        }
+        return 1.0D;
+    }
+
+    public double getFarmingFortune(Player player) {
+        PetStatBonuses bonuses = equippedStatBonuses(player);
+        return bonuses.farmingFortune();
+    }
+
+    public double getMiningSpeed(Player player) {
+        String petId = equippedPet(player);
+        if (petId == null) return 0.0D;
+
+        if (petId.equalsIgnoreCase("mithril_golem")) {
+            // Mithril Affinity: +20-100 Mining Speed
+            int level = getLevel(player, "mithril_golem");
+            return 20.0 + (level - 1) * 0.81D; // approx
+        }
+        return 0.0D;
+    }
+
+    public double getSkillXpMultiplier(Player player, io.papermc.Grivience.skills.SkyblockSkill skill) {
+        String petId = equippedPet(player);
+        if (petId == null) return 1.0D;
+
+        if (petId.equalsIgnoreCase("monkey") && skill == io.papermc.Grivience.skills.SkyblockSkill.FORAGING) {
+            // Tree Grinder: +10-50% Foraging XP
+            int level = getLevel(player, "monkey");
+            return 1.0 + (10.0 + (level - 1) * 0.40D) / 100.0;
+        } else if (petId.equalsIgnoreCase("squid") && skill == io.papermc.Grivience.skills.SkyblockSkill.FISHING) {
+            // Fishing Luck: +10-30% Fishing XP
+            int level = getLevel(player, "squid");
+            return 1.0 + (10.0 + (level - 1) * 0.20D) / 100.0;
+        }
+        return 1.0D;
     }
 
     public String equippedPet(Player player) {
@@ -774,6 +1109,9 @@ public final class PetManager {
 
             PetDefinition fallback = defaults.get(normalizedId);
             if (fallback != null) {
+                if (headUrl == null || headUrl.isBlank()) {
+                    headUrl = fallback.headTexture();
+                }
                 if (statsSection == null) {
                     stats = fallback.stats();
                 }
@@ -793,6 +1131,14 @@ public final class PetManager {
 
             pets.put(normalizedId, new PetDefinition(normalizedId, name, icon, headUrl, lore, effects, attrs, cropMult, stats, skillType, rarity, maxLevel, abilities));
         }
+
+        // Merge any missing default pets
+        for (Map.Entry<String, PetDefinition> entry : defaults.entrySet()) {
+            if (!pets.containsKey(entry.getKey())) {
+                pets.put(entry.getKey(), entry.getValue());
+            }
+        }
+
         if (pets.isEmpty()) {
             pets.putAll(defaultPets());
         }
@@ -819,7 +1165,7 @@ public final class PetManager {
                 List.of(),
                 Map.of(),
                 1.05D,
-                new PetStatBonuses(20.0D, 0.0D, 25.0D, 0.0D, 0.0D, 0.0D),
+                new PetStatBonuses(20.0D, 0.0D, 25.0D, 0.0D, 0.0D, 0.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 PetSkillType.COMBAT,
                 PetRarity.LEGENDARY,
                 100,
@@ -833,7 +1179,7 @@ public final class PetManager {
                 List.of(),
                 Map.of(),
                 1.0D,
-                new PetStatBonuses(0.0D, 0.0D, 0.0D, 0.0D, 20.0D, 0.0D),
+                new PetStatBonuses(0.0D, 0.0D, 0.0D, 0.0D, 20.0D, 0.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 PetSkillType.COMBAT,
                 PetRarity.RARE,
                 100,
@@ -847,7 +1193,7 @@ public final class PetManager {
                 List.of(),
                 Map.of(),
                 1.1D,
-                new PetStatBonuses(10.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D),
+                new PetStatBonuses(10.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 PetSkillType.FARMING,
                 PetRarity.UNCOMMON,
                 100,
@@ -861,7 +1207,7 @@ public final class PetManager {
                 List.of(),
                 Map.of(),
                 1.25D,
-                new PetStatBonuses(10.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D),
+                new PetStatBonuses(10.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0, 0, 0, 0, 0, 0, 0, 0, 50.0D),
                 PetSkillType.FARMING,
                 PetRarity.UNCOMMON,
                 100,
@@ -875,7 +1221,7 @@ public final class PetManager {
                 List.of(),
                 Map.of(),
                 1.0D,
-                new PetStatBonuses(20.0D, 40.0D, 0.0D, 0.0D, 0.0D, 0.0D),
+                new PetStatBonuses(20.0D, 40.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 PetSkillType.COMBAT,
                 PetRarity.EPIC,
                 100,
@@ -884,12 +1230,12 @@ public final class PetManager {
         map.put("bee", new PetDefinition("bee",
                 "&eBee Keeper",
                 Material.PLAYER_HEAD,
-                "http://textures.minecraft.net/texture/7c4c2e3d8f3a6b1d6c1f5e3acda6af7d2a2c87a1b7109a2c8b3f4d7c9a5e3b",
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODkwZWZjOGFhNWFhYzI3NDJhYjA0NTY0NTAxYzRmNTZlOWM3MTY5YjI3MmQwNTMwZjc4YzIwOTg2NTU3NzkyOCJ9fX0=",
                 List.of("&7Haste and luck for farming"),
                 List.of(),
                 Map.of(),
                 1.15D,
-                new PetStatBonuses(0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 10.0D),
+                new PetStatBonuses(0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 10.0D, 0, 0, 0, 0, 0, 0, 0, 0, 10.0D),
                 PetSkillType.FARMING,
                 PetRarity.UNCOMMON,
                 100,
@@ -903,11 +1249,221 @@ public final class PetManager {
                 List.of(),
                 Map.of(),
                 1.0D,
-                new PetStatBonuses(10.0D, 0.0D, 30.0D, 5.0D, 0.0D, 0.0D),
+                new PetStatBonuses(10.0D, 0.0D, 30.0D, 5.0D, 0.0D, 0.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 PetSkillType.COMBAT,
                 PetRarity.LEGENDARY,
                 100,
                 List.of(new PetDefinition.PetAbility("Dragon Claw", List.of("&7Increases damage against dragons by &c{value}%."), 10.0, 50.0, PetRarity.LEGENDARY))
+        ));
+        map.put("enderman", new PetDefinition("enderman",
+                "&dEnderman",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/902a2c496c14109489569722877a3d1354b673278839077229e612c62c9c7f1a",
+                List.of("&7A void-dweller companion."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 0, 0, 75.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                PetSkillType.COMBAT,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Ender Affinity", List.of("&7Increases damage against Ender mobs by &c{value}%."), 10.0, 40.0, PetRarity.LEGENDARY))
+        ));
+        map.put("elephant", new PetDefinition("elephant",
+                "&6Elephant",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/719d3637e17f22754f9a0c776495df0271ed4c0d024e031a0e052f53ca6",
+                List.of("&7The ultimate farming companion."),
+                List.of(),
+                Map.of(),
+                1.20D,
+                new PetStatBonuses(100.0D, 0, 0, 0, 0, 75.0D, 0, 0, 0, 0, 0, 0, 0, 0, 150.0D),
+                PetSkillType.FARMING,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Trunk Efficiency", List.of("&7Grants &6+{value} Farming Fortune."), 30.0, 150.0, PetRarity.LEGENDARY))
+        ));
+        map.put("blue_whale", new PetDefinition("blue_whale",
+                "&bBlue Whale",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/95f4e0c0d16568218820f4c3ec33c5e88414b536e26ba7a0d4c810c95843b092",
+                List.of("&7A tanky underwater titan."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(200.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                PetSkillType.FISHING,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Bulk", List.of("&7Increases max health by &a{value}%."), 10.0, 20.0, PetRarity.LEGENDARY))
+        ));
+        map.put("tiger", new PetDefinition("tiger",
+                "&6Tiger",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/fc42f654b790409a341b5275a5e3f420c29a0937c86518175d409419515582f3",
+                List.of("&7A fierce predator."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 15.0D, 5.0D, 50.0D, 0, 0, 0, 30.0D, 0, 0, 0, 0, 0, 0),
+                PetSkillType.COMBAT,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Merciless Swipe", List.of("&7Grants &c+{value} Ferocity."), 10.0, 30.0, PetRarity.LEGENDARY))
+        ));
+        map.put("lion", new PetDefinition("lion",
+                "&6Lion",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/b9281a70460395350c3886d3896dfa99370776b6d510619946ca39b7d87f941e",
+                List.of("&7King of the jungle."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 50.0D, 0, 0, 0, 30.0D, 0, 0, 0, 0, 0, 0, 0, 0),
+                PetSkillType.COMBAT,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("King of the Jungle", List.of("&7Deal &c+{value}% &7damage to mobs."), 5.0, 20.0, PetRarity.LEGENDARY))
+        ));
+        map.put("monkey", new PetDefinition("monkey",
+                "&6Monkey",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/13cd4acc03759021481f44e591741e17d69288417d457614d9b4b025f16f",
+                List.of("&7A nimble foraging pet."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 0, 0, 0, 50.0D, 20.0D, 0, 0, 0, 0, 0, 0, 0, 0),
+                PetSkillType.FORAGING,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Tree Grinder", List.of("&7Grants &a+{value}% &7Foraging XP."), 10.0, 50.0, PetRarity.LEGENDARY))
+        ));
+        map.put("silverfish", new PetDefinition("silverfish",
+                "&7Silverfish",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/da91bcff3ef8734f40f097581163456382103f6f1966e3ef382b6b0c60639912",
+                List.of("&7A helpful mining pet."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 50.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15.0D, 0, 0),
+                PetSkillType.MINING,
+                PetRarity.RARE,
+                100,
+                List.of(new PetDefinition.PetAbility("True Defense", List.of("&7Grants &f+{value} True Defense."), 5.0, 15.0, PetRarity.RARE))
+        ));
+        map.put("ender_dragon", new PetDefinition("ender_dragon",
+                "&dEnder Dragon",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/7243c330f80e9221160a08e678b7be465d6a866a2e411b590e87f8b9e64e56",
+                List.of("&7The ultimate combat pet."),
+                List.of(),
+                Map.of(),
+                1.1D,
+                new PetStatBonuses(50, 50, 50, 10, 50, 50, 10, 10, 0, 0, 0, 0, 10, 10, 0),
+                PetSkillType.COMBAT,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("One with the Dragon", List.of("&7Buffs all stats by &a{value}%."), 1.0, 10.0, PetRarity.LEGENDARY))
+        ));
+        map.put("black_cat", new PetDefinition("black_cat",
+                "&0Black Cat",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/e4a1a6873919e8316dfc633a697193b2a54316d2f3c05f013d80d22c95350",
+                List.of("&7A lucky omen."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 0, 0, 0, 100, 100, 0, 0, 15.0D, 15.0D, 0, 0, 0, 0),
+                PetSkillType.COMBAT,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Looting Luck", List.of("&7Grants &d+{value} Magic Find &7and Pet Luck."), 5.0, 15.0, PetRarity.LEGENDARY))
+        ));
+        map.put("sheep", new PetDefinition("sheep",
+                "&fSheep",
+                Material.PLAYER_HEAD,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjMxZjljY2M2YjNlMzJlY2YxM2I4YTExYWMyOWNkMzNkMThjOTVmYzczZGI4YTY2YzVkNjU3Y2NiOGJlNzAifX19",
+                List.of("&7A mage's best friend."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 0, 0, 0, 100.0D, 0, 0, 0, 0, 0, 0, 0, 10.0D, 0),
+                PetSkillType.ALCHEMY,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Mana Saver", List.of("&7Reduces mana costs by &b{value}%."), 5.0, 20.0, PetRarity.LEGENDARY))
+        ));
+        map.put("blaze", new PetDefinition("blaze",
+                "&6Blaze",
+                Material.PLAYER_HEAD,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjRiMWI5Y2UyZTlhNmNlOGE5ODVkMzk3NzZlMjkwODA3N2I4MmU2YTMzM2QyYTgxYTQ0MTQzOGVhYjM5ZjhlMSJ9fX0=",
+                List.of("&7Harness the power of fire."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 30.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                PetSkillType.COMBAT,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Nether Affinity", List.of("&7Increases stats by &c{value}% &7in the Nether."), 5.0, 20.0, PetRarity.LEGENDARY))
+        ));
+        map.put("squid", new PetDefinition("squid",
+                "&bSquid",
+                Material.PLAYER_HEAD,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMDE0MzNiZTI0MjM2NmFmMTI2ZGE0MzRiODczNWRmMWViNWIzY2IyY2VkZTM5MTQ1OTc0ZTljNDgzNjA3YmFjIn19fQ==",
+                List.of("&7Master of the oceans."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(50.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                PetSkillType.FISHING,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Fishing Luck", List.of("&7Grants &b+{value}% &7Fishing XP."), 10.0, 30.0, PetRarity.LEGENDARY))
+        ));
+        map.put("mithril_golem", new PetDefinition("mithril_golem",
+                "&7Mithril Golem",
+                Material.PLAYER_HEAD,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzFiMmRmZThlZDVkZmZjYjE2ODdiYzFjMjQ5YzM5ZGUyZDhhNmMzZDkwMzA1Yzk1ZjZkMWExYTMzMGEwYjEifX19",
+                List.of("&7Forged in the deep mines."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 50.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20.0D, 0, 0),
+                PetSkillType.MINING,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Mithril Affinity", List.of("&7Grants &3+{value} Mining Speed."), 20.0, 100.0, PetRarity.LEGENDARY))
+        ));
+        map.put("wither_skeleton", new PetDefinition("wither_skeleton",
+                "&8Wither Skeleton",
+                Material.PLAYER_HEAD,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMmQyNmYyZGZkZjVkZmZjMTZmYzgwODExYTg0MzUyNGRhZjEyYzQ5MzFlYzg1MDMwNzc3NWM2ZDM1YTVmNDZjMSJ9fX0=",
+                List.of("&7A withered warrior."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 25.0D, 0, 25.0D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                PetSkillType.COMBAT,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Death's Touch", List.of("&7Deal &c+{value}% &7damage to Skeletons."), 10.0, 30.0, PetRarity.LEGENDARY))
+        ));
+        map.put("bal", new PetDefinition("bal",
+                "&cBal",
+                Material.PLAYER_HEAD,
+                "http://textures.minecraft.net/texture/41df60840e69123891460395350c3886d3896dfa99370776b6d510619946ca3",
+                List.of("&7Born in the magma."),
+                List.of(),
+                Map.of(),
+                1.0D,
+                new PetStatBonuses(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                PetSkillType.COMBAT,
+                PetRarity.LEGENDARY,
+                100,
+                List.of(new PetDefinition.PetAbility("Protective Barrier", List.of("&7Grants immunity to heat in Magma Fields."), 0, 0, PetRarity.LEGENDARY))
         ));
         return map;
     }
@@ -931,11 +1487,11 @@ public final class PetManager {
         double seaCreatureChance = section.getDouble("sea-creature-chance", section.getDouble("sea_creature_chance", 0.0D));
         double trueDefense = section.getDouble("true-defense", section.getDouble("true_defense", 0.0D));
         double abilityDamage = section.getDouble("ability-damage", section.getDouble("ability_damage", 0.0D));
-        
-        return new PetStatBonuses(health, defense, strength, critChance, critDamage, intelligence, 
-                speed, attackSpeed, ferocity, magicFind, petLuck, seaCreatureChance, trueDefense, abilityDamage);
-    }
+        double farmingFortune = section.getDouble("farming-fortune", section.getDouble("farming_fortune", 0.0D));
 
+        return new PetStatBonuses(health, defense, strength, critChance, critDamage, intelligence,
+                speed, attackSpeed, ferocity, magicFind, petLuck, seaCreatureChance, trueDefense, abilityDamage, farmingFortune);
+        }
 
     private org.bukkit.attribute.Attribute parseAttribute(String key) {
         if (key == null || key.isBlank()) return null;
@@ -962,17 +1518,70 @@ public final class PetManager {
         return key != null && key.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
     }
 
-    private PlayerProfile buildHeadProfile(String textureUrl) {
+    private PlayerProfile buildHeadProfile(String texture) {
         try {
-            java.net.URL url = new java.net.URL(textureUrl);
-            PlayerProfile profile = Bukkit.createProfile(java.util.UUID.nameUUIDFromBytes(textureUrl.getBytes()));
-            var textures = profile.getTextures();
-            textures.setSkin(url);
-            profile.setTextures(textures);
+            // Using a consistent UUID based on the texture string for better caching
+            UUID uuid = UUID.nameUUIDFromBytes(texture.getBytes(StandardCharsets.UTF_8));
+            PlayerProfile profile = Bukkit.createPlayerProfile(uuid, "GriviencePet");
+
+            if (texture.startsWith("http")) {
+                PlayerTextures textures = profile.getTextures();
+                textures.setSkin(new URL(texture));
+                profile.setTextures(textures);
+            } else if (texture.length() > 64) {
+                // Assume it might be a direct URL or hash
+                String url = texture.contains("/") ? texture : "http://textures.minecraft.net/texture/" + texture;
+                if (!url.startsWith("http")) url = "http://textures.minecraft.net/texture/" + url;
+                PlayerTextures textures = profile.getTextures();
+                textures.setSkin(new URL(url));
+                profile.setTextures(textures);
+            } else {
+                // Assume it's just the hash portion of the URL
+                String url = "http://textures.minecraft.net/texture/" + texture;
+                PlayerTextures textures = profile.getTextures();
+                textures.setSkin(new URL(url));
+                profile.setTextures(textures);
+            }
             return profile;
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to build head profile for pet texture: " + e.getMessage());
             return null;
+        }
+    }
+
+    private boolean isBase64Json(String text) {
+        if (text == null || text.length() < 20) return false;
+        // Check if it looks like Base64 encoded JSON (starts with eyJ0ZXh0...)
+        try {
+            String decoded = new String(Base64.getDecoder().decode(text), StandardCharsets.UTF_8);
+            return decoded.contains("\"textures\"") || decoded.contains("\"SKIN\"");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String createBase64Json(UUID uuid, String textureUrl) {
+        try {
+            // Create simplified but compatible Minecraft texture JSON
+            // Some versions are picky about the SKIN object casing
+            String json = "{\"textures\":{\"SKIN\":{\"url\":\"" + textureUrl + "\"}}}";
+            return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private final Map<String, String> textureUrlCache = new HashMap<>();
+
+    private void applyTexture(ItemStack item, String texture) {
+        if (item == null || texture == null || texture.isBlank()) return;
+        ItemMeta meta = item.getItemMeta();
+        if (meta instanceof SkullMeta skull) {
+            PlayerProfile profile = textureCache.computeIfAbsent(texture, this::buildHeadProfile);
+            if (profile != null) {
+                skull.setOwnerProfile(profile);
+            }
+            item.setItemMeta(meta);
         }
     }
 
@@ -1043,7 +1652,7 @@ public final class PetManager {
             return;
         }
 
-        double petXp = Math.max(0.0D, (double) skillXp);
+        double petXp = Math.max(0.0D, (double) skillXp) * 0.25D;
         if (skillType == PetSkillType.MINING || skillType == PetSkillType.FISHING) {
             petXp *= miningFishingXpMultiplier;
         }
@@ -1065,8 +1674,8 @@ public final class PetManager {
 
         // 100% Accurate Hypixel Skyblock: Taming XP gain
         // Gain 1/4 of the pet EXP as Taming Skill XP.
-        if (levelManager != null) {
-            levelManager.awardCategoryXp(player, "taming", awarded / 4, "Pet Experience", false);
+        if (plugin.getSkyblockSkillManager() != null) {
+            plugin.getSkyblockSkillManager().addXp(player, io.papermc.Grivience.skills.SkyblockSkill.TAMING, awarded / 4);
         }
     }
 
@@ -1195,7 +1804,7 @@ public final class PetManager {
         return Math.max(min, Math.min(max, value));
     }
 
-    private io.papermc.Grivience.skyblock.profile.SkyBlockProfile requireProfile(Player player) {
+    public io.papermc.Grivience.skyblock.profile.SkyBlockProfile requireProfile(Player player) {
         if (player == null) {
             return null;
         }
@@ -1214,7 +1823,7 @@ public final class PetManager {
         return profile;
     }
 
-    private void saveProfile(io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile) {
+    public void saveProfile(io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile) {
         if (profile == null) {
             return;
         }

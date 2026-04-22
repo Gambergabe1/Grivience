@@ -74,7 +74,22 @@ public enum CustomArmorType {
     SKELETON_SOLDIER_HELM(ArmorSetType.SKELETON_SOLDIER, ArmorWeightClass.BALANCED, "Ancient bone helmet.", 10, 20, 2, 5),
     SKELETON_SOLDIER_CHESTPLATE(ArmorSetType.SKELETON_SOLDIER, ArmorWeightClass.BALANCED, "Ribbed bone chestplate.", 18, 40, 4, 10),
     SKELETON_SOLDIER_LEGGINGS(ArmorSetType.SKELETON_SOLDIER, ArmorWeightClass.BALANCED, "Femur-reinforced leggings.", 14, 32, 3, 8),
-    SKELETON_SOLDIER_BOOTS(ArmorSetType.SKELETON_SOLDIER, ArmorWeightClass.BALANCED, "Swift calcified boots.", 8, 15, 2, 5);
+    SKELETON_SOLDIER_BOOTS(ArmorSetType.SKELETON_SOLDIER, ArmorWeightClass.BALANCED, "Swift calcified boots.", 8, 15, 2, 5),
+
+    DRAGON_SLAYER_HELMET(ArmorSetType.DRAGON_SLAYER, ArmorWeightClass.BALANCED, "Forged to hunt the fiercest End creatures.", 120, 90, 0),
+    DRAGON_SLAYER_CHESTPLATE(ArmorSetType.DRAGON_SLAYER, ArmorWeightClass.BALANCED, "Scaled plating against relentless End pressure.", 220, 160, 0),
+    DRAGON_SLAYER_LEGGINGS(ArmorSetType.DRAGON_SLAYER, ArmorWeightClass.BALANCED, "Dragon-forged greaves that harden in the End.", 180, 130, 0),
+    DRAGON_SLAYER_BOOTS(ArmorSetType.DRAGON_SLAYER, ArmorWeightClass.BALANCED, "Swift boots for unstable End terrain.", 110, 80, 0),
+
+    SOULBOUND_HELM(ArmorSetType.SOULBOUND_MAGE, ArmorWeightClass.LIGHT, "A cursed helm that hums with forbidden power.", 15, 20, -5, 250),
+    SOULBOUND_CHESTPLATE(ArmorSetType.SOULBOUND_MAGE, ArmorWeightClass.LIGHT, "Ancient robes soaked in the essence of lost souls.", 25, 40, -8, 450),
+    SOULBOUND_LEGGINGS(ArmorSetType.SOULBOUND_MAGE, ArmorWeightClass.LIGHT, "Shadow-infused leggings that drain your life force.", 20, 30, -6, 350),
+    SOULBOUND_BOOTS(ArmorSetType.SOULBOUND_MAGE, ArmorWeightClass.LIGHT, "Boots that leave a trail of cold dread.", 12, 15, -4, 200),
+
+    ROOKIE_SAMURAI_KABUTO(ArmorSetType.ROOKIE_SAMURAI, ArmorWeightClass.BALANCED, "A beginner's helmet, light but sturdy.", 10, 15, 1, 10),
+    ROOKIE_SAMURAI_DO(ArmorSetType.ROOKIE_SAMURAI, ArmorWeightClass.BALANCED, "Lacquered plating for a budding warrior.", 15, 25, 1, 15),
+    ROOKIE_SAMURAI_KOTE(ArmorSetType.ROOKIE_SAMURAI, ArmorWeightClass.BALANCED, "Reinforced sleeves to steady your blade.", 12, 20, 1, 10),
+    ROOKIE_SAMURAI_SUNEATE(ArmorSetType.ROOKIE_SAMURAI, ArmorWeightClass.BALANCED, "Shin guards that feel surprisingly light.", 8, 10, 1, 5);
 
     private static final EnumMap<ArmorSetType, List<CustomArmorType>> PIECES_BY_SET = new EnumMap<>(ArmorSetType.class);
 

@@ -128,9 +128,14 @@ public final class FastTravelManager {
         loadHubWarp("minehub", "Mining Hub", "skyblock.minehub-spawn", "skyblock.minehub-world",
             "Access to mining zones and caves", "MHF_Miner");
         
-        // Load /farmhub location
-        loadHubWarp("farmhub", "Farm Hub", "skyblock.farmhub-spawn", "skyblock.farmhub-world",
-            "Farming areas and crop contests", "MHF_Farmer");
+        // Load /farmhub location only when it is distinct from the main hub.
+        if (usesSeparateFarmHubWarp()) {
+            loadHubWarp("farmhub", "Farm Hub", "skyblock.farmhub-spawn", "skyblock.farmhub-world",
+                "Farming areas and crop contests", "MHF_Farmer");
+        } else {
+            pointsByName.remove("farmhub");
+            playerHeadOwners.remove("farmhub");
+        }
 
         // Load /endmine location (End Mines v0.2 expansion)
         int endMinesRequiredLevel = plugin.getConfig().getInt("end-mines.required-level", 25);
@@ -221,6 +226,15 @@ public final class FastTravelManager {
     private void loadHubWarp(String key, String name, String spawnPath, String worldPath, 
                              String description, String headOwner) {
         loadHubWarp(key, name, spawnPath, worldPath, description, headOwner, 0, "");
+    }
+
+    private boolean usesSeparateFarmHubWarp() {
+        String hubWorld = plugin.getConfig().getString("skyblock.hub-world", "world");
+        String farmhubWorld = plugin.getConfig().getString("skyblock.farmhub-world", "world");
+        if (hubWorld == null || farmhubWorld == null) {
+            return false;
+        }
+        return !hubWorld.equalsIgnoreCase(farmhubWorld);
     }
 
     private void loadHubWarp(String key, String name, String spawnPath, String worldPath,
@@ -380,6 +394,13 @@ public final class FastTravelManager {
 
         player.teleport(point.location());
         player.sendMessage(ChatColor.GREEN + CHECK + " Teleported to: " + ChatColor.AQUA + point.name());
+        
+        // Auto-start quest if entering minehub
+        if (pointKey.equalsIgnoreCase("minehub") && plugin.getQuestManager() != null) {
+            plugin.getQuestManager().startQuest(player, "ironcrest_part1_arrival", 
+                io.papermc.Grivience.quest.QuestTriggerSource.COMMAND, true);
+        }
+        
         return true;
     }
 

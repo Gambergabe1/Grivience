@@ -147,7 +147,7 @@ public final class ProfileEconomyService {
         }
 
         String[] parts = trimmed.split("\\s+");
-        if (parts.length < 4) {
+        if (parts.length < 3) {
             return false;
         }
 
@@ -157,14 +157,14 @@ public final class ProfileEconomyService {
         }
 
         String verb = parts[1].toLowerCase(Locale.ROOT);
-        String target = parts[2];
-        if (!target.equalsIgnoreCase(player.getName())) {
-            return false;
-        }
+        // parts[2] is the target name, usually already replaced by {player} in QuestManager.
+        // We don't strictly need to validate it matches player.getName() here as long as 
+        // we use the 'player' object passed to this method for the economy operation.
 
+        String amountStr = parts[parts.length - 1];
         double amount;
         try {
-            amount = Double.parseDouble(parts[3]);
+            amount = Double.parseDouble(amountStr);
         } catch (NumberFormatException ignored) {
             return false;
         }

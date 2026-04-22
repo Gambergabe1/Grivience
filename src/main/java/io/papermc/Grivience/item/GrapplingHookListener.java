@@ -208,14 +208,6 @@ public final class GrapplingHookListener implements Listener {
             }
         }
         
-        // Check custom model data
-        if (item.getItemMeta().hasCustomModelData()) {
-            int modelData = item.getItemMeta().getCustomModelData();
-            if (modelData >= 1001 && modelData <= 1010) {
-                return GrapplingHookType.GRAPPLING_HOOK;
-            }
-        }
-        
         return null;
     }
 

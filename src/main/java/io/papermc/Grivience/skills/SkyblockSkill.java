@@ -9,17 +9,17 @@ import java.util.Locale;
  * Represents a Skyblock skill and its primary stat bonus.
  */
 public enum SkyblockSkill {
-    COMBAT("Combat", PetSkillType.COMBAT, Material.DIAMOND_SWORD, "\u2623 Crit Chance", "Warrior", 4.0, 210.0),
-    MINING("Mining", PetSkillType.MINING, Material.DIAMOND_PICKAXE, "\u2747 Defense", "Spelunker", 4.0, 240.0),
-    FARMING("Farming", PetSkillType.FARMING, Material.GOLDEN_HOE, "\u2764 Health", "Farmhand", 4.0, 240.0),
-    FORAGING("Foraging", PetSkillType.FORAGING, Material.GOLDEN_AXE, "\u2741 Strength", "Logger", 4.0, 200.0),
-    FISHING("Fishing", PetSkillType.FISHING, Material.FISHING_ROD, "\u2764 Health", "Treasure Hunter", 0.5, 5.0),
-    ENCHANTING("Enchanting", PetSkillType.ENCHANTING, Material.ENCHANTED_BOOK, "\u270e Intelligence", "Conjurer", 5.0, 300.0),
-    ALCHEMY("Alchemy", PetSkillType.ALCHEMY, Material.BREWING_STAND, "\u270e Intelligence", "Brewer", 1.0, 50.0),
+    COMBAT("Combat", PetSkillType.COMBAT, Material.DIAMOND_SWORD, "\u2623 Crit Chance", "Warrior", 0.5, 30.0),
+    MINING("Mining", PetSkillType.MINING, Material.DIAMOND_PICKAXE, "\u2747 Defense", "Spelunker", 2.0, 120.0),
+    FARMING("Farming", PetSkillType.FARMING, Material.GOLDEN_HOE, "\u2764 Health", "Farmhand", 2.0, 200.0),
+    FORAGING("Foraging", PetSkillType.FORAGING, Material.GOLDEN_AXE, "\u2741 Strength", "Logger", 1.0, 60.0),
+    FISHING("Fishing", PetSkillType.FISHING, Material.FISHING_ROD, "\u2764 Health", "Treasure Hunter", 0.2, 12.0),
+    ENCHANTING("Enchanting", PetSkillType.ENCHANTING, Material.ENCHANTED_BOOK, "\u270e Intelligence", "Conjurer", 2.0, 120.0),
+    ALCHEMY("Alchemy", PetSkillType.ALCHEMY, Material.BREWING_STAND, "\u270e Intelligence", "Brewer", 2.0, 120.0),
     TAMING("Taming", PetSkillType.TAMING, Material.BONE, "\u2663 Pet Luck", "Zoologist", 1.0, 60.0),
-    HUNTING("Hunting", PetSkillType.HUNTING, Material.BOW, "\u2618 Hunter Fortune", "Charming", 0.04, 1.0),
+    HUNTING("Hunting", PetSkillType.HUNTING, Material.BOW, "\u2618 Hunter Fortune", "Charming", 2.0, 120.0),
     DUNGEONEERING("Dungeoneering", PetSkillType.DUNGEONEERING, Material.WITHER_SKELETON_SKULL, "\u2764 Health", "Dungeon Master", 10.0, 475.0),
-    CARPENTRY("Carpentry", PetSkillType.CARPENTRY, Material.CRAFTING_TABLE, "\u2764 Health", "None", 0.0, 0.0);
+    CARPENTRY("Carpentry", PetSkillType.CARPENTRY, Material.CRAFTING_TABLE, "\u2764 Health", "Builder", 1.0, 60.0);
 
     private final String displayName;
     private final PetSkillType petSkillType;
@@ -61,11 +61,49 @@ public enum SkyblockSkill {
 
     public double getPerkValue(int level) {
         if (level <= 0) return 0;
-        if (this == FISHING) return Math.min(perkMax, level * perkBase / 10.0); // Special case for fishing treasure chance
-        if (this == HUNTING) return Math.min(perkMax, level * perkBase);
+        
+        // Special scaling for some skills
+        if (this == FISHING) {
+            // Fishing treasure chance: starts at 0.2, ends at 12.0
+            return perkBase + (level - 1) * ((perkMax - perkBase) / 59.0);
+        }
+        
         if (this == DUNGEONEERING) {
-            // Hypixel Dungeoneering scaling is complex, but let's approximate
-            return 10.0 + (level * 9.5); // 10% to 485% roughly
+            // Stat boost in dungeons
+            return 10.0 + (level * 9.5); 
+        }
+
+        if (this == COMBAT) {
+            // Crit Chance: 0.5% per level
+            return level * 0.5;
+        }
+
+        if (this == MINING) {
+            // Defense: 2 per level
+            return level * 2.0;
+        }
+
+        if (this == FORAGING) {
+            // Strength: 1 per level
+            return level * 1.0;
+        }
+
+        if (this == TAMING) {
+            // Pet Luck: 1 per level
+            return level * 1.0;
+        }
+
+        if (this == ENCHANTING || this == ALCHEMY) {
+            // Intelligence: 2 per level
+            return level * 2.0;
+        }
+
+        if (this == FARMING) {
+            // Health: scales up
+            if (level < 15) return level * 2.0;
+            if (level < 20) return 14 * 2.0 + (level - 14) * 3.0;
+            if (level < 25) return 14 * 2.0 + 5 * 3.0 + (level - 19) * 4.0;
+            return 14 * 2.0 + 5 * 3.0 + 5 * 4.0 + (level - 24) * 5.0;
         }
         
         // Linear scaling for others

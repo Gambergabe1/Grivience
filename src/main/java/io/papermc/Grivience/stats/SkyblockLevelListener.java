@@ -2,9 +2,13 @@ package io.papermc.Grivience.stats;
 
 import io.papermc.Grivience.mines.MiningEventManager;
 import io.papermc.Grivience.item.CustomArmorManager;
+import io.papermc.Grivience.util.FarmingSetBonusUtil;
+import io.papermc.Grivience.util.DropDeliveryUtil;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -18,10 +22,16 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerFishEvent;
 
+import java.util.Collection;
+import java.util.List;
+
 /**
  * Awards Skyblock XP and progression counters for Skyblock-style level tracking.
  */
 public final class SkyblockLevelListener implements Listener {
+    private static final float XP_DING_VOLUME = 0.35F;
+    private static final float XP_DING_PITCH = 1.45F;
+
     private final SkyblockLevelManager levelManager;
     private final MiningEventManager miningEventManager;
 
@@ -44,7 +54,7 @@ public final class SkyblockLevelListener implements Listener {
         if (isSeaCreature) {
             levelManager.recordFishingCatch(killer); // Killing sea creatures gives Fishing XP
         } else {
-            levelManager.recordCombatKill(killer, event.getEntityType());
+            levelManager.recordCombatKill(killer, event.getEntity());
         }
     }
 
@@ -56,7 +66,7 @@ public final class SkyblockLevelListener implements Listener {
         
         ItemStack result = event.getRecipe().getResult();
         if (result != null) {
-            levelManager.recordCarpentry(player, result.getAmount());
+            levelManager.recordCarpentryCraft(player, result);
         }
     }
 
@@ -88,22 +98,28 @@ public final class SkyblockLevelListener implements Listener {
                 return;
             }
             levelManager.recordFarmingHarvest(player, type);
+            playXpDing(player);
 
             // Gilded Harvester Ability: 15% chance for double drops
-            if (hasFullSet(player, "gilded_harvester") && Math.random() < 0.15) {
-                event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation(), new ItemStack(type, 1));
-                player.sendMessage(ChatColor.GOLD + "\u2618 Bountiful Harvest activated!");
+            if (hasFullSet(player, FarmingSetBonusUtil.GILDED_HARVESTER_SET_ID) && Math.random() < 0.15) {
+                int bonusItems = deliverBonusDrops(player, event.getBlock());
+                if (bonusItems > 0) {
+                    player.sendMessage(ChatColor.GOLD + "\u2618 Bountiful Harvest activated!");
+                }
             }
             return;
         }
 
         if (levelManager.isMiningMaterial(type)) {
             levelManager.recordMiningOre(player, type);
+            playXpDing(player);
             
             // Miner Set Ability: 10% chance for double drops
             if (levelManager.hasMinerFullSet(player) && Math.random() < 0.10) {
-                event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation(), new ItemStack(type));
-                player.sendMessage(ChatColor.GOLD + "❂ Double Drop activated!");
+                int bonusItems = deliverBonusDrops(player, event.getBlock());
+                if (bonusItems > 0) {
+                    player.sendMessage(ChatColor.GOLD + "\u2726 Double Drop activated!");
+                }
             }
 
             // Integrate with Mining Events (e.g. King's Inspection) if mined in the Mine Hub.
@@ -121,6 +137,13 @@ public final class SkyblockLevelListener implements Listener {
         if (levelManager.isForagingMaterial(type)) {
             levelManager.recordForagingLog(player, type);
         }
+    }
+
+    private void playXpDing(Player player) {
+        if (player == null) {
+            return;
+        }
+        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, XP_DING_VOLUME, XP_DING_PITCH);
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
@@ -152,17 +175,51 @@ public final class SkyblockLevelListener implements Listener {
         }
     }
 
+    private int deliverBonusDrops(Player player, Block block) {
+        if (player == null || block == null) {
+            return 0;
+        }
+
+        Collection<ItemStack> drops = resolveBreakDrops(player, block);
+        if (drops == null || drops.isEmpty()) {
+            return 0;
+        }
+
+        int delivered = 0;
+        for (ItemStack drop : drops) {
+            if (drop == null || drop.getType().isAir() || drop.getAmount() <= 0) {
+                continue;
+            }
+            delivered += drop.getAmount();
+            if (levelManager.getPlugin() instanceof io.papermc.Grivience.GriviencePlugin grivience
+                    && grivience.getFarmingContestManager() != null) {
+                grivience.getFarmingContestManager().recordHarvest(player, drop.clone());
+            }
+            DropDeliveryUtil.giveToInventoryOrDrop(player, drop.clone(), block.getLocation().add(0.5D, 0.5D, 0.5D), true);
+        }
+        return delivered;
+    }
+
+    private Collection<ItemStack> resolveBreakDrops(Player player, Block block) {
+        if (block == null) {
+            return List.of();
+        }
+        ItemStack tool = player == null ? null : player.getInventory().getItemInMainHand();
+        if (tool == null || tool.getType().isAir()) {
+            return block.getDrops();
+        }
+        Collection<ItemStack> drops = block.getDrops(tool, player);
+        if (drops == null || drops.isEmpty()) {
+            return block.getDrops();
+        }
+        return drops;
+    }
+
     private boolean hasFullSet(Player player, String setId) {
         if (player == null || setId == null) return false;
-        int pieces = 0;
         CustomArmorManager armorManager = levelManager.getArmorManager();
         if (armorManager == null) return false;
-        for (ItemStack piece : player.getInventory().getArmorContents()) {
-            if (piece == null) continue;
-            String itemSetId = armorManager.getArmorSetId(piece);
-            if (setId.equalsIgnoreCase(itemSetId)) pieces++;
-        }
-        return pieces >= 4;
+        return armorManager.hasEquippedPieces(player, setId, 4);
     }
 
     private boolean isBypassedGameMode(Player player) {
@@ -172,3 +229,4 @@ public final class SkyblockLevelListener implements Listener {
         return player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR;
     }
 }
+

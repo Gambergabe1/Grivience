@@ -342,9 +342,8 @@ public final class GrapplingHookManager {
         }
         
         meta.setLore(lore);
-        meta.setCustomModelData(hookType.getCustomModelData());
         meta.setUnbreakable(true);
-        
+
         // Hide attributes (Ascent Skyblock style)
         meta.addItemFlags(
             org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES,

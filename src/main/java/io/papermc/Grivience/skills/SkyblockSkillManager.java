@@ -1,222 +1,323 @@
 package io.papermc.Grivience.skills;
 
 import io.papermc.Grivience.GriviencePlugin;
+import io.papermc.Grivience.skyblock.profile.SkyBlockProfile;
 import io.papermc.Grivience.stats.SkyblockLevelManager;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
-import java.util.Locale;
+import java.util.*;
 
 /**
- * Manages Skyblock skill leveling and rewards.
+ * Reworked Skyblock Skill Manager.
+ * 
+ * Release-ready features:
+ * - Unified XP curve via SkillXPTable (Skyblock-accurate)
+ * - Sole source of truth: SkyBlockProfile (Persistent across restarts)
+ * - Automated Stat Rewards per level
+ * - Integrated Skyblock XP rewards for leveling up
+ * - Support for multiple profiles and offline lookups
  */
 public final class SkyblockSkillManager {
-    private static final int MAX_SKILL_LEVEL = 60;
-    private static final String SKILL_XP_PREFIX = "skill_xp.";
-
+    private final GriviencePlugin plugin;
     private final SkyblockLevelManager levelManager;
 
+    private final Map<UUID, org.bukkit.boss.BossBar> activeSkillBars = new HashMap<>();
+    private final Map<UUID, org.bukkit.scheduler.BukkitTask> skillBarTasks = new HashMap<>();
+
     public SkyblockSkillManager(GriviencePlugin plugin, SkyblockLevelManager levelManager) {
+        this.plugin = plugin;
         this.levelManager = levelManager;
     }
 
+    // ==================== CORE API ====================
+
+    /**
+     * Get the current level of a skill for a player.
+     */
     public int getLevel(Player player, SkyblockSkill skill) {
-        if (player == null || skill == null || levelManager == null) {
-            return 0;
-        }
-        int maxLevel = getMaxLevel(skill);
-
-        int pseudoLevel = switch (skill) {
-            case DUNGEONEERING -> levelManager.getPseudoSkillLevel(player, "catacombs");
-            case HUNTING, TAMING -> 0;
-            default -> levelManager.getPseudoSkillLevel(player, skill.name().toLowerCase(Locale.ROOT));
-        };
-
-        if (pseudoLevel > 0) {
-            return Math.min(maxLevel, pseudoLevel);
-        }
-
-        return Math.min(maxLevel, levelFromXp(skill, getXp(player, skill)));
+        SkyBlockProfile profile = getProfile(player);
+        return profile == null ? 0 : profile.getSkillLevel(skill.name());
     }
 
+    /**
+     * Get the current level of a skill for a specific profile.
+     */
+    public int getLevel(UUID profileId, SkyblockSkill skill) {
+        SkyBlockProfile profile = getProfile(profileId);
+        return profile == null ? 0 : profile.getSkillLevel(skill.name());
+    }
+
+    /**
+     * Get the total XP for a skill.
+     */
     public double getXp(Player player, SkyblockSkill skill) {
-        if (player == null || skill == null || levelManager == null) {
-            return 0.0D;
-        }
-        return levelManager.getCounter(player, skillXpCounter(skill));
+        SkyBlockProfile profile = getProfile(player);
+        return profile == null ? 0.0D : (double) profile.getSkillXp(skill.name());
     }
 
-    public int getMaxLevel() {
-        return MAX_SKILL_LEVEL;
+    /**
+     * Get the total XP for a skill on a specific profile.
+     */
+    public double getXp(UUID profileId, SkyblockSkill skill) {
+        SkyBlockProfile profile = getProfile(profileId);
+        return profile == null ? 0.0D : (double) profile.getSkillXp(skill.name());
     }
 
-    public int getMaxLevel(SkyblockSkill skill) {
-        if (skill == SkyblockSkill.DUNGEONEERING) {
-            return 50;
-        }
-        return MAX_SKILL_LEVEL;
-    }
-
-    public long getXpPerLevel(SkyblockSkill skill) {
-        return xpPerLevel(skill);
-    }
-
-    public double getXpForLevel(SkyblockSkill skill, int level) {
-        if (skill == null) {
-            return 0.0D;
-        }
-        int clamped = Math.max(0, Math.min(getMaxLevel(skill), level));
-        return (double) clamped * (double) xpPerLevel(skill);
-    }
-
-    public double getXpForLevel(int level) {
-        return getXpForLevel(SkyblockSkill.COMBAT, level);
-    }
-
+    /**
+     * Add skill XP and handle level-ups.
+     */
     public void addXp(Player player, SkyblockSkill skill, long amount) {
-        if (player == null || skill == null || amount <= 0L || levelManager == null) {
-            return;
+        if (player == null || skill == null || amount <= 0L) return;
+
+        SkyBlockProfile profile = getProfile(player);
+        if (profile == null) return;
+
+        // Apply multipliers (e.g. from pets)
+        double multiplier = 1.0;
+        if (plugin.getPetManager() != null) {
+            multiplier *= plugin.getPetManager().getSkillXpMultiplier(player, skill);
         }
-        String counterKey = skillXpCounter(skill);
-        long currentXp = Math.max(0L, levelManager.getCounter(player, counterKey));
-        long minimumForCurrentLevel = (long) getXpForLevel(skill, getLevel(player, skill));
-        if (minimumForCurrentLevel > currentXp) {
-            levelManager.addToCounter(player, counterKey, minimumForCurrentLevel - currentXp);
+        long finalAmount = Math.round(amount * multiplier);
+
+        String skillKey = skill.name();
+        long currentTotalXp = profile.getSkillXp(skillKey);
+        long newTotalXp = currentTotalXp + finalAmount;
+        
+        int oldLevel = SkillXPTable.getLevelFromXp(currentTotalXp);
+        int newLevel = SkillXPTable.getLevelFromXp(newTotalXp);
+
+        // Update profile
+        profile.setSkillXp(skillKey, newTotalXp);
+        profile.setSkillLevel(skillKey, newLevel);
+
+        // UI Feedback
+        showXpGain(player, skill, finalAmount, newTotalXp, newLevel);
+
+        // Level Up Logic
+        if (newLevel > oldLevel) {
+            handleLevelUp(player, skill, oldLevel, newLevel);
         }
-        levelManager.addToCounter(player, counterKey, amount);
+
+        // Persistent save queue
+        if (plugin.getProfileManager() != null) {
+            plugin.getProfileManager().syncSkillSnapshotsAndQueueSave(player);
+        }
     }
+
+    // ==================== STATS & BONUSES ====================
 
     /**
      * Gets the stat bonus provided by all skills for a player.
      */
     public double getStatBonus(Player player, String statType) {
-        if (player == null || statType == null || statType.isBlank()) {
-            return 0.0D;
-        }
+        if (player == null || statType == null) return 0.0D;
+        SkyBlockProfile profile = getProfile(player);
+        if (profile == null) return 0.0D;
 
-        String normalizedStatType = statType.toLowerCase(Locale.ROOT);
+        String normalizedType = statType.toLowerCase(Locale.ROOT);
         double total = 0.0D;
-        for (SkyblockSkill skill : SkyblockSkill.values()) {
-            int level = getLevel(player, skill);
-            if (level <= 0) {
-                continue;
-            }
 
-            if (skill.getStatName().toLowerCase(Locale.ROOT).contains(normalizedStatType)) {
-                total += getStatValueForLevel(skill, level);
+        for (SkyblockSkill skill : SkyblockSkill.values()) {
+            int level = profile.getSkillLevel(skill.name());
+            if (level <= 0) continue;
+
+            // Primary Stat
+            if (skill.getStatName().toLowerCase(Locale.ROOT).contains(normalizedType)) {
+                total += skill.getPerkValue(level);
             }
+            
+            // Secondary Stats
+            total += getSecondaryStatBonus(skill, level, normalizedType);
         }
         return total;
     }
 
-    private double getStatValueForLevel(SkyblockSkill skill, int level) {
-        // Hypixel-like stat scaling
+    private double getSecondaryStatBonus(SkyblockSkill skill, int level, String statType) {
         return switch (skill) {
-            case COMBAT -> level * 0.5; // +0.5% Crit Chance per level
-            case MINING -> level * 2.0; // +2 Defense per level
-            case FARMING, FISHING, DUNGEONEERING, CARPENTRY -> {
-                // Health scaling: 2 per level for 1-14, 3 for 15-19, etc.
-                if (level < 15) yield level * 2.0;
-                if (level < 20) yield 14 * 2.0 + (level - 14) * 3.0;
-                if (level < 25) yield 14 * 2.0 + 5 * 3.0 + (level - 19) * 4.0;
-                yield 14 * 2.0 + 5 * 3.0 + 5 * 4.0 + (level - 24) * 5.0;
-            }
-            case FORAGING -> level * 1.0; // +1 Strength per level
-            case ENCHANTING, ALCHEMY -> level * 2.0; // +2 Intelligence per level
-            case TAMING -> level * 1.0; // +1 Pet Luck per level
+            case COMBAT -> statType.contains("strength") ? level * 0.5 : 0;
+            case MINING -> statType.contains("mining fortune") ? level * 2.0 : 0;
+            case FORAGING -> statType.contains("foraging fortune") ? level * 2.0 : 0;
+            case FARMING -> statType.contains("farming fortune") ? level * 2.0 : 0;
+            case FISHING -> statType.contains("sea creature chance") ? level * 0.1 : 0;
+            case TAMING -> statType.contains("pet luck") ? level * 1.0 : 0;
+            case ALCHEMY -> statType.contains("speed") ? (level / 10.0) : 0;
             default -> 0;
         };
     }
 
-    public double getPerkValue(Player player, SkyblockSkill skill) {
-        if (skill == null) {
-            return 0.0D;
-        }
-        return skill.getPerkValue(getLevel(player, skill));
-    }
-
-    public int getTrackedSkillCount() {
-        return SkyblockSkill.values().length;
-    }
-
-    public int getTotalSkillLevels(Player player) {
-        if (player == null) {
-            return 0;
-        }
-        int total = 0;
+    public double getSkillAverage(Player player) {
+        SkyBlockProfile profile = getProfile(player);
+        if (profile == null) return 0.0D;
+        
+        int totalLevels = 0;
         for (SkyblockSkill skill : SkyblockSkill.values()) {
-            total += getLevel(player, skill);
+            totalLevels += profile.getSkillLevel(skill.name());
         }
+        return (double) totalLevels / SkyblockSkill.values().length;
+    }
+
+    public double getSkillAverage(UUID profileId) {
+        SkyBlockProfile profile = getProfile(profileId);
+        if (profile == null) return 0.0D;
+        int total = 0;
+        for (SkyblockSkill s : SkyblockSkill.values()) total += profile.getSkillLevel(s.name());
+        return (double) total / SkyblockSkill.values().length;
+    }
+
+    // ==================== INTERNAL HELPERS ====================
+
+    private void handleLevelUp(Player player, SkyblockSkill skill, int oldLevel, int newLevel) {
+        for (int level = oldLevel + 1; level <= newLevel; level++) {
+            String skillName = skill.getDisplayName();
+            
+            player.sendMessage(ChatColor.DARK_GRAY + "--------------------------------------------------");
+            player.sendMessage(ChatColor.GOLD + "  SKILL LEVEL UP " + ChatColor.AQUA + skillName + " " + level);
+            player.sendMessage("");
+            player.sendMessage(ChatColor.GREEN + "  REWARDS");
+            player.sendMessage(ChatColor.GRAY + "  \u25cf " + ChatColor.AQUA + "+" + skill.getStatName());
+            
+            if (skill.getPerkName() != null && !skill.getPerkName().equalsIgnoreCase("None")) {
+                player.sendMessage(ChatColor.GRAY + "  \u25cf " + ChatColor.YELLOW + skill.getPerkName() + " Perk increased!");
+            }
+
+            // Skyblock Level XP Reward
+            if (levelManager != null) {
+                long rewardXp = calculateSkyblockXpReward(level);
+                if (rewardXp > 0) {
+                    levelManager.awardCategoryXp(player, "skill", rewardXp, skillName + " Level " + level, false);
+                    player.sendMessage(ChatColor.GRAY + "  \u25cf " + ChatColor.DARK_AQUA + "+" + rewardXp + " Skyblock XP");
+                }
+            }
+
+            player.sendMessage(ChatColor.DARK_GRAY + "--------------------------------------------------");
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
+        }
+    }
+
+    private long calculateSkyblockXpReward(int level) {
+        // Skyblock XP rewards for leveling up skills (Skyblock-accurate)
+        if (level <= 10) return 5L;
+        if (level <= 25) return 10L;
+        if (level <= 50) return 20L;
+        return 30L;
+    }
+
+    private void showXpGain(Player player, SkyblockSkill skill, long amount, long totalXp, int level) {
+        double progress = SkillXPTable.getProgress(totalXp);
+        long currentLevelBase = SkillXPTable.getCumulativeXp(level);
+        long nextLevelBase = SkillXPTable.getCumulativeXp(level + 1);
+        long reqForNext = nextLevelBase - currentLevelBase;
+        long gainedInLevel = totalXp - currentLevelBase;
+
+        String progressBar = level >= SkillXPTable.getMaxLevel() ? "MAX LEVEL" : 
+                String.format(Locale.US, "%,d/%,d", gainedInLevel, reqForNext);
+
+        String actionMsg = String.format("§3+%d %s §8(%s)", amount, skill.getDisplayName(), progressBar);
+        player.sendActionBar(net.kyori.adventure.text.Component.text(actionMsg));
+
+        updateBossBar(player, skill, level, progress);
+    }
+
+    private void updateBossBar(Player player, SkyblockSkill skill, int level, double progress) {
+        if (Bukkit.getServer() == null) return;
+        UUID uuid = player.getUniqueId();
+        if (skillBarTasks.containsKey(uuid)) skillBarTasks.get(uuid).cancel();
+
+        org.bukkit.boss.BossBar bar = activeSkillBars.computeIfAbsent(uuid, k -> {
+            org.bukkit.boss.BossBar newBar = Bukkit.createBossBar("", getBarColor(skill), org.bukkit.boss.BarStyle.SOLID);
+            newBar.addPlayer(player);
+            return newBar;
+        });
+
+        bar.setTitle(String.format("§6%s §eLevel %d §7- §e%d%%", skill.getDisplayName(), level, (int)(progress * 100)));
+        bar.setProgress(Math.min(1.0, progress));
+        bar.setColor(getBarColor(skill));
+        bar.setVisible(true);
+
+        skillBarTasks.put(uuid, Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            bar.setVisible(false);
+            activeSkillBars.remove(uuid);
+            skillBarTasks.remove(uuid);
+        }, 60L));
+    }
+
+    private org.bukkit.boss.BarColor getBarColor(SkyblockSkill skill) {
+        return switch (skill) {
+            case MINING -> org.bukkit.boss.BarColor.WHITE;
+            case COMBAT -> org.bukkit.boss.BarColor.RED;
+            case FARMING -> org.bukkit.boss.BarColor.GREEN;
+            case FORAGING -> org.bukkit.boss.BarColor.YELLOW;
+            case FISHING -> org.bukkit.boss.BarColor.BLUE;
+            case ALCHEMY, ENCHANTING -> org.bukkit.boss.BarColor.PURPLE;
+            default -> org.bukkit.boss.BarColor.PINK;
+        };
+    }
+
+    private SkyBlockProfile getProfile(Player player) {
+        return plugin.getProfileManager() != null ? plugin.getProfileManager().getSelectedProfile(player) : null;
+    }
+
+    private SkyBlockProfile getProfile(UUID profileId) {
+        // Fallback for offline lookups or direct ID access
+        if (plugin.getProfileManager() == null) return null;
+        return plugin.getProfileManager().getSelectedProfile(profileId);
+    }
+
+    // ==================== LEGACY / COMPATIBILITY ====================
+
+    public int getMaxLevel() { return SkillXPTable.getMaxLevel(); }
+    public int getMaxLevel(SkyblockSkill skill) { return skill == SkyblockSkill.DUNGEONEERING ? 50 : 60; }
+    public double getXpForLevel(SkyblockSkill skill, int level) { return (double) SkillXPTable.getCumulativeXp(level); }
+    public int getTrackedSkillCount() { return SkyblockSkill.values().length; }
+    
+    public int getTotalSkillLevels(Player player) {
+        SkyBlockProfile profile = getProfile(player);
+        if (profile == null) return 0;
+        int total = 0;
+        for (SkyblockSkill s : SkyblockSkill.values()) total += profile.getSkillLevel(s.name());
         return total;
     }
 
-    public double getSkillAverage(Player player) {
-        int tracked = getTrackedSkillCount();
-        if (player == null || tracked <= 0) {
-            return 0.0D;
-        }
-        return getTotalSkillLevels(player) / (double) tracked;
-    }
-
-    public SkyblockSkill getHighestSkill(Player player) {
-        if (player == null) {
-            return null;
-        }
-
+    public String getHighestSkill(Player player) {
+        SkyBlockProfile profile = getProfile(player);
+        if (profile == null) return null;
         SkyblockSkill best = null;
-        int bestLevel = Integer.MIN_VALUE;
+        int max = -1;
+        for (SkyblockSkill s : SkyblockSkill.values()) {
+            int lvl = profile.getSkillLevel(s.name());
+            if (lvl > max) { max = lvl; best = s; }
+        }
+        return best == null ? null : best.name();
+    }
+
+    public double getPerkValue(Player player, SkyblockSkill skill) {
+        if (skill == null) return 0.0D;
+        return skill.getPerkValue(getLevel(player, skill));
+    }
+
+    /**
+     * Generates a MiniMessage formatted hover string showing all skill levels.
+     */
+    public String getSkillHover(UUID profileId) {
+        SkyBlockProfile profile = getProfile(profileId);
+        if (profile == null) return "<red>No Profile Data</red>";
+
+        StringBuilder sb = new StringBuilder("<gold><bold>Skill Levels</bold></gold>");
         for (SkyblockSkill skill : SkyblockSkill.values()) {
-            int level = getLevel(player, skill);
-            if (best == null || level > bestLevel) {
-                best = skill;
-                bestLevel = level;
-            }
+            int level = profile.getSkillLevel(skill.name());
+            long xp = profile.getSkillXp(skill.name());
+            
+            sb.append("\n<gray>• <white>").append(skill.getDisplayName()).append(": </white>")
+              .append("<aqua>").append(level).append(" </aqua>")
+              .append("<dark_gray>(").append(String.format(Locale.US, "%,d", xp)).append(" XP)</dark_gray>");
         }
-        return best;
-    }
-
-    private long xpPerLevel(SkyblockSkill skill) {
-        if (skill == null) {
-            return 1L;
-        }
-
-        if (levelManager == null) {
-            return defaultXpPerLevel(skill);
-        }
-
-        long configured = switch (skill) {
-            case ALCHEMY -> safe(levelManager.getSkillActionsPerLevel(skill.name())) * 5L;
-            case HUNTING -> safe(levelManager.getSkillActionsPerLevel("combat"));
-            case TAMING -> 100L;
-            default -> safe(levelManager.getSkillActionsPerLevel(skill.name()));
-        };
-        return Math.max(1L, configured);
-    }
-
-    private long defaultXpPerLevel(SkyblockSkill skill) {
-        return switch (skill) {
-            case COMBAT, HUNTING -> 40L;
-            case MINING, FORAGING -> 140L;
-            case FARMING -> 120L;
-            case FISHING -> 20L;
-            case DUNGEONEERING -> 3L;
-            case ENCHANTING -> 50L;
-            case ALCHEMY, CARPENTRY, TAMING -> 100L;
-        };
-    }
-
-    private int levelFromXp(SkyblockSkill skill, double xp) {
-        long safeXp = (long) Math.max(0.0D, xp);
-        long perLevel = Math.max(1L, xpPerLevel(skill));
-        long computed = safeXp / perLevel;
-        int maxLevel = skill == null ? MAX_SKILL_LEVEL : getMaxLevel(skill);
-        return (int) Math.min(maxLevel, Math.max(0L, computed));
-    }
-
-    private long safe(long value) {
-        return Math.max(1L, value);
-    }
-
-    private String skillXpCounter(SkyblockSkill skill) {
-        return SKILL_XP_PREFIX + skill.name().toLowerCase(Locale.ROOT);
+        
+        double avg = getSkillAverage(profileId);
+        sb.append("\n\n<yellow>Skill Average: </yellow><gold>").append(String.format(Locale.US, "%.1f", avg)).append("</gold>");
+        
+        return sb.toString();
     }
 }

@@ -21,7 +21,7 @@ import java.util.UUID;
 /**
  * Admin commands for adjusting Skyblock profile-scoped coin balances.
  * <p>
- * Purse/bank balances are stored on the selected Skyblock profile for each player.
+ * Purse balances are stored per selected profile. Bank balances resolve to the shared coop profile when applicable.
  */
 public final class CoinsAdminCommand implements CommandExecutor, TabCompleter {
     private enum BalanceType {
@@ -102,7 +102,7 @@ public final class CoinsAdminCommand implements CommandExecutor, TabCompleter {
         String targetDisplayName = targetPlayer != null ? targetPlayer.getName() : targetName;
 
         if (action.equals("check") || action.equals("get") || action.equals("bal") || action.equals("balance")) {
-            sendSingleBalance(sender, targetDisplayName, profile, balanceType);
+            sendSingleBalance(sender, targetDisplayName, resolveBalanceProfile(profileManager, profile, balanceType), balanceType);
             return;
         }
 
@@ -118,9 +118,10 @@ public final class CoinsAdminCommand implements CommandExecutor, TabCompleter {
         }
 
         long safeAmount = amount;
+        SkyBlockProfile balanceProfile = resolveBalanceProfile(profileManager, profile, balanceType);
         double current = balanceType == BalanceType.PURSE
-                ? Math.max(0.0D, profile.getPurse())
-                : Math.max(0.0D, profile.getBankBalance());
+                ? Math.max(0.0D, balanceProfile.getPurse())
+                : Math.max(0.0D, balanceProfile.getBankBalance());
         long currentRounded = (long) Math.floor(current + 1e-9D);
 
         double next;
@@ -165,15 +166,15 @@ public final class CoinsAdminCommand implements CommandExecutor, TabCompleter {
         }
 
         if (balanceType == BalanceType.PURSE) {
-            profile.setPurse(next);
+            balanceProfile.setPurse(next);
         } else {
-            profile.setBankBalance(next);
+            balanceProfile.setBankBalance(next);
         }
-        profileManager.saveProfile(profile);
+        profileManager.saveProfile(balanceProfile);
 
         sender.sendMessage(senderMessage);
 
-        sendSingleBalance(sender, targetDisplayName, profile, balanceType);
+        sendSingleBalance(sender, targetDisplayName, balanceProfile, balanceType);
 
         if (targetPlayer != null) {
             targetPlayer.sendMessage(targetMessage);
@@ -207,19 +208,29 @@ public final class CoinsAdminCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(ChatColor.RED + "That player does not have a Skyblock profile.");
             return;
         }
+        SkyBlockProfile bankProfile = resolveBalanceProfile(profileManager, profile, BalanceType.BANK);
 
         Player targetPlayer = Bukkit.getPlayer(targetId);
         String targetDisplayName = targetPlayer != null ? targetPlayer.getName() : targetName;
 
         sender.sendMessage(ChatColor.GOLD + "=== Coin Balances (" + targetDisplayName + ") ===");
         sender.sendMessage(ChatColor.GRAY + "Purse: " + ChatColor.GOLD + formatCoins(profile.getPurse()) + " coins");
-        sender.sendMessage(ChatColor.GRAY + "Bank: " + ChatColor.GOLD + formatCoins(profile.getBankBalance()) + " coins");
+        sender.sendMessage(ChatColor.GRAY + "Bank: " + ChatColor.GOLD + formatCoins(bankProfile.getBankBalance()) + " coins");
     }
 
     private void sendSingleBalance(CommandSender sender, String targetName, SkyBlockProfile profile, BalanceType type) {
         double value = type == BalanceType.PURSE ? profile.getPurse() : profile.getBankBalance();
         sender.sendMessage(ChatColor.GRAY + type.displayName() + ": " + ChatColor.GOLD + formatCoins(value) + " coins"
                 + ChatColor.GRAY + " (" + ChatColor.AQUA + targetName + ChatColor.GRAY + ")");
+    }
+
+    private SkyBlockProfile resolveBalanceProfile(ProfileManager profileManager, SkyBlockProfile selectedProfile, BalanceType type) {
+        if (selectedProfile == null || type == BalanceType.PURSE || profileManager == null) {
+            return selectedProfile;
+        }
+
+        SkyBlockProfile sharedProfile = profileManager.resolveSharedProfile(selectedProfile);
+        return sharedProfile != null ? sharedProfile : selectedProfile;
     }
 
     private Long parseCoins(CommandSender sender, String raw) {

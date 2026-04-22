@@ -1,5 +1,6 @@
 package io.papermc.Grivience.storage;
 
+import io.papermc.Grivience.util.StackSizeSanitizer;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.Inventory;
@@ -364,6 +365,7 @@ public class StorageProfile {
         // Load contents
         ConfigurationSection contentsSection = section.getConfigurationSection("contents");
         if (contentsSection != null) {
+            java.util.List<ItemStack> overflow = new java.util.ArrayList<>();
             for (String key : contentsSection.getKeys(false)) {
                 try {
                     int slot = Integer.parseInt(key);
@@ -373,13 +375,27 @@ public class StorageProfile {
                         org.bukkit.Material material = org.bukkit.Material.matchMaterial(materialName);
                         if (material != null) {
                             ItemStack item = new ItemStack(material);
-                            item.setAmount(itemSection.getInt("amount", 1));
+                            int rawAmount = Math.max(1, itemSection.getInt("amount", 1));
                             item.setDurability((short) itemSection.getInt("damage", 0));
-                            profile.contents.put(slot, item);
+                            java.util.List<ItemStack> legalStacks = StackSizeSanitizer.splitToLegalStacks(item, rawAmount);
+                            if (legalStacks.isEmpty()) {
+                                continue;
+                            }
+                            profile.contents.put(slot, legalStacks.getFirst());
+                            if (legalStacks.size() > 1) {
+                                overflow.addAll(legalStacks.subList(1, legalStacks.size()));
+                            }
                         }
                     }
                 } catch (NumberFormatException e) {
                     // Skip invalid slot
+                }
+            }
+            for (ItemStack stack : overflow) {
+                int leftover = profile.addItem(stack);
+                if (leftover > 0) {
+                    Bukkit.getLogger().warning("Discarded " + leftover + " overflow items while sanitizing storage profile "
+                            + profile.storageType + " for owner " + ownerId + ".");
                 }
             }
         }

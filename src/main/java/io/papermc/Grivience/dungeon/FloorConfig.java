@@ -26,7 +26,7 @@ public final class FloorConfig {
     private final double mobHealthMultiplier;
     private final int mobDamageTier;
     private final boolean folkloreMobs;
-    private final List<YokaiType> yokaiPool;
+    private final List<MonsterType> yokaiPool;
     private final List<EntityType> mobPool;
     private final EntityType bossType;
     private final String bossName;
@@ -49,7 +49,7 @@ public final class FloorConfig {
             double mobHealthMultiplier,
             int mobDamageTier,
             boolean folkloreMobs,
-            List<YokaiType> yokaiPool,
+            List<MonsterType> yokaiPool,
             List<EntityType> mobPool,
             EntityType bossType,
             String bossName,
@@ -137,7 +137,7 @@ public final class FloorConfig {
         return folkloreMobs;
     }
 
-    public List<YokaiType> yokaiPool() {
+    public List<MonsterType> yokaiPool() {
         return yokaiPool;
     }
 
@@ -219,18 +219,18 @@ public final class FloorConfig {
         int mobDamageTier = Math.max(0, section.getInt("mob-damage-tier", 0));
         boolean folkloreMobs = section.getBoolean("folklore-mobs.enabled", true);
 
-        List<YokaiType> yokaiPool = new ArrayList<>();
+        List<MonsterType> yokaiPool = new ArrayList<>();
         for (String yokaiName : section.getStringList("folklore-mobs.pool")) {
-            YokaiType type = YokaiType.parse(yokaiName);
+            MonsterType type = MonsterType.parse(yokaiName);
             if (type != null) {
                 yokaiPool.add(type);
             }
         }
         if (yokaiPool.isEmpty()) {
             if (mobDamageTier >= 1) {
-                yokaiPool = YokaiType.strongerPool();
+                yokaiPool = MonsterType.strongerPool();
             } else {
-                yokaiPool = YokaiType.defaultPool();
+                yokaiPool = MonsterType.defaultPool();
             }
         }
 

@@ -33,6 +33,7 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
 
     // islandId -> (inviteeId -> expiresAtMillis)
     private final Map<UUID, Map<UUID, Long>> visitInvitesByIsland = new HashMap<>();
+    private final Map<UUID, CoopInvite> coopInvitesByInvitee = new HashMap<>();
 
     public IslandCommand(GriviencePlugin plugin, IslandManager islandManager, PartyManager partyManager, ProfileManager profileManager, HubCommand hubCommand) {
         this.plugin = plugin;
@@ -40,6 +41,9 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
         this.partyManager = partyManager;
         this.profileManager = profileManager;
         this.hubCommand = hubCommand;
+    }
+
+    private record CoopInvite(UUID islandId, UUID sharedProfileId, UUID inviterId, long expiresAtMillis) {
     }
 
     @Override
@@ -499,7 +503,39 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleLeave(Player player) {
-        player.sendMessage(ChatColor.RED + "Island deletion coming soon. Use /island create to create a new one.");
+        if (player == null || profileManager == null) {
+            return;
+        }
+
+        SkyBlockProfile selected = profileManager.getSelectedProfile(player);
+        if (selected == null || !selected.isCoopMemberProfile()) {
+            player.sendMessage(ChatColor.RED + "You can only leave a coop while using its coop profile.");
+            player.sendMessage(ChatColor.GRAY + "Switch to the coop profile first, then use /island leave.");
+            return;
+        }
+
+        UUID playerId = player.getUniqueId();
+        UUID sharedProfileId = selected.getCanonicalProfileId();
+        List<SkyBlockProfile> coopProfiles = profileManager.getCoopProfiles(playerId, sharedProfileId);
+        if (coopProfiles.isEmpty()) {
+            player.sendMessage(ChatColor.RED + "That coop profile is already detached.");
+            return;
+        }
+
+        islandManager.saveProfileInventory(player, selected.getProfileId());
+
+        Island island = islandManager.getIslandByProfileId(sharedProfileId);
+        if (island != null) {
+            islandManager.removeCoopMember(island, playerId);
+        }
+
+        for (SkyBlockProfile coopProfile : coopProfiles) {
+            profileManager.deleteProfile(playerId, coopProfile.getProfileId());
+        }
+
+        ensureSelectedProfileAfterCoopRemoval(player);
+        coopInvitesByInvitee.remove(playerId);
+        player.sendMessage(ChatColor.YELLOW + "You left that coop profile.");
     }
 
     private void handleProfile(Player player, String[] args) {
@@ -523,7 +559,8 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage(ChatColor.GOLD + "Your Profiles:");
                 for (SkyBlockProfile profile : profiles) {
                     boolean isSelected = selected != null && profile.getProfileId().equals(selected.getProfileId());
-                    player.sendMessage(ChatColor.YELLOW + "- " + profile.getProfileName() + (isSelected ? ChatColor.GREEN + " [SELECTED]" : ""));
+                    String coopTag = profile.isCoopMemberProfile() ? ChatColor.AQUA + " [COOP]" : "";
+                    player.sendMessage(ChatColor.YELLOW + "- " + profile.getProfileName() + coopTag + (isSelected ? ChatColor.GREEN + " [SELECTED]" : ""));
                 }
             }
             case "create" -> {
@@ -663,73 +700,228 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleCoop(Player player, String[] args) {
-        Island island = islandManager.getIsland(player);
-        if (island == null) {
-            player.sendMessage(ChatColor.RED + "You don't have an island.");
-            return;
-        }
         if (args.length < 2) {
             player.sendMessage(ChatColor.YELLOW + "Usage: /island coop <add|remove|list|accept> <player>");
             return;
         }
         String action = args[1].toLowerCase(Locale.ROOT);
         switch (action) {
-            case "add" -> {
-                if (args.length < 3) {
-                    player.sendMessage(ChatColor.YELLOW + "Usage: /island coop add <player>");
-                    return;
-                }
-                OfflinePlayer target = Bukkit.getOfflinePlayer(args[2]);
-                boolean added = islandManager.addCoopMember(island, target.getUniqueId());
-                if (!added) {
-                    player.sendMessage(ChatColor.RED + "Could not add that player to your co-op.");
-                    player.sendMessage(ChatColor.GRAY + "They may already be in another co-op, or your island profile is unavailable.");
-                    return;
-                }
-                player.sendMessage(ChatColor.GREEN + "Added " + ChatColor.AQUA + target.getName() + ChatColor.GREEN + " to your island coop.");
-            }
-            case "remove" -> {
-                if (args.length < 3) {
-                    player.sendMessage(ChatColor.YELLOW + "Usage: /island coop remove <player>");
-                    return;
-                }
-                OfflinePlayer target = Bukkit.getOfflinePlayer(args[2]);
-                islandManager.removeCoopMember(island, target.getUniqueId());
-                player.sendMessage(ChatColor.YELLOW + "Removed " + ChatColor.AQUA + target.getName() + ChatColor.YELLOW + " from your island coop.");
-            }
-            case "list" -> {
-                var members = island.getMembers();
-                if (members.isEmpty()) {
-                    player.sendMessage(ChatColor.GRAY + "No coop members.");
-                } else {
-                    List<String> names = new ArrayList<>();
-                    for (UUID id : members) {
-                        OfflinePlayer p = Bukkit.getOfflinePlayer(id);
-                        names.add(p.getName() != null ? p.getName() : id.toString());
-                    }
-                    player.sendMessage(ChatColor.GREEN + "Coop members: " + ChatColor.AQUA + String.join(", ", names));
-                }
-            }
-            case "accept" -> {
-                if (args.length < 3) {
-                    player.sendMessage(ChatColor.YELLOW + "Usage: /island coop accept <player>");
-                    return;
-                }
-                OfflinePlayer target = Bukkit.getOfflinePlayer(args[2]);
-                Island targetIsland = islandManager.getIsland(target.getUniqueId());
-                if (targetIsland == null) {
-                    player.sendMessage(ChatColor.RED + "That player does not have an island.");
-                    return;
-                }
-                boolean joined = islandManager.addCoopMember(targetIsland, player.getUniqueId());
-                if (!joined) {
-                    player.sendMessage(ChatColor.RED + "Could not join that co-op.");
-                    player.sendMessage(ChatColor.GRAY + "You may already be in another co-op, or the target island profile is unavailable.");
-                    return;
-                }
-                player.sendMessage(ChatColor.GREEN + "Joined " + ChatColor.AQUA + target.getName() + ChatColor.GREEN + "'s island as coop.");
-            }
+            case "add" -> handleCoopAdd(player, args);
+            case "remove" -> handleCoopRemove(player, args);
+            case "list" -> handleCoopList(player);
+            case "accept" -> handleCoopAccept(player, args);
             default -> player.sendMessage(ChatColor.YELLOW + "Usage: /island coop <add|remove|list|accept> <player>");
+        }
+    }
+
+    private void handleCoopAdd(Player player, String[] args) {
+        if (profileManager == null) {
+            player.sendMessage(ChatColor.RED + "Profile system is not available.");
+            return;
+        }
+        Island island = islandManager.getIsland(player);
+        if (island == null) {
+            player.sendMessage(ChatColor.RED + "You don't have an island.");
+            return;
+        }
+        if (args.length < 3) {
+            player.sendMessage(ChatColor.YELLOW + "Usage: /island coop add <player>");
+            return;
+        }
+
+        Player target = Bukkit.getPlayerExact(args[2]);
+        if (target == null || !target.isOnline()) {
+            player.sendMessage(ChatColor.RED + "That player must be online to accept a coop invite.");
+            return;
+        }
+        if (target.getUniqueId().equals(player.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "You cannot invite yourself.");
+            return;
+        }
+        if (island.getOwner() != null && island.getOwner().equals(target.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "That player already owns this island.");
+            return;
+        }
+        if (island.isMember(target.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "That player is already in this coop.");
+            return;
+        }
+        if (island.getProfileId() == null) {
+            player.sendMessage(ChatColor.RED + "This island profile is unavailable.");
+            return;
+        }
+        if (islandManager.getCoopProfileId(target.getUniqueId()) != null) {
+            player.sendMessage(ChatColor.RED + "That player is already in another coop.");
+            return;
+        }
+        if (profileManager.getCoopProfile(target.getUniqueId(), island.getProfileId()) != null) {
+            player.sendMessage(ChatColor.RED + "That player already has a linked profile for this coop.");
+            return;
+        }
+
+        if (island.getMembers().size() + 1 >= island.getMaxMembers()) {
+            player.sendMessage(ChatColor.RED + "Your island co-op is full!");
+            player.sendMessage(ChatColor.GRAY + "Current limit: " + island.getMaxMembers() + " (including owner)");
+            player.sendMessage(ChatColor.YELLOW + "Upgrade your co-op limit in the Island Upgrades menu.");
+            return;
+        }
+
+        cleanupExpiredCoopInvites();
+        long expiresAt = System.currentTimeMillis() + inviteTimeoutMillis();
+        coopInvitesByInvitee.put(target.getUniqueId(),
+                new CoopInvite(island.getId(), island.getProfileId(), player.getUniqueId(), expiresAt));
+
+        int seconds = (int) Math.max(1L, (expiresAt - System.currentTimeMillis()) / 1000L);
+        player.sendMessage(ChatColor.GREEN + "Sent a coop invite to " + ChatColor.AQUA + target.getName() + ChatColor.GREEN + ".");
+        target.sendMessage(ChatColor.GOLD + player.getName() + ChatColor.YELLOW + " invited you to join their coop.");
+        target.sendMessage(ChatColor.YELLOW + "Use " + ChatColor.AQUA + "/island coop accept " + player.getName()
+                + ChatColor.YELLOW + " to join. " + ChatColor.GRAY + "(" + seconds + "s)");
+    }
+
+    private void handleCoopRemove(Player player, String[] args) {
+        if (profileManager == null) {
+            player.sendMessage(ChatColor.RED + "Profile system is not available.");
+            return;
+        }
+        Island island = islandManager.getIsland(player);
+        if (island == null) {
+            player.sendMessage(ChatColor.RED + "You don't have an island.");
+            return;
+        }
+        if (args.length < 3) {
+            player.sendMessage(ChatColor.YELLOW + "Usage: /island coop remove <player>");
+            return;
+        }
+
+        OfflinePlayer target = Bukkit.getOfflinePlayer(args[2]);
+        UUID targetId = target.getUniqueId();
+        if (targetId.equals(player.getUniqueId())) {
+            handleLeave(player);
+            return;
+        }
+        if (island.getOwner() != null && island.getOwner().equals(targetId)) {
+            player.sendMessage(ChatColor.RED + "You cannot remove the island owner from their own coop.");
+            return;
+        }
+        if (!island.isMember(targetId)) {
+            player.sendMessage(ChatColor.RED + "That player is not in this coop.");
+            return;
+        }
+
+        List<SkyBlockProfile> coopProfiles = island.getProfileId() == null
+                ? List.of()
+                : profileManager.getCoopProfiles(targetId, island.getProfileId());
+        Player onlineTarget = Bukkit.getPlayer(targetId);
+        if (onlineTarget != null && onlineTarget.isOnline()) {
+            SkyBlockProfile selected = profileManager.getSelectedProfile(onlineTarget);
+            if (selected != null && selected.isCoopMemberProfile()
+                    && island.getProfileId() != null
+                    && island.getProfileId().equals(selected.getSharedProfileId())) {
+                islandManager.saveProfileInventory(onlineTarget, selected.getProfileId());
+            }
+        }
+
+        islandManager.removeCoopMember(island, targetId);
+        for (SkyBlockProfile coopProfile : coopProfiles) {
+            profileManager.deleteProfile(targetId, coopProfile.getProfileId());
+        }
+        coopInvitesByInvitee.remove(targetId);
+
+        if (onlineTarget != null && onlineTarget.isOnline()) {
+            ensureSelectedProfileAfterCoopRemoval(onlineTarget);
+            onlineTarget.sendMessage(ChatColor.RED + "You were removed from the coop on " + ChatColor.AQUA + island.getName() + ChatColor.RED + ".");
+        }
+
+        String targetName = target.getName() != null ? target.getName() : args[2];
+        player.sendMessage(ChatColor.YELLOW + "Removed " + ChatColor.AQUA + targetName + ChatColor.YELLOW + " from your island coop.");
+    }
+
+    private void handleCoopList(Player player) {
+        Island island = islandManager.getIsland(player);
+        if (island == null) {
+            player.sendMessage(ChatColor.RED + "You don't have an island.");
+            return;
+        }
+
+        List<String> names = new ArrayList<>();
+        OfflinePlayer owner = Bukkit.getOfflinePlayer(island.getOwner());
+        names.add((owner.getName() != null ? owner.getName() : island.getOwner().toString()) + " (Owner)");
+        for (UUID id : island.getMembers()) {
+            OfflinePlayer member = Bukkit.getOfflinePlayer(id);
+            names.add(member.getName() != null ? member.getName() : id.toString());
+        }
+        player.sendMessage(ChatColor.GREEN + "Coop members: " + ChatColor.AQUA + String.join(", ", names));
+    }
+
+    private void handleCoopAccept(Player player, String[] args) {
+        if (args.length < 3) {
+            player.sendMessage(ChatColor.YELLOW + "Usage: /island coop accept <player>");
+            return;
+        }
+
+        cleanupExpiredCoopInvites();
+        CoopInvite invite = coopInvitesByInvitee.get(player.getUniqueId());
+        if (invite == null) {
+            player.sendMessage(ChatColor.RED + "You do not have a pending coop invite.");
+            return;
+        }
+
+        OfflinePlayer inviter = Bukkit.getOfflinePlayer(args[2]);
+        if (!inviter.getUniqueId().equals(invite.inviterId())) {
+            player.sendMessage(ChatColor.RED + "That player did not send your active coop invite.");
+            return;
+        }
+
+        Island targetIsland = islandManager.getIslandById(invite.islandId());
+        if (targetIsland == null || targetIsland.getProfileId() == null
+                || !targetIsland.getProfileId().equals(invite.sharedProfileId())) {
+            coopInvitesByInvitee.remove(player.getUniqueId());
+            player.sendMessage(ChatColor.RED + "That coop invite is no longer valid.");
+            return;
+        }
+
+        UUID currentCoopProfileId = islandManager.getCoopProfileId(player.getUniqueId());
+        if (currentCoopProfileId != null && !currentCoopProfileId.equals(invite.sharedProfileId())) {
+            player.sendMessage(ChatColor.RED + "You are already in another coop.");
+            return;
+        }
+        if (profileManager == null) {
+            player.sendMessage(ChatColor.RED + "Profile system is not available.");
+            return;
+        }
+
+        SkyBlockProfile sharedProfile = profileManager.getProfile(invite.sharedProfileId());
+        if (sharedProfile == null) {
+            coopInvitesByInvitee.remove(player.getUniqueId());
+            player.sendMessage(ChatColor.RED + "That coop profile is unavailable.");
+            return;
+        }
+
+        SkyBlockProfile coopProfile = profileManager.getCoopProfile(player.getUniqueId(), invite.sharedProfileId());
+        if (coopProfile == null) {
+            coopProfile = profileManager.createCoopProfile(player, sharedProfile);
+            if (coopProfile == null) {
+                player.sendMessage(ChatColor.RED + "Could not create your coop profile.");
+                player.sendMessage(ChatColor.GRAY + "Make sure you have a free profile slot before accepting.");
+                return;
+            }
+        }
+
+        boolean joined = islandManager.addCoopMember(targetIsland, player.getUniqueId());
+        if (!joined) {
+            player.sendMessage(ChatColor.RED + "Could not join that coop.");
+            player.sendMessage(ChatColor.GRAY + "You may already be in another co-op, or the target island profile is unavailable.");
+            return;
+        }
+
+        coopInvitesByInvitee.remove(player.getUniqueId());
+        profileManager.selectProfile(player, coopProfile.getProfileId());
+        String inviterName = inviter.getName() != null ? inviter.getName() : args[2];
+        player.sendMessage(ChatColor.GREEN + "Joined " + ChatColor.AQUA + inviterName + ChatColor.GREEN + "'s coop profile.");
+
+        Player onlineInviter = Bukkit.getPlayer(invite.inviterId());
+        if (onlineInviter != null && onlineInviter.isOnline()) {
+            onlineInviter.sendMessage(ChatColor.GREEN + player.getName() + " joined your coop.");
         }
     }
 
@@ -767,6 +959,33 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
         invites.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue() < now);
     }
 
+    private void cleanupExpiredCoopInvites() {
+        long now = System.currentTimeMillis();
+        coopInvitesByInvitee.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue().expiresAtMillis() < now);
+    }
+
+    private void ensureSelectedProfileAfterCoopRemoval(Player player) {
+        if (player == null || profileManager == null) {
+            return;
+        }
+
+        SkyBlockProfile selected = profileManager.getSelectedProfile(player);
+        if (selected != null) {
+            return;
+        }
+
+        SkyBlockProfile created = profileManager.createProfile(player, "Default");
+        if (created != null) {
+            return;
+        }
+
+        selected = profileManager.getSelectedProfile(player);
+        if (selected == null) {
+            player.sendMessage(ChatColor.RED + "You no longer have a usable Skyblock profile selected.");
+            player.sendMessage(ChatColor.GRAY + "Use /profile create <name> to make a new solo profile.");
+        }
+    }
+
     private boolean hasValidVisitInvite(UUID islandId, UUID visitorId) {
         if (islandId == null || visitorId == null) {
             return false;
@@ -796,7 +1015,7 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
         if (profileManager != null) {
             SkyBlockProfile selected = profileManager.getSelectedProfile(ownerId);
             if (selected != null) {
-                Island byProfile = islandManager.getIslandByProfileId(selected.getProfileId());
+                Island byProfile = islandManager.getIslandByProfileId(selected.getCanonicalProfileId());
                 if (byProfile != null) {
                     return byProfile;
                 }
@@ -808,7 +1027,7 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
                     }
                     if (candidate.getProfileName() != null && candidate.getProfileName().equalsIgnoreCase(selected.getProfileName())) {
                         if (candidate.getProfileId() == null) {
-                            candidate.setProfileId(selected.getProfileId());
+                            candidate.setProfileId(selected.getCanonicalProfileId());
                             islandManager.saveIsland(candidate);
                         }
                         return candidate;
@@ -1135,6 +1354,22 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 2 && args[0].equalsIgnoreCase("profile")) {
             return filterPrefix(List.of("list", "create", "switch", "delete"), args[1]);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("coop")) {
+            return filterPrefix(List.of("add", "remove", "list", "accept"), args[1]);
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("coop")
+                && (args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("accept"))) {
+            List<String> players = new ArrayList<>();
+            UUID senderId = sender instanceof Player player ? player.getUniqueId() : null;
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (senderId == null || !online.getUniqueId().equals(senderId)) {
+                    players.add(online.getName());
+                }
+            }
+            return filterPrefix(players, args[2]);
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("profile")) {

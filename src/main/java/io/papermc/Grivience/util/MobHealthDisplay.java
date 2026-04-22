@@ -30,6 +30,11 @@ public final class MobHealthDisplay {
     }
 
     public static void update(LivingEntity living, NamespacedKey baseKey) {
+        if (living == null) return;
+        update(living, baseKey, living.getHealth());
+    }
+
+    public static void update(LivingEntity living, NamespacedKey baseKey, double currentHealthOverride) {
         if (living == null || baseKey == null) return;
 
         String baseName = living.getPersistentDataContainer().get(baseKey, PersistentDataType.STRING);
@@ -42,7 +47,7 @@ public final class MobHealthDisplay {
 
         AttributeInstance maxHealthAttr = living.getAttribute(Attribute.MAX_HEALTH);
         double mcMax = maxHealthAttr != null ? Math.max(1.0D, maxHealthAttr.getValue()) : 20.0D;
-        double mcCurrent = Math.max(0.0D, Math.min(living.getHealth(), mcMax));
+        double mcCurrent = Math.max(0.0D, Math.min(currentHealthOverride, mcMax));
 
         double scale = 5.0; // Default fallback
         try {
@@ -65,6 +70,10 @@ public final class MobHealthDisplay {
         }
 
         String healthColor = ChatColor.RED.toString();
+        // Hypixel style: [Lv10] Zombie 100/100❤
+        // If the name is colored, we keep it. 
+        // We strip colors from baseName if needed, but usually it's better to keep them.
+        
         String healthText = ChatColor.GRAY + "[" + ChatColor.DARK_GRAY + "Lv" + level + ChatColor.GRAY + "] " + baseName + " " + healthColor + HEALTH_FORMAT.format(currentHealth) + ChatColor.GRAY + "/" + healthColor + HEALTH_FORMAT.format(maxHealth) + ChatColor.RED + "❤";
         Component healthComponent = LegacyComponentSerializer.legacySection().deserialize(healthText);
         living.customName(healthComponent);

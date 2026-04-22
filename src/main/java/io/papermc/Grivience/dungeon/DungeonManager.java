@@ -4,6 +4,7 @@ import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.item.CustomItemService;
 import io.papermc.Grivience.party.Party;
 import io.papermc.Grivience.party.PartyManager;
+import io.papermc.Grivience.util.CommandDispatchUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -347,7 +348,7 @@ public final class DungeonManager {
                         .replace("{floor}", session.floor().id())
                         .replace("{grade}", grade)
                         .replace("{score}", Integer.toString(score));
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed);
+                CommandDispatchUtil.dispatchConsole(plugin, parsed);
             }
         }
     }
@@ -412,7 +413,7 @@ public final class DungeonManager {
     private void sendPlayerToExit(Player player) {
         String command = exitCommand;
         if (command != null && !command.isBlank()) {
-            boolean commandRan = player.performCommand(command);
+            boolean commandRan = CommandDispatchUtil.dispatchPlayer(plugin, player, command);
             if (commandRan) {
                 return;
             }

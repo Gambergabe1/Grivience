@@ -2,10 +2,10 @@ package io.papermc.Grivience.item;
 
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.stats.SkyblockCombatEngine;
+import io.papermc.Grivience.util.EndZoneUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
@@ -25,7 +25,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -58,7 +57,7 @@ public final class ArmorSetBonusListener implements Listener {
         checkArmorSet(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onCombat(EntityDamageByEntityEvent event) {
         // 1. Shogun Warlord's Resolve (Attacker)
         if (event.getDamager() instanceof Player attacker) {
@@ -68,17 +67,48 @@ public final class ArmorSetBonusListener implements Listener {
                         .count();
                 if (allies > 0) {
                     double bonus = 1.0 + (allies * 0.05); // 5% per ally
-                    event.setDamage(event.getDamage() * bonus);
+                    double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+                    event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, baseDamage * bonus);
                 }
             }
 
             // 10. Dreadlord: Dungeon Damage
             if (isInDungeon(attacker)) {
                 int pieces = getActivePieceCount(attacker, "dreadlord");
+                double multiplier = 1.0;
                 if (pieces >= 4) {
-                    event.setDamage(event.getDamage() * 1.15); // 15% bonus
+                    multiplier = 1.15; // 15% bonus
                 } else if (pieces >= 2) {
-                    event.setDamage(event.getDamage() * 1.05); // 5% bonus
+                    multiplier = 1.05; // 5% bonus
+                }
+                if (multiplier > 1.0) {
+                    double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+                    event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, baseDamage * multiplier);
+                }
+            }
+
+            // 11. Crimson Warden: Warden's Might
+            if (hasFullSet(attacker, "crimson_warden")) {
+                double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+                event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, baseDamage * 1.05);
+            }
+
+            if (hasSetPiece(attacker, "dragon_slayer", CustomArmorManager.ArmorPieceType.HELMET)
+                    && EndZoneUtil.isEndMob(plugin, event.getEntity())) {
+                double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+                event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, baseDamage * 1.15D);
+            }
+
+            // Crimson Warden Boots: chance to leave a slowing field on hit
+            if (hasSetPiece(attacker, "crimson_warden", CustomArmorManager.ArmorPieceType.BOOTS)
+                    && event.getEntity() instanceof LivingEntity struck
+                    && Math.random() < 0.20D) {
+                Location center = struck.getLocation();
+                struck.getWorld().spawnParticle(Particle.DUST, center.add(0.0D, 0.2D, 0.0D), 12, 0.5D, 0.1D, 0.5D, 0.0D, new Particle.DustOptions(org.bukkit.Color.fromRGB(0xB23A3A), 1.0F));
+                for (Entity nearby : struck.getWorld().getNearbyEntities(struck.getLocation(), 2.5D, 1.5D, 2.5D)) {
+                    if (nearby instanceof LivingEntity living && !nearby.equals(attacker)) {
+                        applyEffectToEntity(living, PotionEffectType.SLOWNESS, 0, 40);
+                    }
                 }
             }
         }
@@ -86,26 +116,58 @@ public final class ArmorSetBonusListener implements Listener {
         // 2. Titan Colossal Barrier (Defender)
         if (event.getEntity() instanceof Player victim) {
             if (hasFullSet(victim, "titan")) {
-                event.setDamage(event.getDamage() * 0.75); // 25% reduction
+                double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+                event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, baseDamage * 0.75); // 25% reduction
             }
-            
+
             // 3. Guardian Divine Protection (Defender)
             if (hasFullSet(victim, "guardian")) {
                 double shield = guardianShield.getOrDefault(victim.getUniqueId(), 500.0);
                 if (shield > 0) {
-                    double damage = event.getDamage();
-                    if (damage <= shield) {
-                        guardianShield.put(victim.getUniqueId(), shield - damage);
-                        event.setDamage(0);
+                    double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+                    if (baseDamage <= shield) {
+                        guardianShield.put(victim.getUniqueId(), shield - baseDamage);
+                        event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, 0);
                         victim.playSound(victim.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.0f, 1.5f);
                         victim.spawnParticle(Particle.INSTANT_EFFECT, victim.getLocation().add(0, 1, 0), 5, 0.2, 0.2, 0.2, 0.05);
                     } else {
-                        event.setDamage(damage - shield);
+                        event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, baseDamage - shield);
                         guardianShield.put(victim.getUniqueId(), 0.0);
                         victim.sendMessage(ChatColor.RED + "Your Guardian Shield has broken!");
                         victim.playSound(victim.getLocation(), Sound.ITEM_SHIELD_BREAK, 1.0f, 0.8f);
                     }
                 }
+            }
+
+            if (hasSetPiece(victim, "dragon_slayer", CustomArmorManager.ArmorPieceType.CHESTPLATE)
+                    && EndZoneUtil.isEndMob(plugin, event.getDamager())) {
+                double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+                event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, baseDamage * 0.90D);
+            }
+
+            if (hasSetPiece(victim, "crimson_warden", CustomArmorManager.ArmorPieceType.CHESTPLATE)) {
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (!victim.isOnline()) {
+                        return;
+                    }
+                    var velocity = victim.getVelocity();
+                    victim.setVelocity(velocity.setX(velocity.getX() * 0.70D).setZ(velocity.getZ() * 0.70D));
+                }, 1L);
+            }
+
+            if (hasSetPiece(victim, "crimson_warden", CustomArmorManager.ArmorPieceType.LEGGINGS)) {
+                applyEffect(victim, PotionEffectType.SPEED, 0, 40);
+            }
+
+            if (hasSetPiece(victim, "dragon_slayer", CustomArmorManager.ArmorPieceType.BOOTS)
+                    && EndZoneUtil.isEndWorld(plugin, victim.getWorld())) {
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (!victim.isOnline()) {
+                        return;
+                    }
+                    var velocity = victim.getVelocity();
+                    victim.setVelocity(velocity.setX(0.0D).setZ(0.0D));
+                }, 1L);
             }
         }
     }
@@ -129,6 +191,28 @@ public final class ArmorSetBonusListener implements Listener {
                 plugin.getSkyblockManaManager().addMana(killer, 20);
                 killer.playSound(killer.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 0.5f);
             }
+        }
+
+        // 14. Soulbound Mage: Cursed Drops
+        if (hasFullSet(killer, "soulbound")) {
+            if (Math.random() < 0.40D) { // 40% chance to lose loot
+                event.getDrops().clear();
+                event.setDroppedExp(0);
+                killer.sendMessage(ChatColor.DARK_RED + "The curse of the soulbound consumes your loot...");
+                killer.playSound(killer.getLocation(), Sound.ENTITY_VEX_AMBIENT, 1.0f, 0.5f);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        if (event.getCause() == EntityDamageEvent.DamageCause.FALL
+                && hasSetPiece(player, "dragon_slayer", CustomArmorManager.ArmorPieceType.BOOTS)) {
+            double baseDamage = event.getDamage(EntityDamageEvent.DamageModifier.BASE);
+            event.setDamage(EntityDamageEvent.DamageModifier.BASE, baseDamage * 0.50D);
         }
     }
 
@@ -173,10 +257,51 @@ public final class ArmorSetBonusListener implements Listener {
                 }
             }
         }
+
+        if (hasSetPiece(player, "dragon_slayer", CustomArmorManager.ArmorPieceType.BOOTS)) {
+            applyEffectIfStronger(player, PotionEffectType.SPEED, 0, 40);
+        }
+
+        // 13. Soulbound Mage: Cursed Presence (Drain + Shadow Mobs)
+        if (hasFullSet(player, "soulbound")) {
+            // Health Drain: 1% of max health per second
+            double maxHealth = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
+            double drain = maxHealth * 0.01;
+            if (player.getHealth() > drain) {
+                player.setHealth(player.getHealth() - drain);
+            }
+            player.spawnParticle(Particle.SOUL, player.getLocation().add(0, 1, 0), 3, 0.2, 0.2, 0.2, 0.01);
+            
+            // Shadow Mobs: 5% chance to spawn a shadow stalker nearby
+            if (Math.random() < 0.05D) {
+                if (plugin.getCustomMonsterManager() != null) {
+                    plugin.getCustomMonsterManager().spawnMonster("shadow_stalker", player.getLocation().add(5, 0, 5));
+                    player.sendMessage(ChatColor.DARK_GRAY + "A shadow stalker emerges from your dread...");
+                    player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_STARE, 0.5f, 0.5f);
+                }
+            }
+        }
     }
 
-    private boolean hasFullSet(Player player, String setId) {
+    public boolean hasFullSet(Player player, String setId) {
         return getActivePieceCount(player, setId) >= 4;
+    }
+
+    private boolean hasSetPiece(Player player, String setId, CustomArmorManager.ArmorPieceType pieceType) {
+        if (player == null || setId == null || pieceType == null) {
+            return false;
+        }
+        for (ItemStack piece : player.getInventory().getArmorContents()) {
+            if (piece == null) {
+                continue;
+            }
+            String equippedSetId = armorManager.getArmorSetId(piece);
+            CustomArmorManager.ArmorPieceType equippedPieceType = armorManager.getArmorPieceType(piece);
+            if (setId.equalsIgnoreCase(equippedSetId) && pieceType == equippedPieceType) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void checkArmorSet(Player player) {
@@ -202,6 +327,14 @@ public final class ArmorSetBonusListener implements Listener {
     }
 
     private void applyEffect(Player player, PotionEffectType type, int amplifier, int duration) {
+        player.addPotionEffect(new PotionEffect(type, duration, amplifier, true, false, true));
+    }
+
+    private void applyEffectIfStronger(Player player, PotionEffectType type, int amplifier, int duration) {
+        PotionEffect current = player.getPotionEffect(type);
+        if (current != null && current.getAmplifier() > amplifier && current.getDuration() > duration) {
+            return;
+        }
         player.addPotionEffect(new PotionEffect(type, duration, amplifier, true, false, true));
     }
 

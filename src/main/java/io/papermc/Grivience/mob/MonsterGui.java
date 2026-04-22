@@ -103,9 +103,14 @@ public final class MonsterGui implements Listener {
         String monsterId = ChatColor.stripColor(idLine).replace("ID: ", "").trim();
 
         if (monsterManager.getMonster(monsterId) != null) {
-            monsterManager.spawnMonster(monsterId, player.getLocation());
-            player.sendMessage(ChatColor.GREEN + "Spawned " + ChatColor.YELLOW + monsterId + ChatColor.GREEN + " at your location!");
-            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+            CustomMonsterManager.SpawnBatchResult result = monsterManager.spawnMonstersSafely(monsterId, player.getLocation(), 1);
+            if (result.spawned() > 0) {
+                player.sendMessage(ChatColor.GREEN + "Spawned " + ChatColor.YELLOW + monsterId + ChatColor.GREEN + " nearby!");
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+            } else {
+                player.sendMessage(ChatColor.RED + "No safe spawn location was available for " + ChatColor.YELLOW + monsterId + ChatColor.RED + ".");
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            }
         }
     }
 

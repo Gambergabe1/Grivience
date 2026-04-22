@@ -201,6 +201,10 @@ Create these after the 3 core pages.
 Important note for wiki:
 
 - Jump pad definitions persist in `plugins/Grivience/jumppads.yml`.
+- Admin flow is `/jumppad create <id>`, `/jumppad pos1 <id>`, `/jumppad pos2 <id>`, `/jumppad target <id>`, and optional `/jumppad targetpos <id>` for an exit cuboid.
+- Runtime behavior is a two-stage jump: launch preview first, midpoint teleport second. This is what allows reliable same-world and cross-world routing.
+- `JumpPadManager` stores both launch and target corners; `JumpPadListener` uses the area centers while preserving configured world, yaw, and pitch.
+- `config.yml` under `jump-pads.*` controls the midpoint timing, arrival offset, post-teleport velocity, travel lock, and cross-world preview arc.
 
 ### 4.11 Zone Editor and Scoreboard Areas
 
@@ -226,6 +230,25 @@ Important note for wiki:
   - `src/main/resources/config.yml` (`mining-events.*`, `end-mines.*`)
   - `src/main/resources/plugin.yml` (`mineevent`, `globalevent`, `endmine`)
   - `GLOBAL_EVENT_SYSTEM_README.md`
+  - `DRILL_FORGE_SYSTEM_README.md`
+
+Important note for wiki:
+
+- Cover the `Thermal Drill Forge` as its own sub-page or a major subsection under mining systems.
+- Explain the three screens in plain language:
+  - Drill Bay
+  - Project Queue
+  - Overdrive Chamber
+- Make sure the page explains that:
+  - forge projects are timed
+  - completed projects build Forge Heat
+  - Forge Heat speeds up future projects
+  - Forge Overdrive directly changes live drill behavior
+- Primary code sources for this part:
+  - `src/main/java/io/papermc/Grivience/mines/DrillForgeManager.java`
+  - `src/main/java/io/papermc/Grivience/mines/DrillMechanicGui.java`
+  - `src/main/java/io/papermc/Grivience/mines/DrillForgeCommand.java`
+  - `src/main/java/io/papermc/Grivience/mines/MiningItemListener.java`
 
 ### 4.14 Welcome Event and Quests
 
@@ -325,6 +348,7 @@ Document where plugin runtime state is stored:
 - `plugins/Grivience/welcome-claimed.yml`
 - `plugins/Grivience/xp-boosts.yml`
 - `plugins/Grivience/mob-spawns.yml`
+- `plugins/Grivience/drill-forge-data.yml`
 - `plugins/Grivience/skyblock/minions.yml`
 
 ## 8) Wiki Page Template (Use for Every System Page)
@@ -398,7 +422,7 @@ You already have high-value docs in repo root:
 - `ZONE_EDITOR_README.md`
 - `GRAPPLING_HOOK_README.md`
 - `GLOBAL_EVENT_SYSTEM_README.md`
+- `DRILL_FORGE_SYSTEM_README.md`
 - `WELCOME_EVENT_README.md`
 
 Treat these as draft content, then verify against code/config before wiki publication.
-

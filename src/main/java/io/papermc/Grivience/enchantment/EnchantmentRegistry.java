@@ -770,7 +770,7 @@ public class EnchantmentRegistry {
             .maxLevel(5)
             .description(
                 "Increases farming speed by {level}%.",
-                "Obtained from Jacob's contests."
+                "Obtained from Cletus's contests."
             )
             .baseXpCost(15)
             .icon(Material.GOLDEN_HOE)
@@ -1199,6 +1199,19 @@ public class EnchantmentRegistry {
             )
             .baseXpCost(8)
             .icon(Material.STICK)
+            .build());
+
+        // Dragon Tracker
+        register(SkyblockEnchantment.builder("dragon_tracker", "Dragon Tracker")
+            .type(EnchantmentType.DRAGON_TRACKER)
+            .category(EnchantmentCategory.BOW)
+            .maxLevel(1)
+            .description(
+                "Arrows track the Ender Dragon.",
+                "Increases accuracy against dragons."
+            )
+            .baseXpCost(100)
+            .icon(Material.COMPASS)
             .build());
     }
 

@@ -56,10 +56,28 @@ public final class ResourcePackServer {
                 exchange.sendResponseHeaders(404, -1);
                 return;
             }
+            String method = exchange.getRequestMethod();
+            if (method == null || (!method.equalsIgnoreCase("GET") && !method.equalsIgnoreCase("HEAD"))) {
+                exchange.sendResponseHeaders(405, -1);
+                return;
+            }
+            String expectedPath = "/" + servedFile.getName();
+            String requestPath = exchange.getRequestURI() == null ? null : exchange.getRequestURI().getPath();
+            if (requestPath == null || !requestPath.equals(expectedPath)) {
+                exchange.sendResponseHeaders(404, -1);
+                return;
+            }
+
             Headers headers = exchange.getResponseHeaders();
-            headers.add("Content-Type", Files.probeContentType(servedFile.toPath()));
+            String contentType = Files.probeContentType(servedFile.toPath());
+            headers.add("Content-Type", contentType == null ? "application/zip" : contentType);
             headers.add("Content-Length", Long.toString(servedFile.length()));
-            exchange.sendResponseHeaders(200, servedFile.length());
+            long responseLength = method.equalsIgnoreCase("HEAD") ? -1L : servedFile.length();
+            exchange.sendResponseHeaders(200, responseLength);
+            if (method.equalsIgnoreCase("HEAD")) {
+                exchange.close();
+                return;
+            }
             try (OutputStream os = exchange.getResponseBody(); FileInputStream fis = new FileInputStream(servedFile)) {
                 fis.transferTo(os);
             } catch (IOException ex) {

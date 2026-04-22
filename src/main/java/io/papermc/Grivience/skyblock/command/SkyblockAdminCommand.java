@@ -18,6 +18,9 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Stream;
+import java.util.stream.Collectors;
+import io.papermc.Grivience.event.GlobalEventManager;
 
 public final class SkyblockAdminCommand implements CommandExecutor, TabCompleter {
     private final GriviencePlugin plugin;
@@ -35,11 +38,6 @@ public final class SkyblockAdminCommand implements CommandExecutor, TabCompleter
             return true;
         }
 
-        Player player = requirePlayer(sender);
-        if (player == null) {
-            return true;
-        }
-
         if (args.length == 0) {
             sendHelp(sender);
             return true;
@@ -47,15 +45,72 @@ public final class SkyblockAdminCommand implements CommandExecutor, TabCompleter
 
         String subCommand = args[0].toLowerCase(Locale.ROOT);
         switch (subCommand) {
-            case "sethub" -> handleSetHub(player);
+            case "sethub" -> {
+                Player player = requirePlayer(sender);
+                if (player != null) handleSetHub(player);
+            }
             case "reload" -> handleReload(sender);
-            case "goto", "warp", "visit" -> handleGoto(player, args);
+            case "goto", "warp", "visit" -> {
+                Player player = requirePlayer(sender);
+                if (player != null) handleGoto(player, args);
+            }
+            case "booster" -> handleBooster(sender, args);
+            case "stopbooster" -> handleStopBooster(sender, args);
             case "help" -> sendHelp(sender);
             default -> {
                 sender.sendMessage(ChatColor.RED + "Unknown subcommand. Use /skyblockadmin help");
             }
         }
         return true;
+    }
+
+    private void handleBooster(CommandSender sender, String[] args) {
+        if (plugin.getGlobalEventManager() == null) {
+            sender.sendMessage(ChatColor.RED + "Global Event system not initialized.");
+            return;
+        }
+        if (args.length < 4) {
+            sender.sendMessage(ChatColor.RED + "Usage: /skyblockadmin booster <type> <multiplier> <duration_minutes>");
+            sender.sendMessage(ChatColor.GRAY + "Types: EXPERIENCE, MINION_SPEED, DAMAGE, MINEHUB_HEART, ENDMINES_HEART");
+            return;
+        }
+        String typeStr = args[1].toUpperCase();
+        GlobalEventManager.BoosterType type;
+        try {
+            type = GlobalEventManager.BoosterType.valueOf(typeStr);
+        } catch (IllegalArgumentException e) {
+            sender.sendMessage(ChatColor.RED + "Invalid booster type: " + typeStr);
+            return;
+        }
+
+        double multiplier;
+        int duration;
+        try {
+            multiplier = Double.parseDouble(args[2]);
+            duration = Integer.parseInt(args[3]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(ChatColor.RED + "Invalid multiplier or duration. Please enter numbers.");
+            return;
+        }
+
+        plugin.getGlobalEventManager().startBooster(type, multiplier, duration);
+        sender.sendMessage(ChatColor.GREEN + "Started Global " + type.getDisplayName() + " Boost: " + multiplier + "x for " + duration + " minutes.");
+    }
+
+    private void handleStopBooster(CommandSender sender, String[] args) {
+        if (plugin.getGlobalEventManager() == null) return;
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Usage: /skyblockadmin stopbooster <type>");
+            return;
+        }
+        String typeStr = args[1].toUpperCase();
+        try {
+            GlobalEventManager.BoosterType type = GlobalEventManager.BoosterType.valueOf(typeStr);
+            plugin.getGlobalEventManager().stopBooster(type);
+            sender.sendMessage(ChatColor.GREEN + "Stopped Global " + type.getDisplayName() + " Boost.");
+        } catch (IllegalArgumentException e) {
+            sender.sendMessage(ChatColor.RED + "Invalid booster type: " + typeStr);
+        }
     }
 
     private void handleSetHub(Player player) {
@@ -181,8 +236,14 @@ public final class SkyblockAdminCommand implements CommandExecutor, TabCompleter
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            List<String> commands = new ArrayList<>(List.of("sethub", "reload", "goto", "help"));
+            List<String> commands = new ArrayList<>(List.of("sethub", "reload", "goto", "booster", "stopbooster", "help"));
             return filterPrefix(commands, args[0]);
+        }
+        if (args.length == 2 && (args[0].equalsIgnoreCase("booster") || args[0].equalsIgnoreCase("stopbooster"))) {
+            return Stream.of(GlobalEventManager.BoosterType.values())
+                    .map(Enum::name)
+                    .filter(s -> s.startsWith(args[1].toUpperCase()))
+                    .collect(Collectors.toList());
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("goto")) {
             List<String> names = new ArrayList<>();

@@ -1,5 +1,8 @@
 package io.papermc.Grivience.listener;
 
+import io.papermc.Grivience.GriviencePlugin;
+import io.papermc.Grivience.item.CustomItemService;
+import io.papermc.Grivience.util.CommandDispatchUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -307,6 +310,10 @@ public final class EnchantTableListener implements Listener {
             player.sendMessage(ChatColor.RED + "Hold a weapon in your main hand first.");
             return;
         }
+        if (held.getAmount() != 1) {
+            player.sendMessage(ChatColor.RED + "You can only enchant one weapon at a time.");
+            return;
+        }
         if (player.getLevel() < option.costLevels()) {
             player.sendMessage(ChatColor.RED + "You need " + option.costLevels() + " levels for that enchant.");
             return;
@@ -342,7 +349,9 @@ public final class EnchantTableListener implements Listener {
             player.sendMessage(ChatColor.RED + "Your held item already has this enchant level or higher.");
             return false;
         }
-        held.addUnsafeEnchantment(enchantment, option.level());
+        ItemStack updated = held.clone();
+        updated.addUnsafeEnchantment(enchantment, option.level());
+        writeUpdatedMainHand(player, updated);
         return true;
     }
 
@@ -362,11 +371,80 @@ public final class EnchantTableListener implements Listener {
         if (command.startsWith("/")) {
             command = command.substring(1);
         }
-        boolean executed = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+        ItemStack before = cloneItem(player.getInventory().getItemInMainHand());
+        boolean executed = CommandDispatchUtil.dispatchConsole(plugin, command);
         if (!executed) {
             player.sendMessage(ChatColor.RED + "EcoEnchants command failed. Check enchant-table.eco.command-template.");
+            return false;
         }
-        return executed;
+        ItemStack after = player.getInventory().getItemInMainHand();
+        if (!isSameWeapon(before, after)) {
+            player.sendMessage(ChatColor.RED + "Your held weapon changed while enchanting. Try again.");
+            return false;
+        }
+        if (!heldItemChanged(before, after)) {
+            player.sendMessage(ChatColor.RED + "That enchant purchase did not modify your held weapon.");
+            return false;
+        }
+        writeUpdatedMainHand(player, after);
+        return true;
+    }
+
+    static boolean heldItemChanged(ItemStack before, ItemStack after) {
+        if (before == null || before.getType().isAir()) {
+            return after != null && !after.getType().isAir();
+        }
+        if (after == null || after.getType().isAir()) {
+            return false;
+        }
+        return !Objects.equals(before.serialize(), after.serialize());
+    }
+
+    private boolean isSameWeapon(ItemStack before, ItemStack after) {
+        if (before == null || before.getType().isAir() || after == null || after.getType().isAir()) {
+            return false;
+        }
+        if (before.getType() != after.getType() || before.getAmount() != after.getAmount()) {
+            return false;
+        }
+        return Objects.equals(customItemId(before), customItemId(after));
+    }
+
+    private void writeUpdatedMainHand(Player player, ItemStack item) {
+        if (player == null || item == null || item.getType().isAir()) {
+            return;
+        }
+
+        ItemStack updated = item.clone();
+        CustomItemService itemService = customItemService();
+        if (itemService != null && itemService.isCustomDungeonWeapon(updated)) {
+            updated = itemService.syncWeaponEnchantLore(updated);
+        }
+
+        player.getInventory().setItemInMainHand(updated);
+        player.updateInventory();
+    }
+
+    private ItemStack cloneItem(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return null;
+        }
+        return item.clone();
+    }
+
+    private String customItemId(ItemStack item) {
+        CustomItemService itemService = customItemService();
+        if (itemService == null || item == null || item.getType().isAir()) {
+            return null;
+        }
+        return itemService.itemId(item);
+    }
+
+    private CustomItemService customItemService() {
+        if (!(plugin instanceof GriviencePlugin griviencePlugin)) {
+            return null;
+        }
+        return griviencePlugin.getCustomItemService();
     }
 
     private EnchantOption parseOption(String id, ConfigurationSection section) {

@@ -3,9 +3,12 @@ package io.papermc.Grivience.collections;
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.crafting.RecipeRegistry;
 import io.papermc.Grivience.crafting.SkyblockRecipe;
+import io.papermc.Grivience.item.ArmorCraftingListener;
 import io.papermc.Grivience.skyblock.profile.ProfileManager;
 import io.papermc.Grivience.skyblock.profile.SkyBlockProfile;
+import io.papermc.Grivience.util.CommandDispatchUtil;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
@@ -177,6 +180,58 @@ public class CollectionsManager {
         return result;
     }
 
+    public List<CollectionDefinition> searchCollections(String query) {
+        String normalizedQuery = CollectionTextUtil.searchableText(query);
+        if (normalizedQuery.isBlank()) {
+            return List.of();
+        }
+
+        List<CollectionDefinition> matches = new ArrayList<>();
+        for (CollectionDefinition collection : collections.values()) {
+            if (!collection.isEnabled()) {
+                continue;
+            }
+            if (collectionMatchesQuery(collection, normalizedQuery)) {
+                matches.add(collection);
+            }
+        }
+
+        matches.sort(Comparator
+                .comparingInt((CollectionDefinition collection) -> collectionMatchRank(collection, normalizedQuery))
+                .thenComparing(collection -> CollectionTextUtil.plainText(collection.getName()), String.CASE_INSENSITIVE_ORDER));
+        return matches;
+    }
+
+    public CollectionDefinition findBestCollectionMatch(String query) {
+        String normalizedQuery = CollectionTextUtil.searchableText(query);
+        if (normalizedQuery.isBlank()) {
+            return null;
+        }
+
+        CollectionDefinition best = null;
+        int bestRank = Integer.MAX_VALUE;
+        for (CollectionDefinition collection : collections.values()) {
+            if (!collection.isEnabled() || !collectionMatchesQuery(collection, normalizedQuery)) {
+                continue;
+            }
+
+            int rank = collectionMatchRank(collection, normalizedQuery);
+            if (rank < bestRank) {
+                best = collection;
+                bestRank = rank;
+            } else if (rank == bestRank) {
+                best = null;
+            }
+        }
+
+        if (best != null && bestRank <= 1) {
+            return best;
+        }
+
+        List<CollectionDefinition> matches = searchCollections(query);
+        return matches.size() == 1 ? matches.get(0) : null;
+    }
+
     /**
      * Get a profile's progress for a specific collection.
      */
@@ -236,6 +291,17 @@ public class CollectionsManager {
         checkTierUnlocks(player, collection, progress);
 
         return progress.getCollectedAmount();
+    }
+
+    public long addCollectionFromDrop(Player player, ItemStack item) {
+        if (item == null || item.getType().isAir() || item.getAmount() <= 0) {
+            return 0;
+        }
+        String itemId = CollectionItemIdUtil.trackedItemIdForMaterial(item.getType());
+        if (itemId.isBlank()) {
+            return 0;
+        }
+        return addCollection(player, itemId, item.getAmount());
     }
 
     /**
@@ -367,6 +433,28 @@ public class CollectionsManager {
 
                 member.discoverRecipe(recipe.getKey());
             }
+
+            if (plugin.getArmorCraftingListener() == null) {
+                continue;
+            }
+            for (ArmorCraftingListener.ArmorRecipeDefinition recipe : plugin.getArmorCraftingListener().getRegisteredRecipeDefinitions()) {
+                if (recipe == null || recipe.key() == null) {
+                    continue;
+                }
+                if (recipe.collectionId() == null || recipe.collectionId().isBlank()) {
+                    continue;
+                }
+                if (!recipe.collectionId().equalsIgnoreCase(collectionId)) {
+                    continue;
+                }
+                if (recipe.collectionTierRequired() != tierLevel) {
+                    continue;
+                }
+                if (member.hasDiscoveredRecipe(recipe.key())) {
+                    continue;
+                }
+                member.discoverRecipe(recipe.key());
+            }
         }
     }
 
@@ -397,7 +485,7 @@ public class CollectionsManager {
                                 }
                                 player.getWorld().dropItemNaturally(player.getLocation(), remaining);
                             }
-                            player.sendMessage("§cInventory full. Collection rewards dropped at your feet.");
+                            player.sendMessage(ChatColor.RED + "Inventory full. Collection rewards dropped at your feet.");
                         }
                     }
                     break;
@@ -405,7 +493,7 @@ public class CollectionsManager {
                     if (player != null) {
                         for (String command : reward.getCommands()) {
                             String processed = command.replace("{player}", player.getName());
-                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), processed);
+                            CommandDispatchUtil.dispatchConsole(plugin, processed);
                         }
                     }
                     break;
@@ -442,7 +530,7 @@ public class CollectionsManager {
      */
     private void grantSkillXp(Player player, String skillType, int xp) {
         // Could integrate with skills plugins or custom skill system
-        player.sendMessage("§a+§b" + xp + " §a" + skillType + " XP");
+        player.sendMessage(ChatColor.GREEN + "+" + ChatColor.AQUA + xp + " " + ChatColor.GREEN + skillType + " XP");
     }
 
     /**
@@ -461,31 +549,31 @@ public class CollectionsManager {
 
         for (Player player : members) {
             player.sendMessage("");
-            player.sendMessage("§6§l COLLECTION TIER UNLOCKED!");
-            player.sendMessage("§e" + collection.getName() + " §6Tier " + tier.getTierRoman());
+            player.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + " COLLECTION TIER UNLOCKED!");
+            player.sendMessage(ChatColor.YELLOW + collection.getName() + " " + ChatColor.GOLD + "Tier " + tier.getTierRoman());
             if (triggeringPlayer != null && triggeringPlayer.getUniqueId() != null
                     && !triggeringPlayer.getUniqueId().equals(player.getUniqueId())) {
-                player.sendMessage("§7Unlocked by: §a" + triggeringPlayer.getName());
+                player.sendMessage(ChatColor.GRAY + "Unlocked by: " + ChatColor.GREEN + triggeringPlayer.getName());
             }
             player.sendMessage("");
-            player.sendMessage("§aRewards:");
+            player.sendMessage(ChatColor.GREEN + "Rewards:");
             for (CollectionReward reward : tier.getRewards()) {
                 player.sendMessage("  " + reward.getFormattedLore());
             }
 
             if (!recipeNames.isEmpty()) {
                 player.sendMessage("");
-                player.sendMessage("§aRecipes:");
+                player.sendMessage(ChatColor.GREEN + "Recipes:");
                 int shown = 0;
                 for (String name : recipeNames) {
                     if (shown >= 6) {
                         break;
                     }
-                    player.sendMessage("  §eUnlock Recipe: §b" + name);
+                    player.sendMessage("  " + ChatColor.YELLOW + "Unlock Recipe: " + ChatColor.AQUA + name);
                     shown++;
                 }
                 if (recipeNames.size() > shown) {
-                    player.sendMessage("  §7(and " + (recipeNames.size() - shown) + " more)");
+                    player.sendMessage("  " + ChatColor.GRAY + "(and " + (recipeNames.size() - shown) + " more)");
                 }
             }
             player.sendMessage("");
@@ -520,7 +608,7 @@ public class CollectionsManager {
             return List.of();
         }
 
-        List<String> names = new ArrayList<>();
+        Set<String> names = new LinkedHashSet<>();
         for (SkyblockRecipe recipe : RecipeRegistry.getAll()) {
             if (recipe == null || recipe.getCollectionId() == null) {
                 continue;
@@ -533,7 +621,22 @@ public class CollectionsManager {
             }
             names.add(recipe.getName());
         }
-        return names;
+
+        if (plugin.getArmorCraftingListener() != null) {
+            for (ArmorCraftingListener.ArmorRecipeDefinition recipe : plugin.getArmorCraftingListener().getRegisteredRecipeDefinitions()) {
+                if (recipe == null || recipe.collectionId() == null) {
+                    continue;
+                }
+                if (recipe.collectionTierRequired() != tierLevel) {
+                    continue;
+                }
+                if (!recipe.collectionId().equalsIgnoreCase(collectionId)) {
+                    continue;
+                }
+                names.add(recipe.name());
+            }
+        }
+        return List.copyOf(names);
     }
 
     /**
@@ -645,6 +748,46 @@ public class CollectionsManager {
         return rank;
     }
 
+    public UUID getProfileId(Player player) {
+        return resolveProfileId(player);
+    }
+
+    public Map<String, Integer> getCollectionTierSnapshot(UUID profileId) {
+        if (profileId == null) {
+            return Map.of();
+        }
+
+        Map<String, PlayerCollectionProgress> progressMap = progressByProfile.get(profileId);
+        if (progressMap == null || progressMap.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, Integer> snapshot = new HashMap<>();
+        for (Map.Entry<String, PlayerCollectionProgress> entry : progressMap.entrySet()) {
+            if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null) {
+                continue;
+            }
+
+            String collectionId = normalizeCollectionId(entry.getKey());
+            CollectionDefinition definition = collections.get(collectionId);
+            int tierLevel;
+            if (definition != null) {
+                tierLevel = Math.max(0, definition.getCurrentTierLevel(entry.getValue().getCollectedAmount()));
+            } else {
+                tierLevel = entry.getValue().getUnlockedTiers().stream()
+                        .mapToInt(Integer::intValue)
+                        .max()
+                        .orElse(0);
+            }
+
+            if (tierLevel > 0) {
+                snapshot.put(collectionId, tierLevel);
+            }
+        }
+
+        return snapshot;
+    }
+
     private UUID resolveProfileId(Player player) {
         if (player == null) {
             return null;
@@ -737,7 +880,50 @@ public class CollectionsManager {
             }
         }
 
+        ensureBuiltInCollections();
         rebuildItemIndex();
+    }
+
+    private void ensureBuiltInCollections() {
+        registerBuiltInCollection("kunzite", createKunziteCollection());
+    }
+
+    private void registerBuiltInCollection(String id, CollectionDefinition definition) {
+        if (definition == null) {
+            return;
+        }
+        String normalizedId = normalizeCollectionId(id);
+        if (collections.containsKey(normalizedId)) {
+            return;
+        }
+        collections.put(normalizedId, definition);
+        plugin.getLogger().info("Registered built-in collection fallback: " + normalizedId);
+    }
+
+    private CollectionDefinition createKunziteCollection() {
+        List<CollectionTier> tiers = new ArrayList<>();
+        long[] amounts = {10L, 25L, 50L, 100L, 250L, 500L, 1000L, 2000L, 4000L};
+        for (int i = 0; i < amounts.length; i++) {
+            tiers.add(new CollectionTier(
+                    i + 1,
+                    amounts[i],
+                    List.of(CollectionReward.builder()
+                            .type(CollectionReward.RewardType.SKYBLOCK_XP)
+                            .skyblockXp(4)
+                            .build())
+            ));
+        }
+
+        return CollectionDefinition.builder()
+                .id("kunzite")
+                .name(ChatColor.LIGHT_PURPLE + "Kunzite")
+                .description("A luminous pink crystal harvested from the End Hub")
+                .icon(Material.PINK_STAINED_GLASS)
+                .category(CollectionCategory.MINING)
+                .trackedItems(List.of("kunzite"))
+                .tiers(tiers)
+                .enabled(true)
+                .build();
     }
 
     /**
@@ -1073,13 +1259,77 @@ public class CollectionsManager {
     }
 
     private String normalizeItemId(String raw) {
-        if (raw == null) {
-            return "";
+        return CollectionItemIdUtil.normalizeTrackedItemId(raw);
+    }
+
+    private boolean collectionMatchesQuery(CollectionDefinition collection, String normalizedQuery) {
+        if (collection == null || normalizedQuery == null || normalizedQuery.isBlank()) {
+            return false;
         }
-        return raw.trim()
-                .toLowerCase(Locale.ROOT)
-                .replace(' ', '_')
-                .replace('-', '_');
+
+        if (CollectionTextUtil.searchableText(collection.getId()).contains(normalizedQuery)) {
+            return true;
+        }
+        if (CollectionTextUtil.searchableText(collection.getName()).contains(normalizedQuery)) {
+            return true;
+        }
+        if (CollectionTextUtil.searchableText(collection.getDescription()).contains(normalizedQuery)) {
+            return true;
+        }
+        if (CollectionTextUtil.searchableText(collection.getCategory().getDisplayName()).contains(normalizedQuery)) {
+            return true;
+        }
+        if (CollectionTextUtil.searchableText(collection.getSubcategory()).contains(normalizedQuery)) {
+            return true;
+        }
+
+        for (String trackedItem : collection.getTrackedItems()) {
+            if (CollectionTextUtil.searchableText(trackedItem).contains(normalizedQuery)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int collectionMatchRank(CollectionDefinition collection, String normalizedQuery) {
+        if (collection == null) {
+            return Integer.MAX_VALUE;
+        }
+
+        String id = CollectionTextUtil.searchableText(collection.getId());
+        String name = CollectionTextUtil.searchableText(collection.getName());
+        String description = CollectionTextUtil.searchableText(collection.getDescription());
+        String category = CollectionTextUtil.searchableText(collection.getCategory().getDisplayName());
+        String subcategory = CollectionTextUtil.searchableText(collection.getSubcategory());
+
+        if (normalizedQuery.equals(id)) {
+            return 0;
+        }
+        if (normalizedQuery.equals(name)) {
+            return 1;
+        }
+        for (String trackedItem : collection.getTrackedItems()) {
+            if (normalizedQuery.equals(CollectionTextUtil.searchableText(trackedItem))) {
+                return 2;
+            }
+        }
+        if (name.startsWith(normalizedQuery)) {
+            return 3;
+        }
+        if (id.startsWith(normalizedQuery)) {
+            return 4;
+        }
+        if (subcategory.contains(normalizedQuery)) {
+            return 5;
+        }
+        if (category.contains(normalizedQuery)) {
+            return 6;
+        }
+        if (description.contains(normalizedQuery)) {
+            return 7;
+        }
+        return 8;
     }
 
     /**

@@ -27,9 +27,11 @@ public final class SkyblockListener implements Listener {
         this.islandManager = islandManager;
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        boolean firstJoin = !player.hasPlayedBefore();
+        long guideDelayTicks = resolveFirstJoinGuideDelayTicks();
         World islandWorld = islandManager.getIslandWorld();
 
         if (islandWorld == null) {
@@ -51,12 +53,13 @@ public final class SkyblockListener implements Listener {
         }
 
         if (!islandManager.hasIsland(player)) {
-            // If they have a profile but no island, create it automatically.
-            if (profileManager != null) {
+            // Only auto-generate on a player's first-ever join.
+            if (firstJoin && profileManager != null) {
                 var selectedProfile = profileManager.getSelectedProfile(player);
                 if (selectedProfile != null) {
                     player.sendMessage(ChatColor.YELLOW + "Generating your Skyblock island...");
                     islandManager.createIsland(player);
+                    scheduleFirstJoinGuide(player, guideDelayTicks);
                     return;
                 }
             }
@@ -69,17 +72,84 @@ public final class SkyblockListener implements Listener {
             player.sendMessage("");
         } else {
             Island island = islandManager.getIsland(player);
-            Location spawn = islandManager.getSafeSpawnLocation(island);
-            if (spawn != null && islandWorld != null) {
-                // Teleport shortly after join to ensure chunks are loaded.
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    if (player.isOnline()) {
-                        player.teleport(spawn);
-                        player.setBedSpawnLocation(spawn, true);
-                    }
-                }, 2L);
+            if (firstJoin) {
+                // VERY first join: always force to island.
+                Location spawn = islandManager.getSafeSpawnLocation(island);
+                if (spawn != null) {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        if (player.isOnline()) {
+                            player.teleport(spawn);
+                            player.setBedSpawnLocation(spawn, true);
+                        }
+                    }, 2L);
+                }
+            } else {
+                // Returning player: spawn them at the "Map Part" spawn they were in.
+                Location currentLoc = player.getLocation();
+                String worldName = currentLoc.getWorld().getName();
+                
+                Location targetSpawn = null;
+                if (worldName.equals(islandManager.getIslandWorldName())) {
+                    targetSpawn = islandManager.getSafeSpawnLocation(island);
+                } else if (worldName.equalsIgnoreCase("Minehub")) {
+                    targetSpawn = getMinehubSpawn();
+                } else if (worldName.equalsIgnoreCase("skyblock_end_mines")) {
+                    targetSpawn = getEndMinesSpawn();
+                } else if (worldName.equalsIgnoreCase(plugin.getConfig().getString("skyblock.hub-world", "world"))) {
+                    targetSpawn = getHubSpawn();
+                }
+
+                if (targetSpawn != null) {
+                    Location finalTarget = targetSpawn;
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        if (player.isOnline()) {
+                            player.teleport(finalTarget);
+                        }
+                    }, 2L);
+                }
             }
         }
+
+        if (firstJoin) {
+            scheduleFirstJoinGuide(player, guideDelayTicks);
+        }
+    }
+
+    private Location getHubSpawn() {
+        String hubWorldName = plugin.getConfig().getString("skyblock.hub-world", "world");
+        World world = Bukkit.getWorld(hubWorldName);
+        if (world == null) return null;
+        
+        String path = "skyblock.hub-spawn";
+        if (plugin.getConfig().contains(path)) {
+            double x = plugin.getConfig().getDouble(path + ".x");
+            double y = plugin.getConfig().getDouble(path + ".y");
+            double z = plugin.getConfig().getDouble(path + ".z");
+            float yaw = (float) plugin.getConfig().getDouble(path + ".yaw", 0);
+            float pitch = (float) plugin.getConfig().getDouble(path + ".pitch", 0);
+            return new Location(world, x, y, z, yaw, pitch);
+        }
+        return world.getSpawnLocation().add(0.5, 0, 0.5);
+    }
+
+    private Location getMinehubSpawn() {
+        World world = Bukkit.getWorld("Minehub");
+        if (world == null) return null;
+        String path = "skyblock.minehub-spawn";
+        if (plugin.getConfig().contains(path)) {
+            double x = plugin.getConfig().getDouble(path + ".x");
+            double y = plugin.getConfig().getDouble(path + ".y");
+            double z = plugin.getConfig().getDouble(path + ".z");
+            return new Location(world, x, y, z);
+        }
+        return world.getSpawnLocation().add(0.5, 0, 0.5);
+    }
+
+    private Location getEndMinesSpawn() {
+        World world = Bukkit.getWorld("skyblock_end_mines");
+        if (world == null) return null;
+        // End mines uses a safe platform at 0, 70, 0 usually or world spawn
+        return world.getSpawnLocation().add(0.5, 0, 0.5);
     }
 
     @EventHandler
@@ -89,8 +159,8 @@ public final class SkyblockListener implements Listener {
 
         if (island != null && island.getCenter() != null) {
             Location spawnLocation = islandManager.getSafeSpawnLocation(island);
-            if (spawnLocation != null && islandManager.getIslandWorld() != null &&
-                    spawnLocation.getWorld().equals(islandManager.getIslandWorld())) {
+            String islandWorldName = islandManager.getIslandWorldName();
+            if (spawnLocation != null && spawnLocation.getWorld().getName().equalsIgnoreCase(islandWorldName)) {
                 event.setRespawnLocation(spawnLocation);
             }
         }
@@ -109,8 +179,8 @@ public final class SkyblockListener implements Listener {
             return;
         }
 
-        World islandWorld = islandManager.getIslandWorld();
-        if (islandWorld == null || !to.getWorld().equals(islandWorld)) {
+        String islandWorldName = islandManager.getIslandWorldName();
+        if (!to.getWorld().getName().equalsIgnoreCase(islandWorldName)) {
             return;
         }
 
@@ -131,5 +201,46 @@ public final class SkyblockListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         islandManager.saveProfileInventory(player);
+    }
+
+    private void scheduleFirstJoinGuide(Player player, long delayTicks) {
+        if (player == null) {
+            return;
+        }
+        if (!plugin.getConfig().getBoolean("skyblock-guide.first-join-auto-open", true)) {
+            return;
+        }
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+
+            var profileManager = plugin.getProfileManager();
+            if (profileManager != null && profileManager.getSelectedProfile(player) == null) {
+                return;
+            }
+
+            if (plugin.getSkyblockLevelGui() == null) {
+                return;
+            }
+
+            if (plugin.getConfig().getBoolean("skyblock-guide.first-join-chat-tip", true)) {
+                player.sendMessage("");
+                player.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "SkyBlock Guide");
+                player.sendMessage(ChatColor.GRAY + "Welcome to your new island! Here are some tips to get started:");
+                player.sendMessage(ChatColor.YELLOW + " \u27a4 " + ChatColor.WHITE + "Use " + ChatColor.GREEN + "/npcsell" + ChatColor.WHITE + " to sell items for coins.");
+                player.sendMessage(ChatColor.YELLOW + " \u27a4 " + ChatColor.WHITE + "Use " + ChatColor.GREEN + "/spawn" + ChatColor.WHITE + " to visit the Hub world.");
+                player.sendMessage(ChatColor.YELLOW + " \u27a4 " + ChatColor.WHITE + "Use " + ChatColor.GREEN + "/farmhub" + ChatColor.WHITE + " for early-game leveling.");
+                player.sendMessage("");
+                player.sendMessage(ChatColor.GRAY + "Tasks and milestones are listed in the guide menu.");
+            }
+
+            plugin.getSkyblockLevelGui().openGuideMenu(player);
+        }, Math.max(1L, delayTicks));
+    }
+
+    private long resolveFirstJoinGuideDelayTicks() {
+        return Math.max(1L, plugin.getConfig().getLong("skyblock-guide.first-join-open-delay-ticks", 80L));
     }
 }

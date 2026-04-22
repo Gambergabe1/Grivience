@@ -1,5 +1,6 @@
 package io.papermc.Grivience.storage;
 
+import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.ArrayList;
@@ -56,7 +57,10 @@ public class StorageUpgrade {
      * Get the display name for this upgrade tier.
      */
     public String getDisplayName() {
-        return displayName;
+        if (displayName == null || displayName.isBlank()) {
+            return ChatColor.GOLD + "Tier " + tier;
+        }
+        return ChatColor.translateAlternateColorCodes('&', displayName);
     }
 
     /**

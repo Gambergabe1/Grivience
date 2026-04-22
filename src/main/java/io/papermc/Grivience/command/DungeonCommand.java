@@ -4,7 +4,6 @@ import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.dungeon.DungeonManager;
 import io.papermc.Grivience.dungeon.FloorConfig;
 import io.papermc.Grivience.gui.DungeonGuiManager;
-import io.papermc.Grivience.item.CustomItemService;
 import io.papermc.Grivience.party.Party;
 import io.papermc.Grivience.party.PartyManager;
 import net.kyori.adventure.text.Component;
@@ -31,26 +30,20 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
     private final PartyManager partyManager;
     private final DungeonManager dungeonManager;
     private final DungeonGuiManager guiManager;
-    private final CustomItemService customItemService;
-    private final io.papermc.Grivience.item.CustomArmorManager customArmorManager;
-    private final io.papermc.Grivience.pet.PetManager petManager;
+    private final AdminItemResolver adminItemResolver;
 
     public DungeonCommand(
             GriviencePlugin plugin,
             PartyManager partyManager,
             DungeonManager dungeonManager,
             DungeonGuiManager guiManager,
-            CustomItemService customItemService,
-            io.papermc.Grivience.item.CustomArmorManager customArmorManager,
-            io.papermc.Grivience.pet.PetManager petManager
+            AdminItemResolver adminItemResolver
     ) {
         this.plugin = plugin;
         this.partyManager = partyManager;
         this.dungeonManager = dungeonManager;
         this.guiManager = guiManager;
-        this.customItemService = customItemService;
-        this.customArmorManager = customArmorManager;
-        this.petManager = petManager;
+        this.adminItemResolver = adminItemResolver;
     }
 
     @Override
@@ -103,6 +96,20 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
             }
             case "give" -> {
                 handleGiveCommand(sender, args);
+                return true;
+            }
+            case "star" -> {
+                if (!sender.hasPermission("grivience.admin")) {
+                    sender.sendMessage(ChatColor.RED + "You do not have permission.");
+                    return true;
+                }
+                handleStarCommand(sender, args);
+                return true;
+            }
+            case "upgrade" -> {
+                if (sender instanceof Player player) {
+                    plugin.getDungeonStarGui().open(player);
+                }
                 return true;
             }
             case "start" -> {
@@ -305,6 +312,7 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/dungeon start <floor>");
         sender.sendMessage(ChatColor.YELLOW + "/dungeon abandon");
         sender.sendMessage(ChatColor.YELLOW + "/dungeon menu");
+        sender.sendMessage(ChatColor.YELLOW + "/dungeon upgrade");
         sender.sendMessage(ChatColor.YELLOW + "/dungeon party create|invite|accept [leader]|leave|kick|list");
         sender.sendMessage(ChatColor.YELLOW + "/party create|invite|accept [leader]|leave|kick|list|finder");
         if (sender.hasPermission("grivience.admin")) {
@@ -377,6 +385,41 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
         return null;
     }
 
+    private void handleStarCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ChatColor.RED + "Only players can use this.");
+            return;
+        }
+
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType().isAir()) {
+            player.sendMessage(ChatColor.RED + "You must be holding an item.");
+            return;
+        }
+
+        int stars = 0;
+        if (args.length >= 2) {
+            try {
+                stars = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                player.sendMessage(ChatColor.RED + "Invalid star count.");
+                return;
+            }
+        } else {
+            stars = plugin.getCustomItemService().getDungeonStars(item) + 1;
+        }
+
+        if (stars < 0 || stars > 5) {
+            player.sendMessage(ChatColor.RED + "Star count must be between 0 and 5.");
+            return;
+        }
+
+        ItemStack starred = plugin.getCustomItemService().setDungeonStars(item, stars);
+        player.getInventory().setItemInMainHand(starred);
+        player.sendMessage(ChatColor.GREEN + "Item updated to " + stars + " stars!");
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_USE, 1.0f, 1.2f);
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         String commandName = command.getName().toLowerCase(Locale.ROOT);
@@ -389,6 +432,7 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("grivience.admin")) {
                 root.add("reload");
                 root.add("give");
+                root.add("star");
             }
             return filterPrefix(root, args[0]);
         }
@@ -401,6 +445,10 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
             return filterPrefix(dungeonManager.floorIds(), args[1]);
         }
 
+        if (args.length == 2 && args[0].equalsIgnoreCase("star") && sender.hasPermission("grivience.admin")) {
+            return filterPrefix(List.of("0", "1", "2", "3", "4", "5"), args[1]);
+        }
+
         if (args.length >= 2 && args[0].equalsIgnoreCase("give") && sender.hasPermission("grivience.admin")) {
             if (args.length == 2) {
                 List<String> players = Bukkit.getOnlinePlayers().stream()
@@ -409,14 +457,7 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                 return filterPrefix(players, args[1]);
             }
             if (args.length == 3) {
-                List<String> keys = new ArrayList<>(customItemService.allItemKeys());
-                if (customArmorManager != null) {
-                    keys.addAll(armorIds());
-                }
-                if (petManager != null) {
-                    petManager.allPets().forEach(p -> keys.add(p.id()));
-                }
-                return filterPrefix(keys, args[2].toLowerCase(Locale.ROOT));
+                return adminItemResolver.matchingKeys(args[2], 100);
             }
             if (args.length == 4) {
                 return filterPrefix(List.of("1", "2", "4", "8", "16", "32", "64"), args[3]);
@@ -493,30 +534,15 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
         }
 
         String key = args[2].toLowerCase(Locale.ROOT);
-        ItemStack template = customItemService.createItemByKey(key);
-        if (template == null && customArmorManager != null) {
-            String[] parts = key.split("_");
-            if (parts.length == 2) {
-                var set = customArmorManager.getArmorSet(parts[0]);
-                io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType type = parseArmorPiece(parts[1]);
-                if (set != null && type != null) {
-                    template = customArmorManager.createArmorPiece(set.getId(), type);
-                }
-            }
-        }
-        if (template == null && petManager != null && petManager.allPets().stream().anyMatch(p -> p.id().equals(key))) {
-            template = petManager.createPetItem(key, target);
-        }
+        ItemStack template = adminItemResolver.resolve(key, target);
         if (template == null) {
-            List<String> all = new ArrayList<>(customItemService.allItemKeys());
-            if (customArmorManager != null) {
-                all.addAll(armorIds());
-            }
-            if (petManager != null) {
-                petManager.allPets().forEach(p -> all.add(p.id()));
-            }
             sender.sendMessage(ChatColor.RED + "Unknown item id: " + key);
-            sender.sendMessage(ChatColor.GRAY + "Try one of: " + String.join(", ", all));
+            List<String> suggestions = adminItemResolver.matchingKeys(key, 12);
+            if (!suggestions.isEmpty()) {
+                sender.sendMessage(ChatColor.GRAY + "Matches: " + String.join(", ", suggestions));
+            } else {
+                sender.sendMessage(ChatColor.GRAY + "Use tab-complete to browse item ids.");
+            }
             return;
         }
 
@@ -551,25 +577,5 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                 : template.getType().name();
         sender.sendMessage(ChatColor.GREEN + "Gave " + amount + "x " + ChatColor.YELLOW + displayName + ChatColor.GREEN + " to " + target.getName() + ".");
         target.sendMessage(ChatColor.GOLD + "[Items] " + ChatColor.YELLOW + "You received " + amount + "x " + displayName + ChatColor.YELLOW + ".");
-    }
-
-    private io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType parseArmorPiece(String piece) {
-        try {
-            return io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType.valueOf(piece.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private List<String> armorIds() {
-        List<String> ids = new ArrayList<>();
-        if (customArmorManager == null) return ids;
-        for (var entry : customArmorManager.getArmorSets().entrySet()) {
-            String set = entry.getKey();
-            for (io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType type : io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType.values()) {
-                ids.add(set + "_" + type.name().toLowerCase(Locale.ROOT));
-            }
-        }
-        return ids;
     }
 }

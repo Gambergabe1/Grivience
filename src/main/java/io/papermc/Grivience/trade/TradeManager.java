@@ -46,6 +46,18 @@ public final class TradeManager {
             requester.sendMessage(ChatColor.RED + "You cannot trade with yourself.");
             return;
         }
+
+        // Acceptance logic: if the target already has an active request OUTGOING to the requester,
+        // then the requester shift-right-clicking them counts as an acceptance.
+        TradeRequest existingIncoming = incomingByTarget.get(requester.getUniqueId());
+        if (existingIncoming != null && existingIncoming.requesterId.equals(target.getUniqueId())) {
+            long now = System.currentTimeMillis();
+            if (now <= existingIncoming.expiresAtMs) {
+                acceptIncoming(requester, target);
+                return;
+            }
+        }
+
         if (getSessionByPlayer(requester.getUniqueId()) != null) {
             requester.sendMessage(ChatColor.RED + "You are already in a trade.");
             return;

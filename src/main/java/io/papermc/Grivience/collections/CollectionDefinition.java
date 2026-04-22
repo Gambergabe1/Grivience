@@ -1,18 +1,16 @@
 package io.papermc.Grivience.collections;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Represents a collection definition.
  * A collection tracks one or more item types and has multiple tiers with rewards.
- * 
+ *
  * Skyblock accurate structure:
  * - Each collection tracks specific items (e.g., Wheat, Diamond, Rotten Flesh)
  * - Multiple item types can be in one collection
@@ -43,16 +41,15 @@ public class CollectionDefinition {
             boolean enabled
     ) {
         this.id = id;
-        this.name = name;
-        this.description = description;
+        this.name = CollectionTextUtil.sanitizeDisplayText(name);
+        this.description = CollectionTextUtil.sanitizeDisplayText(description);
         this.icon = icon;
         this.category = category;
-        this.subcategory = subcategory == null ? "" : subcategory;
+        this.subcategory = CollectionTextUtil.sanitizeDisplayText(subcategory == null ? "" : subcategory);
         this.trackedItems = new ArrayList<>(trackedItems);
         this.tiers = new ArrayList<>(tiers);
         this.enabled = enabled;
 
-        // Calculate total amount required for max
         long total = 0;
         if (!tiers.isEmpty()) {
             total = tiers.get(tiers.size() - 1).getAmountRequired();
@@ -146,8 +143,8 @@ public class CollectionDefinition {
      */
     public int getTotalSkyblockXp() {
         return tiers.stream()
-            .mapToInt(CollectionTier::getTotalSkyblockXp)
-            .sum();
+                .mapToInt(CollectionTier::getTotalSkyblockXp)
+                .sum();
     }
 
     /**
@@ -173,68 +170,50 @@ public class CollectionDefinition {
         display.setAmount(1);
 
         var meta = display.getItemMeta();
-        if (meta == null) return display;
+        if (meta == null) {
+            return display;
+        }
 
-        meta.setDisplayName("§6" + name);
+        meta.setDisplayName(ChatColor.GOLD + name);
 
         List<String> lore = new ArrayList<>();
-        lore.add("§7" + category.getDisplayName());
-        if (description != null && !description.isEmpty()) {
-            lore.add("§8" + description);
+        lore.add(ChatColor.GRAY + "Category: " + category.getDisplayName());
+        if (!description.isEmpty()) {
+            lore.add(ChatColor.DARK_GRAY + description);
         }
         lore.add("");
 
-        // Collection progress
         int currentTierLevel = getCurrentTierLevel(collectedAmount);
-        CollectionTier currentTier = getTierForAmount(collectedAmount);
         int maxTierLevel = tiers.isEmpty() ? 0 : tiers.get(tiers.size() - 1).getTierLevel();
-        
+
         if (currentTierLevel > 0) {
-            lore.add("§eTier " + CollectionTier.toRoman(currentTierLevel));
+            lore.add(ChatColor.YELLOW + "Tier " + CollectionTier.toRoman(currentTierLevel));
         }
 
         if (currentTierLevel < maxTierLevel) {
-            CollectionTier nextTier = tiers.get(currentTierLevel); // tiers is 0-indexed, currentTierLevel is 1-indexed
-            double percent = (double) collectedAmount / nextTier.getAmountRequired() * 100.0;
-            if (percent > 100.0) percent = 100.0;
+            CollectionTier nextTier = tiers.get(currentTierLevel);
+            double percent = Math.min(100.0D, (double) collectedAmount / nextTier.getAmountRequired() * 100.0D);
 
-            lore.add("§7Progress to Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + ": §e" + String.format("%.1f%%", percent));
-            lore.add(createProgressBar(percent / 100.0, 20));
-            lore.add("§e" + formatNumber(collectedAmount) + "§7/§e" + formatNumber(nextTier.getAmountRequired()));
+            lore.add(ChatColor.GRAY + "Progress to Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + ": " + ChatColor.YELLOW + String.format("%.1f%%", percent));
+            lore.add(CollectionTextUtil.createProgressBar(percent, 20));
+            lore.add(ChatColor.YELLOW + formatNumber(collectedAmount) + ChatColor.GRAY + "/" + ChatColor.YELLOW + formatNumber(nextTier.getAmountRequired()));
             lore.add("");
-            lore.add("§aTier " + CollectionTier.toRoman(nextTier.getTierLevel()) + " Rewards:");
+            lore.add(ChatColor.GREEN + "Tier " + CollectionTier.toRoman(nextTier.getTierLevel()) + " Rewards:");
             for (CollectionReward reward : nextTier.getRewards()) {
                 lore.add("  " + reward.getFormattedLore());
             }
         } else {
-            lore.add("§a§lMAXED OUT!");
-            lore.add("§e" + formatNumber(collectedAmount) + " §7items collected");
+            lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "MAXED OUT!");
+            lore.add(ChatColor.YELLOW + formatNumber(collectedAmount) + " " + ChatColor.GRAY + "items collected");
         }
 
         lore.add("");
-        lore.add("§eClick to view details!");
+        lore.add(ChatColor.YELLOW + "Click to view details!");
 
         meta.setLore(lore);
         display.setItemMeta(meta);
 
         return display;
-    }
-
-    private String createProgressBar(double percent, int length) {
-        int filled = (int) (percent * length);
-        if (filled < 0) filled = 0;
-        if (filled > length) filled = length;
-        int empty = length - filled;
-
-        StringBuilder sb = new StringBuilder("§2");
-        for (int i = 0; i < filled; i++) {
-            sb.append("-");
-        }
-        sb.append("§f");
-        for (int i = 0; i < empty; i++) {
-            sb.append("-");
-        }
-        return sb.toString();
     }
 
     private String formatNumber(long amount) {
@@ -314,9 +293,8 @@ public class CollectionDefinition {
 
         public CollectionDefinition build() {
             return new CollectionDefinition(
-                id, name, description, icon, category, subcategory, trackedItems, tiers, enabled
+                    id, name, description, icon, category, subcategory, trackedItems, tiers, enabled
             );
         }
     }
 }
-

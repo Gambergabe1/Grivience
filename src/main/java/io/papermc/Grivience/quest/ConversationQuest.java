@@ -11,6 +11,8 @@ public final class ConversationQuest {
     private String starterNpcId;
     private String targetNpcId;
     private final List<String> rewardCommands;
+    private final List<String> prerequisites;
+    private final List<QuestObjective> objectives;
     private boolean repeatable;
     private boolean enabled;
 
@@ -21,6 +23,21 @@ public final class ConversationQuest {
             String starterNpcId,
             String targetNpcId,
             List<String> rewardCommands,
+            boolean repeatable,
+            boolean enabled
+    ) {
+        this(id, displayName, description, starterNpcId, targetNpcId, rewardCommands, List.of(), List.of(), repeatable, enabled);
+    }
+
+    public ConversationQuest(
+            String id,
+            String displayName,
+            String description,
+            String starterNpcId,
+            String targetNpcId,
+            List<String> rewardCommands,
+            List<String> prerequisites,
+            List<QuestObjective> objectives,
             boolean repeatable,
             boolean enabled
     ) {
@@ -36,6 +53,19 @@ public final class ConversationQuest {
                     this.rewardCommands.add(rewardCommand.trim());
                 }
             }
+        }
+        this.prerequisites = new ArrayList<>();
+        if (prerequisites != null) {
+            for (String pre : prerequisites) {
+                String normalized = normalizeId(pre);
+                if (!normalized.isBlank()) {
+                    this.prerequisites.add(normalized);
+                }
+            }
+        }
+        this.objectives = new ArrayList<>();
+        if (objectives != null) {
+            this.objectives.addAll(objectives);
         }
         this.repeatable = repeatable;
         this.enabled = enabled;
@@ -79,6 +109,14 @@ public final class ConversationQuest {
 
     public List<String> rewardCommands() {
         return rewardCommands;
+    }
+
+    public List<String> prerequisites() {
+        return prerequisites;
+    }
+
+    public List<QuestObjective> objectives() {
+        return objectives;
     }
 
     public boolean repeatable() {

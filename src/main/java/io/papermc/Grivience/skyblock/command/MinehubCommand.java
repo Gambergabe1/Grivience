@@ -86,6 +86,12 @@ public final class MinehubCommand implements CommandExecutor, TabCompleter {
         player.teleport(minehubLocation);
         player.playSound(minehubLocation, org.bukkit.Sound.ENTITY_PLAYER_TELEPORT, 1.0F, 1.0F);
         player.sendMessage(ChatColor.GREEN + "Teleported to the Minehub!");
+        
+        // Auto-start quest
+        if (plugin.getQuestManager() != null) {
+            plugin.getQuestManager().startQuest(player, "ironcrest_part1_arrival", 
+                io.papermc.Grivience.quest.QuestTriggerSource.COMMAND, true);
+        }
     }
 
     private String getMinehubWorldName() {

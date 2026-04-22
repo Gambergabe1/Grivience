@@ -1,137 +1,139 @@
-[13:55:38] [ServerMain/INFO]: [bootstrap] Running Java 21 (OpenJDK 64-Bit Server VM 21.0.10+7-LTS; Amazon.com Inc. Corretto-21.0.10.7.1) on Windows 11 10.0 (amd64)
-[13:55:38] [ServerMain/INFO]: [bootstrap] Loading Paper 1.21.5-114-ver/1.21.5@a1b3058 (2025-06-18T10:59:02Z) for Minecraft 1.21.5
-[13:55:38] [ServerMain/WARN]: [oshi.driver.windows.perfmon.PerfmonDisabled] Invalid registry value type detected for PerfOS counters. Should be REG_DWORD. Ignoring: HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\PerfOS\Performance\Disable Performance Counters.
-[13:55:39] [ServerMain/INFO]: [PluginInitializerManager] Initializing plugins...
-[13:55:39] [Paper Plugin Remapper Thread - 2/INFO]: [PluginRemapper] Remapping plugin 'plugins\Grivience.jar'...
-[13:55:41] [Paper Plugin Remapper Thread - 2/INFO]: [PluginRemapper] Done remapping plugin 'plugins\Grivience.jar' in 2029ms.
-[13:55:41] [ServerMain/INFO]: [PluginInitializerManager] Initialized 1 plugin
-[13:55:41] [ServerMain/INFO]: [PluginInitializerManager] Bukkit plugins (1):
+[04:49:15] [ServerMain/INFO]: [bootstrap] Running Java 21 (OpenJDK 64-Bit Server VM 21.0.10+7-LTS; Amazon.com Inc. Corretto-21.0.10.7.1) on Windows 11 10.0 (amd64)
+[04:49:15] [ServerMain/INFO]: [bootstrap] Loading Paper 1.21.5-114-ver/1.21.5@a1b3058 (2025-06-18T10:59:02Z) for Minecraft 1.21.5
+[04:49:15] [ServerMain/WARN]: [oshi.driver.windows.perfmon.PerfmonDisabled] Invalid registry value type detected for PerfOS counters. Should be REG_DWORD. Ignoring: HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\PerfOS\Performance\Disable Performance Counters.
+[04:49:16] [ServerMain/INFO]: [PluginInitializerManager] Initializing plugins...
+[04:49:16] [Paper Plugin Remapper Thread - 2/INFO]: [PluginRemapper] Remapping plugin 'plugins\Grivience.jar'...
+[04:49:19] [Paper Plugin Remapper Thread - 2/INFO]: [PluginRemapper] Done remapping plugin 'plugins\Grivience.jar' in 2602ms.
+[04:49:19] [ServerMain/INFO]: [PluginInitializerManager] Initialized 1 plugin
+[04:49:19] [ServerMain/INFO]: [PluginInitializerManager] Bukkit plugins (1):
  - Grivience (1.0-SNAPSHOT)
-[13:55:48] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
-[13:55:51] [ServerMain/INFO]: Loaded 1373 recipes
-[13:55:51] [ServerMain/INFO]: Loaded 1484 advancements
-[13:55:51] [Server thread/INFO]: Starting minecraft server version 1.21.5
-[13:55:51] [Server thread/INFO]: Loading properties
-[13:55:51] [Server thread/INFO]: This server is running Paper version 1.21.5-114-ver/1.21.5@a1b3058 (2025-06-18T10:59:02Z) (Implementing API version 1.21.5-R0.1-SNAPSHOT)
-[13:55:51] [Server thread/INFO]: [spark] This server bundles the spark profiler. For more information please visit https://docs.papermc.io/paper/profiling
-[13:55:51] [Server thread/INFO]: Server Ping Player Sample Count: 12
-[13:55:51] [Server thread/INFO]: Using 4 threads for Netty based IO
-[13:55:52] [Server thread/INFO]: [MoonriseCommon] Paper is using 3 worker threads, 1 I/O threads
-[13:55:52] [Server thread/INFO]: [ChunkTaskScheduler] Chunk system is using population gen parallelism: true
-[13:55:52] [Server thread/INFO]: Default game type: SURVIVAL
-[13:55:52] [Server thread/INFO]: Generating keypair
-[13:55:52] [Server thread/INFO]: Starting Minecraft server on *:25565
-[13:55:53] [Server thread/INFO]: Using default channel type
-[13:55:53] [Server thread/INFO]: Paper: Using Java compression from Velocity.
-[13:55:53] [Server thread/INFO]: Paper: Using Java cipher from Velocity.
-[13:55:53] [Server thread/INFO]: [Grivience] Loading server plugin Grivience v1.0-SNAPSHOT
-[13:55:53] [Server thread/INFO]: Server permissions file permissions.yml is empty, ignoring it
-[13:55:53] [Server thread/INFO]: Preparing level "world"
-[13:55:53] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld
-[13:55:54] [Server thread/INFO]: Preparing spawn area: 0%
-[13:55:55] [Server thread/INFO]: Preparing spawn area: 14%
-[13:55:55] [Server thread/INFO]: Preparing spawn area: 14%
-[13:55:55] [Server thread/INFO]: Time elapsed: 1182 ms
-[13:55:55] [Server thread/INFO]: Preparing start region for dimension minecraft:the_nether
-[13:55:55] [Server thread/INFO]: Preparing spawn area: 0%
-[13:55:55] [Server thread/INFO]: Time elapsed: 114 ms
-[13:55:55] [Server thread/INFO]: Preparing start region for dimension minecraft:the_end
-[13:55:55] [Server thread/INFO]: Preparing spawn area: 0%
-[13:55:55] [Server thread/INFO]: Time elapsed: 111 ms
-[13:55:55] [Server thread/INFO]: [Grivience] Enabling Grivience v1.0-SNAPSHOT
-[13:55:55] [Server thread/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
-[13:55:56] [Server thread/INFO]: [Grivience] Island configuration reloaded. 0 islands preserved.
-[13:55:56] [Server thread/INFO]: [Grivience] Creating new Skyblock void world: skyblock_world
-[13:55:56] [Server thread/INFO]: Preparing start region for dimension minecraft:skyblock_world
-[13:55:56] [Server thread/INFO]: Preparing spawn area: 0%
-[13:55:56] [Server thread/INFO]: Time elapsed: 75 ms
-[13:55:56] [Server thread/INFO]: [Grivience] Skyblock world configured: time=6000, weather=clear, spawn=(0,100,0), gamerules updated
-[13:55:56] [Server thread/INFO]: [Grivience] Skyblock void world created successfully!
-[13:55:56] [Server thread/INFO]: [Grivience] World properties:
-[13:55:56] [Server thread/INFO]: [Grivience]   - Name: skyblock_world
-[13:55:56] [Server thread/INFO]: [Grivience]   - Environment: NORMAL
-[13:55:56] [Server thread/INFO]: [Grivience]   - Type: FLAT (Void)
-[13:55:56] [Server thread/INFO]: [Grivience]   - Structures: DISABLED
-[13:55:56] [Server thread/INFO]: [Grivience]   - Terrain Generation: VOID
-[13:55:56] [Server thread/INFO]: [Grivience]   - Mob Spawning: ENABLED (for player islands)
-[13:55:56] [Server thread/INFO]: [Grivience] Creating End Mines void world: skyblock_end_mines
-[13:55:56] [Server thread/INFO]: Preparing start region for dimension minecraft:skyblock_end_mines
-[13:55:56] [Server thread/INFO]: Time elapsed: 1 ms
-[13:55:57] [Server thread/INFO]: [Grivience] End Mines world configured: skyblock_end_mines spawn=(0.5, 80.0, 0.5)
-[13:55:57] [Server thread/INFO]: [Grivience] Creating Minehub void world: Minehub
-[13:55:57] [Server thread/INFO]: Preparing start region for dimension minecraft:minehub
-[13:55:57] [Server thread/INFO]: Time elapsed: 2 ms
-[13:55:57] [Server thread/INFO]: [Grivience] Minehub world ready: Minehub spawn=(0, 100, 0)
-[13:55:57] [Server thread/INFO]: [Grivience] Custom armor system enabled with 18 armor sets.
-[13:55:57] [Server thread/INFO]: [Grivience] Custom monster system enabled with 9 monsters.
-[13:55:58] [Server thread/WARN]: [Grivience] Local resource pack enabled but file 'C:\Users\Kazutos-PC\IdeaProjects\Grivience\tmp-paper-smoke\plugins\Grivience\resource-pack.zip' is missing.
-[13:55:58] [Server thread/WARN]: [Grivience] Local resource pack enabled but file 'C:\Users\Kazutos-PC\IdeaProjects\Grivience\tmp-paper-smoke\plugins\Grivience\resource-pack.zip' is missing.
-[13:55:58] [Server thread/WARN]: [Grivience] Resource pack enabled but URL is empty and local host unavailable.
-[13:55:58] [Server thread/INFO]: [Grivience] Quest system loaded with 2 conversation quest(s).
-[13:55:58] [Server thread/INFO]: [Grivience] No zones configured. Use /zone create <id> to create zones.
-[13:55:58] [Server thread/INFO]: [Grivience] Zone system enabled with 0 zones.
-[13:55:58] [Server thread/WARN]: [Grivience] LuckPerms not found; nick system disabled.
-[13:55:58] [Server thread/INFO]: [Grivience] Grappling hook system enabled.
-[13:55:58] [Server thread/INFO]: [Grivience] Staff system enabled with protections.
-[13:55:58] [Server thread/INFO]: [Grivience] Created profiles directory: plugins\Grivience\skyblock\profiles
-[13:55:58] [Server thread/INFO]: [Grivience] No profile files found.
-[13:55:58] [Server thread/INFO]: [Grivience] Profile auto-save started (every 300 seconds)
-[13:55:58] [Server thread/INFO]: [Grivience] Profile system enabled (Skyblock accurate).
-[13:55:58] [Server thread/INFO]: [Grivience] Collections system loaded with 66 collections.
-[13:55:58] [Server thread/INFO]: [Grivience] Collections system enabled with 66 collections.
-[13:55:58] [Server thread/INFO]: [Grivience] Loaded 98 enchantments
-[13:55:58] [Server thread/INFO]: [Grivience] Enchantment System enabled (Skyblock style)
-[13:55:58] [Server thread/INFO]: [Grivience] Enchantment System enabled with 98 enchantments.
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Verdant Fiber (grivience:verdant_fiber)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Scale (grivience:abyssal_scale)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Dungeon Relic Shard (grivience:dungeon_relic_shard)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Mana Infused Fabric (grivience:mana_infused_fabric)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Harvester's Visage (grivience:harvester_helmet)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Harvester's Tunic (grivience:harvester_chestplate)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Harvester's Breeches (grivience:harvester_leggings)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Harvester's Striders (grivience:harvester_boots)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Helmet (grivience:abyssal_helmet)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Chestplate (grivience:abyssal_chestplate)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Leggings (grivience:abyssal_leggings)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Boots (grivience:abyssal_boots)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Cryptic Helmet (grivience:cryptic_helmet)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Cryptic Chestplate (grivience:cryptic_chestplate)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Cryptic Leggings (grivience:cryptic_leggings)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Cryptic Boots (grivience:cryptic_boots)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Arcane Hood (grivience:arcane_hood)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Arcane Robes (grivience:arcane_robes)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Arcane Trousers (grivience:arcane_trousers)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Arcane Boots (grivience:arcane_boots)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Enchanted Diamond Block (grivience:enchanted_diamond_block)
-[13:55:58] [Server thread/INFO]: [Grivience] Registered recipe: Enchanted Stick (grivience:enchanted_stick)
-[13:55:58] [Server thread/INFO]: [Grivience] Loaded 22 crafting recipes
-[13:55:58] [Server thread/INFO]: [Grivience] Crafting System enabled (Skyblock accurate)
-[13:55:58] [Server thread/INFO]: [Grivience] Crafting System enabled with 22 recipes.
-[13:55:58] [Server thread/INFO]: [Grivience] XP Boost Manager enabled
-[13:55:58] [Server thread/INFO]: [Grivience] ZNPCS plugin not found. Hard Hat Harry NPC will not be created.
-[13:55:58] [Server thread/INFO]: [Grivience] Players can still use /welcome command to claim rewards.
-[13:55:58] [Server thread/INFO]: [Grivience] Welcome Event Manager enabled
-[13:55:58] [Server thread/INFO]: [Grivience] Welcome Listener registered
-[13:55:58] [Server thread/INFO]: [Grivience] Welcome Command registered
-[13:55:58] [Server thread/INFO]: [Grivience] Welcome Event System enabled (Hard Hat Harry)
-[13:55:58] [Server thread/INFO]: [Grivience] Welcome Event System enabled (Hard Hat Harry)
-[13:55:58] [Server thread/INFO]: [Grivience] Loaded 25 welcome quests
-[13:55:58] [Server thread/INFO]: [Grivience] Quest progress manager enabled
-[13:55:58] [Server thread/INFO]: [Grivience] Quest GUI enabled
-[13:55:58] [Server thread/INFO]: [Grivience] Quest progress listener enabled
-[13:55:58] [Server thread/INFO]: [Grivience] Welcome Quest Line enabled!
-[13:55:58] [Server thread/INFO]: [Grivience] Welcome Quest Line enabled with 25 quests
-[13:55:58] [Server thread/INFO]: [Grivience] Loaded 2 fast travel points from config.
-[13:55:58] [Server thread/INFO]: [Grivience] Loaded hub warp fast travel points.
-[13:55:58] [Server thread/INFO]: [Grivience] Fast Travel system enabled with 7 destinations (including hub warps).
-[13:55:58] [Server thread/INFO]: [Grivience] Storage auto-save enabled (every 30 seconds)
-[13:55:58] [Server thread/INFO]: [Grivience] Storage System loaded with 7 storage types.
-[13:55:58] [Server thread/INFO]: [Grivience] Storage System enabled with 7 storage types.
-[13:55:59] [Server thread/INFO]: [spark] Starting background profiler...
-[13:55:59] [Server thread/INFO]: [spark] The async-profiler engine is not supported for your os/arch (windows11/amd64), so the built-in Java engine will be used instead.
-[13:55:59] [Server thread/INFO]: Done preparing level "world" (5.889s)
-[13:55:59] [Server thread/INFO]: Running delayed init tasks
-[13:55:59] [Server thread/INFO]: ORE CYCLE! Rich Vein: Redstone ore
-[13:55:59] [Server thread/INFO]: [Grivience] Generating End Mines layout at (0, 80, 0) in skyblock_end_mines
-[13:55:59] [Server thread/INFO]: Done (22.190s)! For help, type "help"
-[13:56:03] [Server thread/INFO]: [Grivience] End Mines layout generation complete.
+[04:49:26] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[04:49:30] [ServerMain/INFO]: Loaded 1373 recipes
+[04:49:30] [ServerMain/INFO]: Loaded 1484 advancements
+[04:49:30] [Server thread/INFO]: Starting minecraft server version 1.21.5
+[04:49:30] [Server thread/INFO]: Loading properties
+[04:49:30] [Server thread/INFO]: This server is running Paper version 1.21.5-114-ver/1.21.5@a1b3058 (2025-06-18T10:59:02Z) (Implementing API version 1.21.5-R0.1-SNAPSHOT)
+[04:49:30] [Server thread/INFO]: [spark] This server bundles the spark profiler. For more information please visit https://docs.papermc.io/paper/profiling
+[04:49:31] [Server thread/INFO]: Server Ping Player Sample Count: 12
+[04:49:31] [Server thread/INFO]: Using 4 threads for Netty based IO
+[04:49:32] [Server thread/INFO]: [MoonriseCommon] Paper is using 3 worker threads, 1 I/O threads
+[04:49:32] [Server thread/INFO]: [ChunkTaskScheduler] Chunk system is using population gen parallelism: true
+[04:49:32] [Server thread/INFO]: Default game type: SURVIVAL
+[04:49:32] [Server thread/INFO]: Generating keypair
+[04:49:32] [Server thread/INFO]: Starting Minecraft server on *:25565
+[04:49:32] [Server thread/INFO]: Using default channel type
+[04:49:32] [Server thread/INFO]: Paper: Using Java compression from Velocity.
+[04:49:32] [Server thread/INFO]: Paper: Using Java cipher from Velocity.
+[04:49:33] [Server thread/INFO]: [Grivience] Loading server plugin Grivience v1.0-SNAPSHOT
+[04:49:33] [Server thread/INFO]: Server permissions file permissions.yml is empty, ignoring it
+[04:49:33] [Server thread/INFO]: Preparing level "world"
+[04:49:33] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld
+[04:49:34] [Server thread/INFO]: Preparing spawn area: 0%
+[04:49:34] [Server thread/INFO]: Preparing spawn area: 10%
+[04:49:34] [Server thread/INFO]: Preparing spawn area: 10%
+[04:49:34] [Server thread/INFO]: Time elapsed: 1024 ms
+[04:49:34] [Server thread/INFO]: Preparing start region for dimension minecraft:the_nether
+[04:49:34] [Server thread/INFO]: Preparing spawn area: 0%
+[04:49:35] [Server thread/INFO]: Time elapsed: 128 ms
+[04:49:35] [Server thread/INFO]: Preparing start region for dimension minecraft:the_end
+[04:49:35] [Server thread/INFO]: Preparing spawn area: 0%
+[04:49:35] [Server thread/INFO]: Time elapsed: 96 ms
+[04:49:35] [Server thread/INFO]: [Grivience] Enabling Grivience v1.0-SNAPSHOT
+[04:49:35] [Server thread/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[04:49:36] [Server thread/INFO]: [Grivience] Island configuration reloaded. 0 islands preserved.
+[04:49:36] [Server thread/INFO]: Preparing start region for dimension minecraft:skyblock_world
+[04:49:36] [Server thread/INFO]: Preparing spawn area: 0%
+[04:49:36] [Server thread/INFO]: Time elapsed: 58 ms
+[04:49:36] [Server thread/INFO]: [Grivience] Skyblock world configured: time=6000, weather=clear, spawn=(0,100,0), gamerules updated
+[04:49:36] [Server thread/INFO]: [Grivience] Skyblock void world ready: skyblock_world
+[04:49:36] [Server thread/INFO]: [Grivience] World properties:
+[04:49:36] [Server thread/INFO]: [Grivience]   - Name: skyblock_world
+[04:49:36] [Server thread/INFO]: [Grivience]   - Environment: NORMAL
+[04:49:36] [Server thread/INFO]: [Grivience]   - Type: FLAT (Void)
+[04:49:36] [Server thread/INFO]: [Grivience]   - Structures: DISABLED
+[04:49:36] [Server thread/INFO]: [Grivience]   - Terrain Generation: VOID
+[04:49:36] [Server thread/INFO]: [Grivience]   - Mob Spawning: ENABLED (for player islands)
+[04:49:36] [Server thread/INFO]: [Grivience] Creating End Mines void world: skyblock_end_mines
+[04:49:36] [Server thread/INFO]: Preparing start region for dimension minecraft:skyblock_end_mines
+[04:49:36] [Server thread/INFO]: Time elapsed: 2 ms
+[04:49:36] [Server thread/INFO]: [Grivience] End Mines world configured: skyblock_end_mines spawn=(0.5, 80.0, 0.5)
+[04:49:36] [Server thread/INFO]: [Grivience] Creating Minehub void world: Minehub
+[04:49:36] [Server thread/INFO]: Preparing start region for dimension minecraft:minehub
+[04:49:36] [Server thread/INFO]: Time elapsed: 2 ms
+[04:49:36] [Server thread/INFO]: [Grivience] Minehub world ready: Minehub spawn=(0, 100, 0)
+[04:49:37] [Server thread/INFO]: [Grivience] Custom armor system enabled with 23 armor sets.
+[04:49:37] [Server thread/INFO]: [Grivience] Custom monster system enabled with 15 monsters.
+[04:49:37] [Server thread/WARN]: [Grivience] Attack speed attribute not found; skipping attack speed adjustment.
+[04:49:38] [Server thread/INFO]: [Grivience] Bazaar custom catalog loaded: 57 commodities, 143 auction-house items excluded.
+[04:49:38] [Server thread/WARN]: [Grivience] Local resource pack enabled but file 'C:\Users\Kazutos-PC\IdeaProjects\Grivience\tmp-paper-smoke\plugins\Grivience\resource-pack.zip' is missing.
+[04:49:38] [Server thread/WARN]: [Grivience] Local resource pack enabled but file 'C:\Users\Kazutos-PC\IdeaProjects\Grivience\tmp-paper-smoke\plugins\Grivience\resource-pack.zip' is missing.
+[04:49:38] [Server thread/WARN]: [Grivience] Resource pack enabled but URL is empty and local host unavailable.
+[04:49:38] [Server thread/INFO]: [Grivience] Quest system loaded with 2 conversation quest(s).
+[04:49:38] [Server thread/INFO]: [Grivience] No zones configured. Use /zone create <id> to create zones.
+[04:49:38] [Server thread/INFO]: [Grivience] Zone system enabled with 0 zones.
+[04:49:38] [Server thread/WARN]: [Grivience] LuckPerms not found; nick system disabled.
+[04:49:38] [Server thread/INFO]: [Grivience] Grappling hook system enabled.
+[04:49:38] [Server thread/INFO]: [Grivience] Staff system enabled with protections.
+[04:49:38] [Server thread/INFO]: [Grivience] No profile files found.
+[04:49:38] [Server thread/INFO]: [Grivience] Profile auto-save started (every 300 seconds)
+[04:49:38] [Server thread/INFO]: [Grivience] Profile system enabled (Skyblock accurate).
+[04:49:38] [Server thread/INFO]: [Grivience] Minion system enabled with 0 placed minions.
+[04:49:39] [Server thread/INFO]: [Grivience] Registered built-in collection fallback: kunzite
+[04:49:39] [Server thread/INFO]: [Grivience] Collections system loaded with 67 collections.
+[04:49:39] [Server thread/INFO]: [Grivience] Collections system enabled with 67 collections.
+[04:49:39] [Server thread/INFO]: [Grivience] Loaded 84 enchantments
+[04:49:39] [Server thread/INFO]: [Grivience] Enchantment System enabled (Skyblock style)
+[04:49:39] [Server thread/INFO]: [Grivience] Enchantment System enabled with 84 enchantments.
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Verdant Fiber (grivience:verdant_fiber)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Scale (grivience:abyssal_scale)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Dungeon Relic Shard (grivience:dungeon_relic_shard)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Mana Infused Fabric (grivience:mana_infused_fabric)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Harvester's Visage (grivience:harvester_helmet)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Harvester's Tunic (grivience:harvester_chestplate)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Harvester's Breeches (grivience:harvester_leggings)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Harvester's Striders (grivience:harvester_boots)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Helmet (grivience:abyssal_helmet)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Chestplate (grivience:abyssal_chestplate)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Leggings (grivience:abyssal_leggings)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Abyssal Boots (grivience:abyssal_boots)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Cryptic Helmet (grivience:cryptic_helmet)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Cryptic Chestplate (grivience:cryptic_chestplate)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Cryptic Leggings (grivience:cryptic_leggings)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Cryptic Boots (grivience:cryptic_boots)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Arcane Hood (grivience:arcane_hood)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Arcane Robes (grivience:arcane_robes)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Arcane Trousers (grivience:arcane_trousers)
+[04:49:39] [Server thread/INFO]: [Grivience] Registered recipe: Arcane Boots (grivience:arcane_boots)
+[04:49:39] [Server thread/INFO]: [Grivience] Loaded 20 crafting recipes
+[04:49:39] [Server thread/INFO]: [Grivience] Crafting System enabled (Skyblock accurate)
+[04:49:39] [Server thread/INFO]: [Grivience] Crafting System enabled with 20 recipes.
+[04:49:39] [Server thread/INFO]: [Grivience] XP Boost Manager enabled
+[04:49:39] [Server thread/INFO]: [Grivience] ZNPCS plugin not found. Hard Hat Harry NPC will not be created.
+[04:49:39] [Server thread/INFO]: [Grivience] Players can still use /welcome command to claim rewards.
+[04:49:39] [Server thread/INFO]: [Grivience] Welcome Event Manager enabled
+[04:49:39] [Server thread/INFO]: [Grivience] Welcome Listener registered
+[04:49:39] [Server thread/INFO]: [Grivience] Welcome Command registered
+[04:49:39] [Server thread/INFO]: [Grivience] Welcome Event System enabled (Hard Hat Harry)
+[04:49:39] [Server thread/INFO]: [Grivience] Welcome Event System enabled (Hard Hat Harry)
+[04:49:39] [Server thread/INFO]: [Grivience] Loaded 25 welcome quests
+[04:49:39] [Server thread/INFO]: [Grivience] Quest progress manager enabled
+[04:49:39] [Server thread/INFO]: [Grivience] Quest GUI enabled
+[04:49:39] [Server thread/INFO]: [Grivience] Quest progress listener enabled
+[04:49:39] [Server thread/INFO]: [Grivience] Welcome Quest Line enabled!
+[04:49:39] [Server thread/INFO]: [Grivience] Welcome Quest Line enabled with 25 quests
+[04:49:39] [Server thread/INFO]: [Grivience] Loaded 0 fast travel points from config.
+[04:49:39] [Server thread/INFO]: [Grivience] Loaded hub warp fast travel points.
+[04:49:39] [Server thread/INFO]: [Grivience] Fast Travel system enabled with 4 destinations (including hub warps).
+[04:49:39] [Server thread/WARN]: [Grivience] No upgrade tiers found for ACCESSORY_BAG; using built-in defaults.
+[04:49:39] [Server thread/INFO]: [Grivience] Loaded storage data for 0 players.
+[04:49:39] [Server thread/INFO]: [Grivience] Storage auto-save enabled (every 30 seconds)
+[04:49:39] [Server thread/INFO]: [Grivience] Storage System loaded with 7 storage types.
+[04:49:39] [Server thread/INFO]: [Grivience] Storage System enabled with 7 storage types.
+[04:49:39] [Server thread/INFO]: [Grivience] Slayer system initialized.
+[04:49:39] [Server thread/INFO]: [Grivience] Mayor system initialized.
+[04:49:39] [Server thread/INFO]: [spark] Starting background profiler...
+[04:49:39] [Server thread/INFO]: [spark] The async-profiler engine is not supported for your os/arch (windows11/amd64), so the built-in Java engine will be used instead.
+[04:49:39] [Server thread/INFO]: Done preparing level "world" (6.472s)
+[04:49:39] [Server thread/INFO]: Running delayed init tasks
+[04:49:39] [Server thread/INFO]: Done (26.093s)! For help, type "help"
+[04:49:42] [Server thread/WARN]: [Grivience] Server performance state changed from NORMAL to DEGRADED (TPS 20.00, MSPT 49.96). Adaptive mitigation is active.

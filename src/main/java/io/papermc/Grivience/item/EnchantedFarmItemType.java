@@ -62,9 +62,15 @@ public enum EnchantedFarmItemType {
 
     public static EnchantedFarmItemType parse(String input) {
         if (input == null || input.isBlank()) return null;
-        String normalized = input.trim().toUpperCase(Locale.ROOT).replace('-', '_');
+        String normalized = input.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        normalized = switch (normalized) {
+            case "enchanted_hay_block" -> "enchanted_hay_bale";
+            case "enchanted_nether_stalk" -> "enchanted_nether_wart";
+            default -> normalized;
+        };
+        String enumName = normalized.toUpperCase(Locale.ROOT);
         for (EnchantedFarmItemType type : values()) {
-            if (type.name().equals(normalized) || type.id.equalsIgnoreCase(input)) {
+            if (type.name().equals(enumName) || type.id.equalsIgnoreCase(normalized)) {
                 return type;
             }
         }

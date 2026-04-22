@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -39,18 +40,17 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        String subCommand = args[0].toLowerCase();
+        String subCommand = args[0].toLowerCase(Locale.ROOT);
 
         switch (subCommand) {
             case "open" -> {
                 if (args.length < 2) {
                     player.sendMessage("§cUsage: /storage open <type>");
-                    player.sendMessage("§7Types: §epersonal, vault, ender, backpack, warehouse");
+                    player.sendMessage("§7Types: §e" + availableTypes(player));
                     return true;
                 }
                 openStorage(player, args[1]);
             }
-
             case "upgrade" -> {
                 if (args.length < 2) {
                     player.sendMessage("§cUsage: /storage upgrade <type>");
@@ -58,11 +58,7 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
                 }
                 upgradeStorage(player, args[1]);
             }
-
-            case "status" -> {
-                showStatus(player);
-            }
-
+            case "status" -> showStatus(player);
             case "rename" -> {
                 if (args.length < 3) {
                     player.sendMessage("§cUsage: /storage rename <type> <name>");
@@ -70,7 +66,6 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
                 }
                 renameStorage(player, args[1], String.join(" ", Arrays.copyOfRange(args, 2, args.length)));
             }
-
             case "lock" -> {
                 if (args.length < 2) {
                     player.sendMessage("§cUsage: /storage lock <type>");
@@ -78,7 +73,6 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
                 }
                 lockStorage(player, args[1], true);
             }
-
             case "unlock" -> {
                 if (args.length < 2) {
                     player.sendMessage("§cUsage: /storage unlock <type>");
@@ -86,7 +80,6 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
                 }
                 lockStorage(player, args[1], false);
             }
-
             case "clear" -> {
                 if (!player.hasPermission("grivience.storage.admin")) {
                     player.sendMessage("§cYou don't have permission to clear storage!");
@@ -98,19 +91,9 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
                 }
                 clearStorage(player, args[1]);
             }
-
-            case "top" -> {
-                showLeaderboard(player);
-            }
-
-            case "rank" -> {
-                showRank(player);
-            }
-
-            case "help" -> {
-                showHelp(player);
-            }
-
+            case "top" -> showLeaderboard(player);
+            case "rank" -> showRank(player);
+            case "help" -> showHelp(player);
             default -> {
                 player.sendMessage("§cUnknown command: " + subCommand);
                 showHelp(player);
@@ -131,12 +114,10 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
      * Open a specific storage type.
      */
     private void openStorage(Player player, String typeId) {
-        StorageType type;
-        try {
-            type = StorageType.valueOf(typeId.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        StorageType type = parseStorageType(typeId);
+        if (type == null) {
             player.sendMessage("§cUnknown storage type: " + typeId);
-            player.sendMessage("§7Available types: §epersonal, vault, ender, backpack, warehouse");
+            player.sendMessage("§7Available types: §e" + availableTypes(player));
             return;
         }
 
@@ -163,10 +144,8 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
      * Upgrade a storage type.
      */
     private void upgradeStorage(Player player, String typeId) {
-        StorageType type;
-        try {
-            type = StorageType.valueOf(typeId.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        StorageType type = parseStorageType(typeId);
+        if (type == null) {
             player.sendMessage("§cUnknown storage type: " + typeId);
             return;
         }
@@ -189,9 +168,7 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        if (storageManager.upgradeStorage(player, profile)) {
-            // Upgrade successful, message already sent by manager
-        } else {
+        if (!storageManager.upgradeStorage(player, profile)) {
             player.sendMessage("§cFailed to upgrade storage.");
         }
     }
@@ -223,9 +200,9 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        int totalItems = storageManager.getTotalItemsStored(player.getUniqueId());
-        int totalCapacity = storageManager.getTotalStorageCapacity(player.getUniqueId());
-        double percentage = storageManager.getStorageUsagePercentage(player.getUniqueId());
+        int totalItems = storageManager.getTotalItemsStored(player);
+        int totalCapacity = storageManager.getTotalStorageCapacity(player);
+        double percentage = storageManager.getStorageUsagePercentage(player);
 
         player.sendMessage("§7Total Storage: §e" + totalItems + "§7/§e" + totalCapacity + " §7(§e" + String.format("%.1f", percentage) + "%§7)");
         player.sendMessage("");
@@ -235,10 +212,8 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
      * Rename a storage type.
      */
     private void renameStorage(Player player, String typeId, String name) {
-        StorageType type;
-        try {
-            type = StorageType.valueOf(typeId.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        StorageType type = parseStorageType(typeId);
+        if (type == null) {
             player.sendMessage("§cUnknown storage type: " + typeId);
             return;
         }
@@ -255,10 +230,8 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
      * Lock or unlock a storage type.
      */
     private void lockStorage(Player player, String typeId, boolean lock) {
-        StorageType type;
-        try {
-            type = StorageType.valueOf(typeId.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        StorageType type = parseStorageType(typeId);
+        if (type == null) {
             player.sendMessage("§cUnknown storage type: " + typeId);
             return;
         }
@@ -269,11 +242,16 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
         }
 
         UUID playerId = player.getUniqueId();
+        UUID profileId = playerId;
+        var profile = storageManager.getSelectedSkyBlockProfile(player);
+        if (profile != null) {
+            profileId = profile.getProfileId();
+        }
         if (lock) {
-            storageManager.lockStorage(playerId, type);
+            storageManager.lockStorage(playerId, profileId, type);
             player.sendMessage("§a" + type.getDisplayName() + " §ehas been §clocked§e.");
         } else {
-            storageManager.unlockStorage(playerId, type);
+            storageManager.unlockStorage(playerId, profileId, type);
             player.sendMessage("§a" + type.getDisplayName() + " §ehas been §aunlocked§e.");
         }
     }
@@ -282,21 +260,13 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
      * Clear a storage type (admin only).
      */
     private void clearStorage(Player player, String typeId) {
-        StorageType type;
-        try {
-            type = StorageType.valueOf(typeId.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        StorageType type = parseStorageType(typeId);
+        if (type == null) {
             player.sendMessage("§cUnknown storage type: " + typeId);
             return;
         }
 
-        // Find target player (if specified)
-        UUID targetId = player.getUniqueId();
-        if (player.hasPermission("grivience.storage.admin.other")) {
-            // Could add target player argument here
-        }
-
-        storageManager.clearStorage(targetId, type);
+        storageManager.clearStorage(player, type);
         player.sendMessage("§a" + type.getDisplayName() + " §ehas been cleared.");
     }
 
@@ -333,7 +303,7 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
      */
     private void showRank(Player player) {
         int rank = storageManager.getPlayerRank(player.getUniqueId());
-        int totalItems = storageManager.getTotalItemsStored(player.getUniqueId());
+        int totalItems = storageManager.getTotalItemsStored(player);
 
         if (rank == -1) {
             player.sendMessage("§cYou are not ranked yet.");
@@ -366,6 +336,34 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("");
     }
 
+    private StorageType parseStorageType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String normalized = raw.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "ACCESSORY", "ACCESSORYBAG", "ACCESSORY_BAG", "ACCESSORIES" -> StorageType.ACCESSORY_BAG;
+            case "POTION", "POTIONBAG", "POTION_BAG" -> StorageType.POTION_BAG;
+            default -> {
+                try {
+                    yield StorageType.valueOf(normalized);
+                } catch (IllegalArgumentException ignored) {
+                    yield null;
+                }
+            }
+        };
+    }
+
+    private String availableTypes(Player player) {
+        List<String> values = new ArrayList<>();
+        for (StorageType type : StorageType.values()) {
+            if (player.hasPermission(type.getPermissionNode())) {
+                values.add(type.name().toLowerCase(Locale.ROOT));
+            }
+        }
+        return String.join(", ", values);
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -374,7 +372,7 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             List<String> completions = new ArrayList<>();
-            String partial = args[0].toLowerCase();
+            String partial = args[0].toLowerCase(Locale.ROOT);
 
             List<String> commands = Arrays.asList("open", "upgrade", "status", "rename", "lock", "unlock", "clear", "top", "rank", "help");
             for (String cmd : commands) {
@@ -387,13 +385,13 @@ public class StorageCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2) {
-            if (Arrays.asList("open", "upgrade", "lock", "unlock", "clear", "rename").contains(args[0].toLowerCase())) {
+            if (Arrays.asList("open", "upgrade", "lock", "unlock", "clear", "rename").contains(args[0].toLowerCase(Locale.ROOT))) {
                 List<String> completions = new ArrayList<>();
-                String partial = args[1].toLowerCase();
+                String partial = args[1].toLowerCase(Locale.ROOT);
 
                 for (StorageType type : StorageType.values()) {
-                    if (player.hasPermission(type.getPermissionNode()) && type.name().toLowerCase().startsWith(partial)) {
-                        completions.add(type.name().toLowerCase());
+                    if (player.hasPermission(type.getPermissionNode()) && type.name().toLowerCase(Locale.ROOT).startsWith(partial)) {
+                        completions.add(type.name().toLowerCase(Locale.ROOT));
                     }
                 }
 

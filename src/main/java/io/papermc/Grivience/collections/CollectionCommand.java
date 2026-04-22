@@ -4,6 +4,7 @@ import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.skyblock.profile.ProfileManager;
 import io.papermc.Grivience.skyblock.profile.SkyBlockProfile;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -13,18 +14,19 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
  * Command handler for collections system.
- * 
+ *
  * Commands:
  * - /collection - Open collections menu
  * - /collection <player> - View another player's collections
  * - /collection search <query> - Search for a collection
  * - /collection top <collection> - View leaderboard
  * - /collections - Alias for /collection
- * 
+ *
  * Admin Commands:
  * - /collection admin reload - Reload collections config
  * - /collection admin set <player> <collection> <amount> - Set collection progress
@@ -32,6 +34,8 @@ import java.util.UUID;
  * - /collection admin list - List all collections
  */
 public class CollectionCommand implements CommandExecutor, TabCompleter {
+    private static final int SEARCH_RESULT_LIMIT = 10;
+
     private final GriviencePlugin plugin;
     private final CollectionsManager collectionsManager;
     private final CollectionGUI collectionGui;
@@ -45,238 +49,216 @@ public class CollectionCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
-            // /collection
             if (!(sender instanceof Player player)) {
-                sender.sendMessage("§cThis command can only be used by players!");
+                sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
                 return true;
             }
-            
-            if (!collectionsManager.isEnabled()) {
-                sender.sendMessage("§cThe collections system is currently disabled!");
+            if (!ensureCollectionsEnabled(sender)) {
                 return true;
             }
-            
+
             collectionGui.openMainGui(player);
             return true;
         }
 
         if (args.length == 1) {
-            // /collection <player> - View another player's collections
             if (args[0].equalsIgnoreCase("search") || args[0].equalsIgnoreCase("top")) {
-                sender.sendMessage("§cUsage: /" + label + " " + args[0] + " <query/collection>");
+                sender.sendMessage(ChatColor.RED + "Usage: /" + label + " " + args[0] + " <query>");
                 return true;
             }
-            
+
             if (args[0].equalsIgnoreCase("admin")) {
                 if (!sender.hasPermission("grivience.collections.admin")) {
-                    sender.sendMessage("§cYou don't have permission to use admin commands!");
+                    sender.sendMessage(ChatColor.RED + "You do not have permission to use admin commands.");
                     return true;
                 }
-                sender.sendMessage("§6§lCollection Admin Commands:");
-                sender.sendMessage("§e/" + label + " admin reload §7- Reload collections config");
-                sender.sendMessage("§e/" + label + " admin set <player> <collection> <amount> §7- Set progress");
-                sender.sendMessage("§e/" + label + " admin reset <player> <collection> §7- Reset progress");
-                sender.sendMessage("§e/" + label + " admin list §7- List all collections");
+                sendAdminHelp(sender, label);
                 return true;
             }
-            
+
             if (!(sender instanceof Player player)) {
-                sender.sendMessage("§cThis command can only be used by players!");
+                sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
                 return true;
             }
-            
-            Player target = Bukkit.getPlayer(args[0]);
+            if (!ensureCollectionsEnabled(sender)) {
+                return true;
+            }
+
+            Player target = Bukkit.getPlayerExact(args[0]);
             if (target == null) {
-                sender.sendMessage("§cPlayer not found!");
+                sender.sendMessage(ChatColor.RED + "Player not found or not online.");
                 return true;
             }
-            
-            // View own collections for now (multi-player viewing could be expanded)
-            collectionGui.openMainGui(player);
+
+            collectionGui.openMainGui(player, target);
+            if (!player.getUniqueId().equals(target.getUniqueId())) {
+                player.sendMessage(ChatColor.YELLOW + "Viewing " + ChatColor.GOLD + target.getName() + ChatColor.YELLOW + "'s collections.");
+            }
             return true;
         }
 
-        if (args.length >= 2) {
-            if (args[0].equalsIgnoreCase("search")) {
-                // /collection search <query>
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage("§cThis command can only be used by players!");
-                    return true;
-                }
-                
-                String query = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).toLowerCase();
-                List<CollectionDefinition> results = new ArrayList<>();
-                
-                for (CollectionDefinition collection : collectionsManager.getEnabledCollections()) {
-                    if (collection.getName().toLowerCase().contains(query) ||
-                        collection.getId().toLowerCase().contains(query)) {
-                        results.add(collection);
-                    }
-                }
-                
-                if (results.isEmpty()) {
-                    player.sendMessage("§cNo collections found matching '" + query + "'");
-                } else {
-                    player.sendMessage("§a§lFound " + results.size() + " collection(s):");
-                    for (CollectionDefinition collection : results) {
-                        player.sendMessage("  §6" + collection.getName() + " §7- " + collection.getCategory().getDisplayName());
-                    }
-                }
+        if (args[0].equalsIgnoreCase("search")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
                 return true;
             }
-            
-            if (args[0].equalsIgnoreCase("top")) {
-                // /collection top <collection>
-                String collectionId = String.join("_", Arrays.copyOfRange(args, 1, args.length)).toLowerCase();
-                CollectionDefinition collection = collectionsManager.getCollection(collectionId);
-                
-                if (collection == null) {
-                    // Try to find by name
-                    for (CollectionDefinition def : collectionsManager.getEnabledCollections()) {
-                        if (def.getName().toLowerCase().contains(collectionId)) {
-                            collection = def;
-                            break;
-                        }
-                    }
-                }
-                
-                if (collection == null) {
-                    sender.sendMessage("§cCollection not found!");
-                    return true;
-                }
-                
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage("§cThis command can only be used by players!");
-                    return true;
-                }
+            if (!ensureCollectionsEnabled(sender)) {
+                return true;
+            }
 
-                sender.sendMessage("§6§l" + collection.getName() + " Collection Leaderboard");
-                List<java.util.Map.Entry<UUID, Long>> leaderboard = collectionsManager.getLeaderboard(collection.getId(), 10);
-                if (leaderboard.isEmpty()) {
-                    sender.sendMessage("§7No data yet.");
-                    return true;
-                }
+            String query = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+            CollectionDefinition bestMatch = collectionsManager.findBestCollectionMatch(query);
+            if (bestMatch != null) {
+                collectionGui.openCollectionDetailsGui(player, bestMatch);
+                return true;
+            }
 
-                int rank = 1;
-                for (java.util.Map.Entry<UUID, Long> entry : leaderboard) {
-                    UUID profileId = entry.getKey();
-                    long amount = entry.getValue();
-                    String name = resolveLeaderboardName(profileId);
-                    sender.sendMessage("§e#" + rank + " §f" + name + " §7- §a" + formatNumber(amount));
-                    rank++;
-                }
+            List<CollectionDefinition> results = collectionsManager.searchCollections(query);
+            if (results.isEmpty()) {
+                player.sendMessage(ChatColor.RED + "No collections found matching '" + query + "'.");
                 return true;
             }
-            
-            if (args[0].equalsIgnoreCase("admin")) {
-                if (!sender.hasPermission("grivience.collections.admin")) {
-                    sender.sendMessage("§cYou don't have permission to use admin commands!");
-                    return true;
+
+            player.sendMessage(ChatColor.GREEN + "" + ChatColor.BOLD + "Found " + results.size() + " collection(s):");
+            int shown = 0;
+            for (CollectionDefinition result : results) {
+                if (shown >= SEARCH_RESULT_LIMIT) {
+                    break;
                 }
-                
-                handleAdminCommand(sender, args);
-                return true;
+                player.sendMessage(formatSearchResult(result));
+                shown++;
             }
+            if (results.size() > shown) {
+                player.sendMessage(ChatColor.GRAY + "...and " + (results.size() - shown) + " more.");
+            }
+            player.sendMessage(ChatColor.YELLOW + "Use a more specific query to open a collection directly.");
+            return true;
         }
 
-        sender.sendMessage("§6§lCollections Commands:");
-        sender.sendMessage("§e/" + label + " §7- Open collections menu");
-        sender.sendMessage("§e/" + label + " search <query> §7- Search for a collection");
-        sender.sendMessage("§e/" + label + " top <collection> §7- View leaderboard");
-        sender.sendMessage("§e/" + label + " <player> §7- View player's collections");
-        
-        if (sender.hasPermission("grivience.collections.admin")) {
-            sender.sendMessage("§e/" + label + " admin §7- Admin commands");
+        if (args[0].equalsIgnoreCase("top")) {
+            if (!ensureCollectionsEnabled(sender)) {
+                return true;
+            }
+
+            String query = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+            CollectionDefinition collection = collectionsManager.findBestCollectionMatch(query);
+            if (collection == null) {
+                sender.sendMessage(ChatColor.RED + "Collection not found.");
+                return true;
+            }
+
+            sender.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + collection.getName() + ChatColor.GOLD + " Collection Leaderboard");
+            List<java.util.Map.Entry<UUID, Long>> leaderboard = collectionsManager.getLeaderboard(collection.getId(), 10);
+            if (leaderboard.isEmpty()) {
+                sender.sendMessage(ChatColor.GRAY + "No data yet.");
+                return true;
+            }
+
+            int rank = 1;
+            for (java.util.Map.Entry<UUID, Long> entry : leaderboard) {
+                UUID profileId = entry.getKey();
+                long amount = entry.getValue();
+                String name = resolveLeaderboardName(profileId);
+                sender.sendMessage(ChatColor.YELLOW + "#" + rank + " " + ChatColor.WHITE + name + ChatColor.GRAY + " - " + ChatColor.GREEN + formatNumber(amount));
+                rank++;
+            }
+            return true;
         }
-        
+
+        if (args[0].equalsIgnoreCase("admin")) {
+            if (!sender.hasPermission("grivience.collections.admin")) {
+                sender.sendMessage(ChatColor.RED + "You do not have permission to use admin commands.");
+                return true;
+            }
+
+            handleAdminCommand(sender, label, args);
+            return true;
+        }
+
+        sendHelp(sender, label);
         return true;
     }
 
-    private void handleAdminCommand(CommandSender sender, String[] args) {
-        if (args.length < 2) return;
-        
-        String subCommand = args[1].toLowerCase();
-        
+    private void handleAdminCommand(CommandSender sender, String label, String[] args) {
+        if (args.length < 2) {
+            sendAdminHelp(sender, label);
+            return;
+        }
+
+        String subCommand = args[1].toLowerCase(Locale.ROOT);
         switch (subCommand) {
             case "reload" -> {
                 collectionsManager.reload();
-                sender.sendMessage("§aCollections reloaded!");
+                sender.sendMessage(ChatColor.GREEN + "Collections reloaded.");
             }
-            
             case "set" -> {
                 if (args.length < 5) {
-                    sender.sendMessage("§cUsage: /collection admin set <player> <collection> <amount>");
+                    sender.sendMessage(ChatColor.RED + "Usage: /" + label + " admin set <player> <collection> <amount>");
                     return;
                 }
-                
-                Player target = Bukkit.getPlayer(args[2]);
+
+                Player target = Bukkit.getPlayerExact(args[2]);
                 if (target == null) {
-                    sender.sendMessage("§cPlayer not found!");
+                    sender.sendMessage(ChatColor.RED + "Player not found or not online.");
                     return;
                 }
-                
-                String collectionId = args[3].toLowerCase();
-                CollectionDefinition collection = collectionsManager.getCollection(collectionId);
-                
+
+                CollectionDefinition collection = collectionsManager.findBestCollectionMatch(args[3]);
                 if (collection == null) {
-                    sender.sendMessage("§cCollection not found!");
+                    sender.sendMessage(ChatColor.RED + "Collection not found.");
                     return;
                 }
-                
+
                 long amount;
                 try {
                     amount = Long.parseLong(args[4]);
-                } catch (NumberFormatException e) {
-                    sender.sendMessage("§cInvalid amount!");
+                } catch (NumberFormatException exception) {
+                    sender.sendMessage(ChatColor.RED + "Invalid amount.");
                     return;
                 }
-                
+
                 collectionsManager.setCollection(target, collection.getId(), amount);
-                sender.sendMessage("§aSet " + target.getName() + "'s " + collection.getName() + " to " + amount);
+                sender.sendMessage(ChatColor.GREEN + "Set " + target.getName() + "'s " + CollectionTextUtil.plainText(collection.getName()) + " progress to " + amount + ".");
             }
-            
             case "reset" -> {
                 if (args.length < 4) {
-                    sender.sendMessage("§cUsage: /collection admin reset <player> <collection>");
+                    sender.sendMessage(ChatColor.RED + "Usage: /" + label + " admin reset <player> <collection>");
                     return;
                 }
-                
-                Player target = Bukkit.getPlayer(args[2]);
+
+                Player target = Bukkit.getPlayerExact(args[2]);
                 if (target == null) {
-                    sender.sendMessage("§cPlayer not found!");
+                    sender.sendMessage(ChatColor.RED + "Player not found or not online.");
                     return;
                 }
-                
-                String collectionId = args[3].toLowerCase();
-                CollectionDefinition collection = collectionsManager.getCollection(collectionId);
-                
+
+                CollectionDefinition collection = collectionsManager.findBestCollectionMatch(args[3]);
                 if (collection == null) {
-                    sender.sendMessage("§cCollection not found!");
+                    sender.sendMessage(ChatColor.RED + "Collection not found.");
                     return;
                 }
-                
+
                 collectionsManager.setCollection(target, collection.getId(), 0);
-                sender.sendMessage("§aReset " + target.getName() + "'s " + collection.getName() + " progress");
+                sender.sendMessage(ChatColor.GREEN + "Reset " + target.getName() + "'s " + CollectionTextUtil.plainText(collection.getName()) + " progress.");
             }
-            
             case "list" -> {
-                sender.sendMessage("§6§lAll Collections (" + collectionsManager.getCollections().size() + "):");
-                
+                sender.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "All Collections (" + collectionsManager.getCollections().size() + "):");
                 for (CollectionCategory category : CollectionCategory.values()) {
                     List<CollectionDefinition> categoryCollections = collectionsManager.getCollectionsByCategory(category);
-                    if (!categoryCollections.isEmpty()) {
-                        sender.sendMessage("§e" + category.getDisplayName() + ":");
-                        for (CollectionDefinition collection : categoryCollections) {
-                            String status = collection.isEnabled() ? "§a" : "§c";
-                            sender.sendMessage("  " + status + collection.getName() + " §7(" + collection.getId() + ")");
-                        }
+                    if (categoryCollections.isEmpty()) {
+                        continue;
+                    }
+
+                    sender.sendMessage(ChatColor.YELLOW + CollectionTextUtil.plainText(category.getDisplayName()) + ":");
+                    for (CollectionDefinition collection : categoryCollections) {
+                        ChatColor status = collection.isEnabled() ? ChatColor.GREEN : ChatColor.RED;
+                        sender.sendMessage("  " + status + CollectionTextUtil.plainText(collection.getName()) + ChatColor.GRAY + " (" + collection.getId() + ")");
                     }
                 }
             }
-            
             default -> {
-                sender.sendMessage("§cUnknown admin command: " + subCommand);
-                sender.sendMessage("§eUsage: /collection admin <reload|set|reset|list>");
+                sender.sendMessage(ChatColor.RED + "Unknown admin command: " + subCommand);
+                sendAdminHelp(sender, label);
             }
         }
     }
@@ -284,60 +266,106 @@ public class CollectionCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> completions = new ArrayList<>();
-        
+
         if (args.length == 1) {
-            String partial = args[0].toLowerCase();
-            
-            if ("search".startsWith(partial)) completions.add("search");
-            if ("top".startsWith(partial)) completions.add("top");
-            if ("admin".startsWith(partial) && sender.hasPermission("grivience.collections.admin")) {
-                completions.add("admin");
+            String partial = args[0].toLowerCase(Locale.ROOT);
+            addIfMatches(completions, "search", partial);
+            addIfMatches(completions, "top", partial);
+            if (sender.hasPermission("grivience.collections.admin")) {
+                addIfMatches(completions, "admin", partial);
             }
-            
-            // Player names
+
             for (Player player : Bukkit.getOnlinePlayers()) {
-                if (player.getName().toLowerCase().startsWith(partial)) {
-                    completions.add(player.getName());
-                }
+                addIfMatches(completions, player.getName(), partial);
             }
-        } else if (args.length == 2) {
+            return completions;
+        }
+
+        if (args.length == 2) {
             if (args[0].equalsIgnoreCase("admin") && sender.hasPermission("grivience.collections.admin")) {
-                String partial = args[1].toLowerCase();
-                
-                if ("reload".startsWith(partial)) completions.add("reload");
-                if ("set".startsWith(partial)) completions.add("set");
-                if ("reset".startsWith(partial)) completions.add("reset");
-                if ("list".startsWith(partial)) completions.add("list");
+                String partial = args[1].toLowerCase(Locale.ROOT);
+                addIfMatches(completions, "reload", partial);
+                addIfMatches(completions, "set", partial);
+                addIfMatches(completions, "reset", partial);
+                addIfMatches(completions, "list", partial);
+            } else if (args[0].equalsIgnoreCase("top")) {
+                addCollectionCompletions(completions, args[1]);
             }
-            
-            if (args[0].equalsIgnoreCase("top")) {
-                String partial = args[1].toLowerCase();
-                for (CollectionDefinition collection : collectionsManager.getEnabledCollections()) {
-                    if (collection.getId().toLowerCase().startsWith(partial) ||
-                        collection.getName().toLowerCase().startsWith(partial)) {
-                        completions.add(collection.getId().replace("_", " "));
-                    }
-                }
-            }
-        } else if (args.length == 3 && args[0].equalsIgnoreCase("admin")) {
+            return completions;
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("admin")) {
             if (args[1].equalsIgnoreCase("set") || args[1].equalsIgnoreCase("reset")) {
-                String partial = args[2].toLowerCase();
+                String partial = args[2].toLowerCase(Locale.ROOT);
                 for (Player player : Bukkit.getOnlinePlayers()) {
-                    if (player.getName().toLowerCase().startsWith(partial)) {
-                        completions.add(player.getName());
-                    }
+                    addIfMatches(completions, player.getName(), partial);
                 }
             }
-        } else if (args.length == 4 && args[0].equalsIgnoreCase("admin") && args[1].equalsIgnoreCase("set")) {
-            String partial = args[3].toLowerCase();
-            for (CollectionDefinition collection : collectionsManager.getEnabledCollections()) {
-                if (collection.getId().toLowerCase().startsWith(partial)) {
-                    completions.add(collection.getId());
-                }
+            return completions;
+        }
+
+        if (args.length == 4 && args[0].equalsIgnoreCase("admin")) {
+            if (args[1].equalsIgnoreCase("set") || args[1].equalsIgnoreCase("reset")) {
+                addCollectionCompletions(completions, args[3]);
             }
         }
-        
+
         return completions;
+    }
+
+    private boolean ensureCollectionsEnabled(CommandSender sender) {
+        if (collectionsManager.isEnabled()) {
+            return true;
+        }
+        sender.sendMessage(ChatColor.RED + "The collections system is currently disabled.");
+        return false;
+    }
+
+    private void sendHelp(CommandSender sender, String label) {
+        sender.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "Collections Commands:");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + ChatColor.GRAY + " - Open collections menu");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " search <query>" + ChatColor.GRAY + " - Search for a collection");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " top <collection>" + ChatColor.GRAY + " - View leaderboard");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " <player>" + ChatColor.GRAY + " - View a player's collections");
+        if (sender.hasPermission("grivience.collections.admin")) {
+            sender.sendMessage(ChatColor.YELLOW + "/" + label + " admin" + ChatColor.GRAY + " - Admin commands");
+        }
+    }
+
+    private void sendAdminHelp(CommandSender sender, String label) {
+        sender.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "Collection Admin Commands:");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " admin reload" + ChatColor.GRAY + " - Reload collections config");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " admin set <player> <collection> <amount>" + ChatColor.GRAY + " - Set progress");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " admin reset <player> <collection>" + ChatColor.GRAY + " - Reset progress");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " admin list" + ChatColor.GRAY + " - List all collections");
+    }
+
+    private String formatSearchResult(CollectionDefinition collection) {
+        StringBuilder line = new StringBuilder();
+        line.append(ChatColor.GOLD).append(collection.getName());
+        line.append(ChatColor.GRAY).append(" - ").append(collection.getCategory().getDisplayName());
+        if (!collection.getSubcategory().isBlank()) {
+            line.append(ChatColor.DARK_GRAY).append(" / ").append(ChatColor.YELLOW).append(collection.getSubcategory());
+        }
+        line.append(ChatColor.DARK_GRAY).append(" (").append(collection.getId()).append(")");
+        return line.toString();
+    }
+
+    private void addCollectionCompletions(List<String> completions, String partial) {
+        String normalized = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
+        for (CollectionDefinition collection : collectionsManager.getEnabledCollections()) {
+            addIfMatches(completions, collection.getId(), normalized);
+        }
+    }
+
+    private void addIfMatches(List<String> completions, String value, String partial) {
+        if (value == null) {
+            return;
+        }
+        String normalized = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
+        if (value.toLowerCase(Locale.ROOT).startsWith(normalized)) {
+            completions.add(value);
+        }
     }
 
     private String resolveLeaderboardName(UUID profileId) {

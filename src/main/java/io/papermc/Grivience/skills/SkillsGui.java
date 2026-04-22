@@ -90,20 +90,15 @@ public final class SkillsGui implements Listener {
     }
 
     private ItemStack createSkillItem(Player player, SkyblockSkill skill, boolean includeClickHint) {
-        int maxLevel = skillManager.getMaxLevel(skill);
         int level = skillManager.getLevel(player, skill);
+        int maxLevel = skillManager.getMaxLevel(skill);
         double xp = skillManager.getXp(player, skill);
-        double nextXp = skillManager.getXpForLevel(skill, Math.min(maxLevel, level + 1));
-        double currentLevelXp = skillManager.getXpForLevel(skill, level);
-
-        double progress = 1.0D;
-        double gained = 0.0D;
-        double required = 0.0D;
-        if (level < maxLevel) {
-            required = Math.max(1.0D, nextXp - currentLevelXp);
-            gained = Math.max(0.0D, xp - currentLevelXp);
-            progress = Math.max(0.0D, Math.min(1.0D, gained / required));
-        }
+        
+        long currentLevelBase = SkillXPTable.getCumulativeXp(level);
+        long nextLevelBase = SkillXPTable.getCumulativeXp(level + 1);
+        long reqForNext = nextLevelBase - currentLevelBase;
+        long gainedInLevel = (long) (xp - currentLevelBase);
+        double progress = SkillXPTable.getProgress(xp);
 
         List<String> lore = new ArrayList<>();
         lore.add(ChatColor.GRAY + "Increase your " + skill.getDisplayName() + " level to");
@@ -114,7 +109,7 @@ public final class SkillsGui implements Listener {
         if (level < maxLevel) {
             lore.add(ChatColor.GRAY + "Progress to Level " + (level + 1) + ": " + ChatColor.YELLOW + Math.round(progress * 100) + "%");
             lore.add(progressBar(progress));
-            lore.add(ChatColor.GRAY + "(" + format(gained) + "/" + format(required) + ")");
+            lore.add(ChatColor.GRAY + "(" + format(gainedInLevel) + "/" + format(reqForNext) + ")");
         } else {
             lore.add(ChatColor.GOLD + "MAX LEVEL REACHED");
         }
@@ -122,15 +117,13 @@ public final class SkillsGui implements Listener {
         lore.add("");
         if (hasPerk(skill)) {
             lore.add(ChatColor.GRAY + "Current Bonus:");
-            lore.add(ChatColor.GRAY + " \u25cf " + skill.getPerkName() + ": " + ChatColor.GREEN + "+" + formatOneDecimal(skill.getPerkValue(level)));
-        } else {
-            lore.add(ChatColor.GRAY + "Perk: " + ChatColor.DARK_GRAY + "None");
+            lore.add(ChatColor.GRAY + " \u25cf " + ChatColor.AQUA + "+" + formatOneDecimal(skill.getPerkValue(level)) + " " + skill.getStatName());
         }
 
         if (level < maxLevel && hasPerk(skill)) {
             lore.add("");
             lore.add(ChatColor.GRAY + "Next Level Bonus:");
-            lore.add(ChatColor.GRAY + " \u25cf " + skill.getPerkName() + ": " + ChatColor.GREEN + "+" + formatOneDecimal(skill.getPerkValue(level + 1)));
+            lore.add(ChatColor.GRAY + " \u25cf " + ChatColor.AQUA + "+" + formatOneDecimal(skill.getPerkValue(level + 1)) + " " + skill.getStatName());
         }
 
         if (includeClickHint) {
@@ -150,12 +143,8 @@ public final class SkillsGui implements Listener {
         lore.add(ChatColor.GRAY + "Required Level: " + ChatColor.YELLOW + rewardLevel);
         lore.add(ChatColor.GRAY + "Status: " + (unlocked ? ChatColor.GREEN + "UNLOCKED" : ChatColor.RED + "LOCKED"));
         lore.add("");
-        lore.add(ChatColor.GRAY + "Stat Bonus: " + ChatColor.AQUA + skill.getStatName());
-        if (hasPerk(skill)) {
-            lore.add(ChatColor.GRAY + "Perk Value: " + ChatColor.GREEN + "+" + formatOneDecimal(skill.getPerkValue(rewardLevel)));
-        } else {
-            lore.add(ChatColor.GRAY + "Perk Value: " + ChatColor.DARK_GRAY + "None");
-        }
+        lore.add(ChatColor.GRAY + "Total Stat Bonus at this level:");
+        lore.add(ChatColor.GRAY + " \u25cf " + ChatColor.AQUA + "+" + formatOneDecimal(skill.getPerkValue(rewardLevel)) + " " + skill.getStatName());
 
         return createSimpleItem(material, color + "Level " + rewardLevel, lore, "noop", skill.name() + ":" + rewardLevel);
     }
@@ -164,7 +153,13 @@ public final class SkillsGui implements Listener {
         double average = skillManager.getSkillAverage(player);
         int total = skillManager.getTotalSkillLevels(player);
         int tracked = skillManager.getTrackedSkillCount();
-        SkyblockSkill topSkill = skillManager.getHighestSkill(player);
+        String topSkillName = skillManager.getHighestSkill(player);
+        SkyblockSkill topSkill = null;
+        if (topSkillName != null) {
+            try {
+                topSkill = SkyblockSkill.valueOf(topSkillName);
+            } catch (Exception ignored) {}
+        }
         int topLevel = topSkill == null ? 0 : skillManager.getLevel(player, topSkill);
 
         List<String> lore = new ArrayList<>();

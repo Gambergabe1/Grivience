@@ -7,6 +7,7 @@ import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Represents a defined zone area with bounds and display properties.
@@ -29,6 +30,24 @@ public final class Zone {
     // Zone properties
     private boolean enabled;
     private String description;
+    private String parentId;
+    private boolean boundsReady;
+    private double minX;
+    private double maxX;
+    private double minY;
+    private double maxY;
+    private double minZ;
+    private double maxZ;
+
+    // Restriction flags
+    private boolean canPvP = true;
+    private boolean canSpawnMobs = true;
+    private boolean canBreakBlocks = true;
+
+    // Dynamic properties
+    private UUID attachedEntityId;
+    private double radius = -1; // If > 0, zone is spherical around pos1 (center)
+    private long expiryTime = -1; // If > 0, zone expires at this epoch millis
     
     public Zone(String id) {
         this.id = id;
@@ -62,6 +81,7 @@ public final class Zone {
         this.priority = priority;
         this.enabled = enabled;
         this.description = description != null ? description : "";
+        recomputeBounds();
     }
     
     // Getters
@@ -75,44 +95,125 @@ public final class Zone {
     public int getPriority() { return priority; }
     public boolean isEnabled() { return enabled; }
     public String getDescription() { return description; }
+    public String getParentId() { return parentId; }
+    public boolean canPvP() { return canPvP; }
+    public boolean canSpawnMobs() { return canSpawnMobs; }
+    public boolean canBreakBlocks() { return canBreakBlocks; }
     
     // Setters
     public void setName(String name) { this.name = name; }
     public void setWorld(String world) { this.world = world; }
-    public void setPos1(Location pos1) { this.pos1 = pos1; }
-    public void setPos2(Location pos2) { this.pos2 = pos2; }
+    public void setPos1(Location pos1) {
+        this.pos1 = pos1;
+        recomputeBounds();
+    }
+    public void setPos2(Location pos2) {
+        this.pos2 = pos2;
+        recomputeBounds();
+    }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
     public void setColor(ChatColor color) { this.color = color; }
     public void setPriority(int priority) { this.priority = priority; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public void setDescription(String description) { this.description = description; }
+    public void setParentId(String parentId) { this.parentId = parentId; }
+    public void setCanPvP(boolean canPvP) { this.canPvP = canPvP; }
+    public void setCanSpawnMobs(boolean canSpawnMobs) { this.canSpawnMobs = canSpawnMobs; }
+    public void setCanBreakBlocks(boolean canBreakBlocks) { this.canBreakBlocks = canBreakBlocks; }
     
     /**
      * Check if a location is within this zone's bounds.
      */
     public boolean contains(Location location) {
-        if (!enabled || pos1 == null || pos2 == null) {
+        if (!enabled || location == null || !boundsReady) {
             return false;
         }
-        
-        if (world != null && !location.getWorld().getName().equals(world)) {
+
+        if (isExpired()) {
             return false;
         }
-        
-        double minX = Math.min(pos1.getX(), pos2.getX());
-        double maxX = Math.max(pos1.getX(), pos2.getX());
-        double minY = Math.min(pos1.getY(), pos2.getY());
-        double maxY = Math.max(pos1.getY(), pos2.getY());
-        double minZ = Math.min(pos1.getZ(), pos2.getZ());
-        double maxZ = Math.max(pos1.getZ(), pos2.getZ());
-        
+
+        if (location.getWorld() == null) {
+            return false;
+        }
+
+        if (world != null && !location.getWorld().getName().equalsIgnoreCase(world)) {
+            return false;
+        }
+
+        if (radius > 0) {
+            if (pos1 == null) return false;
+            return pos1.distanceSquared(location) <= (radius * radius);
+        }
+
         double x = location.getX();
         double y = location.getY();
         double z = location.getZ();
-        
+
         return x >= minX && x <= maxX &&
                y >= minY && y <= maxY &&
                z >= minZ && z <= maxZ;
+    }
+
+    private void recomputeBounds() {
+        if (radius > 0) {
+            boundsReady = pos1 != null;
+            return;
+        }
+
+        if (pos1 == null || pos2 == null) {
+            boundsReady = false;
+            return;
+        }
+
+        minX = Math.min(pos1.getX(), pos2.getX());
+        maxX = Math.max(pos1.getX(), pos2.getX());
+        minY = Math.min(pos1.getY(), pos2.getY());
+        maxY = Math.max(pos1.getY(), pos2.getY());
+        minZ = Math.min(pos1.getZ(), pos2.getZ());
+        maxZ = Math.max(pos1.getZ(), pos2.getZ());
+        boundsReady = true;
+    }
+
+    public boolean isExpired() {
+        return expiryTime > 0 && System.currentTimeMillis() > expiryTime;
+    }
+
+    public UUID getAttachedEntityId() { return attachedEntityId; }
+    public void setAttachedEntityId(UUID attachedEntityId) { this.attachedEntityId = attachedEntityId; }
+
+    public double getRadius() { return radius; }
+    public void setRadius(double radius) { 
+        this.radius = radius; 
+        recomputeBounds();
+    }
+
+    public long getExpiryTime() { return expiryTime; }
+    public void setExpiryTime(long expiryTime) { this.expiryTime = expiryTime; }
+
+    /**
+     * Update the base location of this zone (for following entities).
+     */
+    public void updateLocation(Location newLoc) {
+        if (newLoc == null) return;
+        
+        if (radius > 0) {
+            this.pos1 = newLoc;
+            this.world = newLoc.getWorld().getName();
+        } else if (pos1 != null && pos2 != null) {
+            // Move cuboid relative to center
+            double dx = (maxX - minX) / 2.0;
+            double dy = (maxY - minY) / 2.0;
+            double dz = (maxZ - minZ) / 2.0;
+            
+            this.world = newLoc.getWorld().getName();
+            this.pos1 = newLoc.clone().add(-dx, -dy, -dz);
+            this.pos2 = newLoc.clone().add(dx, dy, dz);
+        } else {
+            this.pos1 = newLoc;
+            this.world = newLoc.getWorld().getName();
+        }
+        recomputeBounds();
     }
     
     /**
@@ -168,6 +269,15 @@ public final class Zone {
         section.set("priority", priority);
         section.set("enabled", enabled);
         section.set("description", description);
+        section.set("parent-id", parentId);
+        section.set("can-pvp", canPvP);
+        section.set("can-spawn-mobs", canSpawnMobs);
+        section.set("can-break-blocks", canBreakBlocks);
+        section.set("radius", radius);
+        section.set("expiry-time", expiryTime);
+        if (attachedEntityId != null) {
+            section.set("attached-entity", attachedEntityId.toString());
+        }
         
         if (pos1 != null) {
             section.set("pos1.x", pos1.getX());
@@ -203,28 +313,37 @@ public final class Zone {
         String description = section.getString("description", "");
         
         Zone zone = new Zone(id, name, world, null, null, displayName, color, priority, enabled, description);
+        zone.setCanPvP(section.getBoolean("can-pvp", true));
+        zone.setCanSpawnMobs(section.getBoolean("can-spawn-mobs", true));
+        zone.setCanBreakBlocks(section.getBoolean("can-break-blocks", true));
+        zone.setParentId(section.getString("parent-id"));
+        zone.setRadius(section.getDouble("radius", -1));
+        zone.setExpiryTime(section.getLong("expiry-time", -1));
+        
+        String attachedId = section.getString("attached-entity");
+        if (attachedId != null) {
+            try {
+                zone.setAttachedEntityId(UUID.fromString(attachedId));
+            } catch (IllegalArgumentException ignored) {}
+        }
         
         // Load positions
         ConfigurationSection pos1Section = section.getConfigurationSection("pos1");
-        if (pos1Section != null && world != null) {
-            World worldObj = Bukkit.getWorld(world);
-            if (worldObj != null) {
-                double x = pos1Section.getDouble("x", 0);
-                double y = pos1Section.getDouble("y", 64);
-                double z = pos1Section.getDouble("z", 0);
-                zone.setPos1(new Location(worldObj, x, y, z));
-            }
+        if (pos1Section != null) {
+            World worldObj = world != null ? Bukkit.getWorld(world) : null;
+            double x = pos1Section.getDouble("x", 0);
+            double y = pos1Section.getDouble("y", 64);
+            double z = pos1Section.getDouble("z", 0);
+            zone.setPos1(new Location(worldObj, x, y, z));
         }
         
         ConfigurationSection pos2Section = section.getConfigurationSection("pos2");
-        if (pos2Section != null && world != null) {
-            World worldObj = Bukkit.getWorld(world);
-            if (worldObj != null) {
-                double x = pos2Section.getDouble("x", 0);
-                double y = pos2Section.getDouble("y", 64);
-                double z = pos2Section.getDouble("z", 0);
-                zone.setPos2(new Location(worldObj, x, y, z));
-            }
+        if (pos2Section != null) {
+            World worldObj = world != null ? Bukkit.getWorld(world) : null;
+            double x = pos2Section.getDouble("x", 0);
+            double y = pos2Section.getDouble("y", 64);
+            double z = pos2Section.getDouble("z", 0);
+            zone.setPos2(new Location(worldObj, x, y, z));
         }
         
         return zone;

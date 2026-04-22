@@ -39,6 +39,11 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.WorldBorder;
+
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -57,6 +62,7 @@ public final class IslandProtectionListener implements Listener {
     private final Set<Material> protectedInteract;
     private final Set<EntityType> protectedEntities;
     private final Map<UUID, Long> lastWarnAtMs = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> lastIslandByPlayer = new ConcurrentHashMap<>();
 
     public IslandProtectionListener(IslandManager islandManager) {
         this.islandManager = islandManager;
@@ -66,6 +72,63 @@ public final class IslandProtectionListener implements Listener {
 
     public void setBypassCommand(IslandBypassCommand bypassCommand) {
         this.bypassCommand = bypassCommand;
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        if (event.getFrom().getBlockX() == event.getTo().getBlockX() &&
+            event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
+            return;
+        }
+        updateWorldBorder(event.getPlayer(), event.getTo());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent event) {
+        updateWorldBorder(event.getPlayer(), event.getTo());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        updateWorldBorder(event.getPlayer(), event.getPlayer().getLocation());
+    }
+
+    private void updateWorldBorder(Player player, Location loc) {
+        if (islandManager == null) return;
+        String islandWorld = islandManager.getIslandWorldName();
+        if (!loc.getWorld().getName().equalsIgnoreCase(islandWorld)) {
+            if (lastIslandByPlayer.containsKey(player.getUniqueId())) {
+                player.setWorldBorder(null); // Reset to world default
+                lastIslandByPlayer.remove(player.getUniqueId());
+            }
+            return;
+        }
+
+        Island island = islandManager.getIslandAt(loc);
+        UUID currentIslandId = island != null ? island.getId() : null;
+        UUID lastIslandId = lastIslandByPlayer.get(player.getUniqueId());
+
+        if (currentIslandId != null) {
+            if (!currentIslandId.equals(lastIslandId)) {
+                refreshWorldBorder(player, island);
+                lastIslandByPlayer.put(player.getUniqueId(), currentIslandId);
+            }
+        } else if (lastIslandId != null) {
+            player.setWorldBorder(null);
+            lastIslandByPlayer.remove(player.getUniqueId());
+        }
+    }
+
+    public void refreshWorldBorder(Player player, Island island) {
+        if (island == null || player == null) return;
+        
+        WorldBorder border = org.bukkit.Bukkit.createWorldBorder();
+        border.setCenter(island.getCenter());
+        border.setSize(island.getSize());
+        border.setWarningDistance(5);
+        border.setDamageAmount(0.2);
+        
+        player.setWorldBorder(border);
     }
 
     /**
@@ -88,9 +151,20 @@ public final class IslandProtectionListener implements Listener {
     private boolean isAllowed(Player player, Island island) {
         if (island == null) return true; // Not on an island
         if (hasBypass(player)) return true; // Admin bypass
+        
         UUID uuid = player.getUniqueId();
-        UUID owner = island.getOwner();
-        return (owner != null && owner.equals(uuid)) || island.isMember(uuid);
+        
+        // 1. Check if owner
+        if (uuid.equals(island.getOwner())) {
+            return true;
+        }
+        
+        // 2. Check if co-op member
+        if (island.isMember(uuid)) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -317,13 +391,13 @@ public final class IslandProtectionListener implements Listener {
     public void onHangingBreak(HangingBreakEvent event) {
         Island island = islandAt(event.getEntity().getLocation());
         if (island == null) return;
-        
-        // Prevent items from being broken by visitors
-        if (event.getCause() == HangingBreakEvent.RemoveCause.ENTITY) {
+
+        // If broken by anything else (explosions, etc. on an island), we protect the island.
+        // If broken by an entity (usually a player), onHangingBreakByEntity handles the specific permission check.
+        if (event.getCause() != HangingBreakEvent.RemoveCause.ENTITY) {
             event.setCancelled(true);
         }
     }
-
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHangingBreakByEntity(HangingBreakByEntityEvent event) {
         Entity remover = event.getRemover();

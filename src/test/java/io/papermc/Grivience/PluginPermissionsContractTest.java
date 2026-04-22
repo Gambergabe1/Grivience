@@ -24,6 +24,7 @@ class PluginPermissionsContractTest {
                 "grivience.collections.admin",
                 "grivience.endmines.build",
                 "grivience.fasttravel.admin",
+                "grivience.hub.build",
                 "grivience.island.bypass",
                 "grivience.island.bypass.admin",
                 "grivience.minion.bypass",
@@ -35,6 +36,10 @@ class PluginPermissionsContractTest {
                 "grivience.visit.guestlimit.mvp",
                 "grivience.visit.guestlimit.mvpplus",
                 "grivience.visit.guestlimit.youtuber",
+                "grivience.wardrobe.slots.vip",
+                "grivience.wardrobe.slots.vipplus",
+                "grivience.wardrobe.slots.mvp",
+                "grivience.wardrobe.slots.mvpplus",
                 "storage.personal",
                 "storage.personal.upgrade",
                 "storage.vault",
@@ -48,7 +53,8 @@ class PluginPermissionsContractTest {
                 "storage.accessory",
                 "storage.accessory.upgrade",
                 "storage.potion",
-                "storage.potion.upgrade"
+                "storage.potion.upgrade",
+                "grivience.personalcompactor"
         );
 
         for (String node : requiredPermissions) {
@@ -61,6 +67,44 @@ class PluginPermissionsContractTest {
         YamlConfiguration pluginYml = loadPluginYml();
         assertEquals("grivience.admin.mineevent", pluginYml.getString("commands.mineevent.permission"));
         assertEquals("grivience.admin.globalevent", pluginYml.getString("commands.globalevent.permission"));
+    }
+
+    @Test
+    void accessoryCommandIsDeclaredWithAccessoryPermission() {
+        YamlConfiguration pluginYml = loadPluginYml();
+        assertTrue(pluginYml.contains("commands.accessory"), "Missing /accessory command declaration");
+        assertEquals("storage.accessory", pluginYml.getString("commands.accessory.permission"));
+    }
+
+    @Test
+    void compactorCommandIsDeclaredWithCompactorPermission() {
+        YamlConfiguration pluginYml = loadPluginYml();
+        assertTrue(pluginYml.contains("commands.compactor"), "Missing /compactor command declaration");
+        assertEquals("grivience.personalcompactor", pluginYml.getString("commands.compactor.permission"));
+    }
+
+    @Test
+    void portalRouteCommandIsDeclaredWithAdminPermission() {
+        YamlConfiguration pluginYml = loadPluginYml();
+        assertTrue(pluginYml.contains("commands.portalroute"), "Missing /portalroute command declaration");
+        assertEquals("grivience.admin", pluginYml.getString("commands.portalroute.permission"));
+    }
+
+    @Test
+    void mountainCommandIsDeclaredWithAdminPermission() {
+        YamlConfiguration pluginYml = loadPluginYml();
+        assertTrue(pluginYml.contains("commands.mountain"), "Missing /mountain command declaration");
+        assertEquals("grivience.admin", pluginYml.getString("commands.mountain.permission"));
+    }
+
+    @Test
+    void dragonWatcherCommandUsageDocumentsForceSummon() {
+        YamlConfiguration pluginYml = loadPluginYml();
+        assertTrue(pluginYml.contains("commands.dragonwatcher"), "Missing /dragonwatcher command declaration");
+        assertTrue(
+                pluginYml.getString("commands.dragonwatcher.usage", "").contains("forcesummon <type> <tier> [mutation]"),
+                "/dragonwatcher usage should document the force summon syntax"
+        );
     }
 
     private YamlConfiguration loadPluginYml() {

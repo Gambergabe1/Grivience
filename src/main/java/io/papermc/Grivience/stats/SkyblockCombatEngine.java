@@ -40,10 +40,13 @@ public final class SkyblockCombatEngine implements Listener {
     private final Map<UUID, SkyblockPlayerStats> cached = new ConcurrentHashMap<>();
 
     private BukkitTask tickTask;
+    private int refreshCursor;
+    private long refreshAccumulator;
 
     private boolean enabled;
     private boolean neutralizeVanillaArmor;
     private double sbToMcHealthScale;
+    private long fullRefreshPeriodTicks;
 
     public SkyblockCombatEngine(
             io.papermc.Grivience.GriviencePlugin plugin,
@@ -64,6 +67,7 @@ public final class SkyblockCombatEngine implements Listener {
         enabled = plugin.getConfig().getBoolean("skyblock-combat.enabled", true);
         neutralizeVanillaArmor = plugin.getConfig().getBoolean("skyblock-combat.neutralize-vanilla-armor", true);
         sbToMcHealthScale = clampFinite(plugin.getConfig().getDouble("skyblock-combat.sb-health-scale", 5.0D), 0.1D, 100.0D);
+        fullRefreshPeriodTicks = Math.max(1L, plugin.getConfig().getLong("skyblock-combat.full-refresh-period-ticks", 20L));
         statsService.reload();
 
         if (wasEnabled && !enabled) {
@@ -84,7 +88,9 @@ public final class SkyblockCombatEngine implements Listener {
         if (!enabled) {
             return;
         }
-        tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 20L);
+        refreshCursor = 0;
+        refreshAccumulator = 0L;
+        tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
     }
 
     private void stop() {
@@ -135,7 +141,7 @@ public final class SkyblockCombatEngine implements Listener {
         cached.remove(event.getPlayer().getUniqueId());
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDamage(EntityDamageEvent event) {
         if (!enabled) {
             return;
@@ -157,20 +163,54 @@ public final class SkyblockCombatEngine implements Listener {
         }
 
         double multiplier = 100.0D / (100.0D + defense);
-        double damage = event.getDamage();
-        if (!Double.isFinite(damage) || damage <= 0.0D) {
+        double baseDamage = event.getDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE);
+        if (!Double.isFinite(baseDamage) || baseDamage <= 0.0D) {
             return;
         }
-        event.setDamage(Math.max(0.0D, damage * multiplier));
+
+        // Apply defense reduction to BASE damage only
+        double reducedBaseDamage = baseDamage * multiplier;
+        event.setDamage(org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE, Math.max(0.0D, reducedBaseDamage));
+
+        // Zero out other modifiers to ensure defense is the only mitigation
+        for (org.bukkit.event.entity.EntityDamageEvent.DamageModifier modifier : org.bukkit.event.entity.EntityDamageEvent.DamageModifier.values()) {
+            if (modifier != org.bukkit.event.entity.EntityDamageEvent.DamageModifier.BASE && event.isApplicable(modifier)) {
+                event.setDamage(modifier, 0.0D);
+            }
+        }
     }
 
     private void tick() {
         if (!enabled) {
             return;
         }
-        for (Player player : Bukkit.getOnlinePlayers()) {
+        Player[] online = Bukkit.getOnlinePlayers().toArray(Player[]::new);
+        if (online.length == 0) {
+            refreshCursor = 0;
+            refreshAccumulator = 0L;
+            return;
+        }
+
+        long effectiveRefreshPeriodTicks = effectiveRefreshPeriodTicks();
+        refreshAccumulator += online.length;
+        int playersThisTick = (int) Math.min(online.length, refreshAccumulator / effectiveRefreshPeriodTicks);
+        if (playersThisTick <= 0) {
+            return;
+        }
+        refreshAccumulator %= effectiveRefreshPeriodTicks;
+
+        for (int i = 0; i < playersThisTick; i++) {
+            Player player = online[(refreshCursor + i) % online.length];
             refresh(player);
         }
+        refreshCursor = (refreshCursor + playersThisTick) % online.length;
+    }
+
+    private long effectiveRefreshPeriodTicks() {
+        if (plugin.getServerPerformanceMonitor() == null) {
+            return fullRefreshPeriodTicks;
+        }
+        return plugin.getServerPerformanceMonitor().scalePeriod(fullRefreshPeriodTicks, 2, 4);
     }
 
     private void refresh(Player player) {
@@ -262,4 +302,3 @@ public final class SkyblockCombatEngine implements Listener {
         return Math.max(min, Math.min(max, value));
     }
 }
-

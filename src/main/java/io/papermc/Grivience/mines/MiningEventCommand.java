@@ -78,7 +78,7 @@ public final class MiningEventCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 MiningEventManager.getPlugin().getDrillMechanicGui().open(player);
-                sender.sendMessage(ChatColor.GREEN + "Opened Drill Mechanic.");
+                sender.sendMessage(ChatColor.GREEN + "Opened Drill Forge.");
             }
             case "npcshop" -> {
                 if (!(sender instanceof Player player)) {
@@ -112,7 +112,7 @@ public final class MiningEventCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/mineevent stop " + ChatColor.GRAY + "- Stop the active event");
         sender.sendMessage(ChatColor.YELLOW + "/mineevent status " + ChatColor.GRAY + "- Check current event status");
         sender.sendMessage(ChatColor.YELLOW + "/mineevent shop " + ChatColor.GRAY + "- Open Inspector Shop");
-        sender.sendMessage(ChatColor.YELLOW + "/mineevent mechanic " + ChatColor.GRAY + "- Open Drill Mechanic");
+        sender.sendMessage(ChatColor.YELLOW + "/mineevent mechanic " + ChatColor.GRAY + "- Open Drill Forge (admin shortcut)");
         sender.sendMessage(ChatColor.YELLOW + "/mineevent npcshop " + ChatColor.GRAY + "- Open NPC Commodity Buyback");
         sender.sendMessage(ChatColor.YELLOW + "/mineevent setnpc " + ChatColor.GRAY + "- Set King NPC location to your current position");
     }
