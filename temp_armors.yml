@@ -1,0 +1,223 @@
+    gilded_harvester:
+      display-name: '&5Gilded Harvester'
+      description: '&7Superior gear for the master farmer.'
+      rarity: EPIC
+      pieces-required: 4
+      category: farming
+      crafting-material: custom:ENCHANTED_WHEAT
+      collection-id: WHEAT
+      collection-tier-required: 7
+      bonuses:
+        - '&74 Pieces: &a+50 Health'
+        - '&74 Pieces: &6Bountiful Harvest &8(15% chance for bonus crop drops)'
+      pieces:
+        helmet:
+          material: LEATHER_HELMET
+          display-name: '&5Gilded Harvester Mask'
+          armor: 3
+          health: 12
+          farming-fortune: 15
+          color: '#FFD700'
+          lore:
+            - '&7Shines with the essence of pure wheat.'
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: '&5Gilded Harvester Plate'
+          armor: 8
+          health: 20
+          farming-fortune: 25
+          color: '#FFD700'
+          lore:
+            - '&7Woven with golden threads.'
+        leggings:
+          material: LEATHER_LEGGINGS
+          display-name: '&5Gilded Harvester Leggings'
+          armor: 6
+          health: 15
+          farming-fortune: 20
+          color: '#FFD700'
+          lore:
+            - '&7Reinforced for speed.'
+        boots:
+          material: LEATHER_BOOTS
+          display-name: '&5Gilded Harvester Boots'
+          armor: 3
+          health: 10
+          farming-fortune: 15
+          color: '#FFD700'
+          lore:
+            - '&7Walk among the fields.'
+
+    rootbound_garb:
+      display-name: '&9Rootbound Garb'
+      description: '&7Carrot-fed gear for farmers who never leave the field.'
+      pieces-required: 4
+      category: farming
+      crafting-material: CARROT
+      collection-id: CARROT
+      collection-tier-required: 4
+      bonuses:
+        - '&74 Pieces: &6+25 Farming Fortune'
+      pieces:
+        helmet:
+          material: LEATHER_HELMET
+          display-name: '&9Rootbound Cap'
+          armor: 2
+          health: 10
+          farming-fortune: 10
+          color: '#E28A1A'
+          lore:
+            - '&7Stained bright with fresh carrot tops.'
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: '&9Rootbound Tunic'
+          armor: 5
+          health: 16
+          farming-fortune: 15
+          color: '#E28A1A'
+          lore:
+            - '&7Woven to withstand sunrise-to-sundown harvests.'
+        leggings:
+          material: LEATHER_LEGGINGS
+          display-name: '&9Rootbound Legwraps'
+          armor: 4
+          health: 14
+          farming-fortune: 12
+          color: '#E28A1A'
+          lore:
+            - '&7Keeps your footing firm in loose soil.'
+        boots:
+          material: LEATHER_BOOTS
+          display-name: '&9Rootbound Boots'
+          armor: 2
+          health: 9
+          farming-fortune: 8
+          color: '#E28A1A'
+          lore:
+            - '&7Leave neat rows with every step.'
+
+    taterguard:
+      display-name: '&9Taterguard Armor'
+      description: '&7Bulky field gear built for endless potato harvests.'
+      pieces-required: 4
+      category: farming
+      crafting-material: POTATO
+      collection-id: POTATO
+      collection-tier-required: 4
+      bonuses:
+        - '&74 Pieces: &a+60 Health'
+      pieces:
+        helmet:
+          material: LEATHER_HELMET
+          display-name: '&9Taterguard Helm'
+          armor: 2
+          health: 14
+          farming-fortune: 8
+          color: '#8B6A3E'
+          lore:
+            - '&7Packed with hardy potato fibers.'
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: '&9Taterguard Plate'
+          armor: 5
+          health: 22
+          farming-fortune: 12
+          color: '#8B6A3E'
+          lore:
+            - '&7Padded for heavy sacks and long hauls.'
+        leggings:
+          material: LEATHER_LEGGINGS
+          display-name: '&9Taterguard Greaves'
+          armor: 4
+          health: 18
+          farming-fortune: 10
+          color: '#8B6A3E'
+          lore:
+            - '&7Reliable in mud, dust, and rain.'
+        boots:
+          material: LEATHER_BOOTS
+          display-name: '&9Taterguard Boots'
+          armor: 2
+          health: 12
+          farming-fortune: 6
+          color: '#8B6A3E'
+          lore:
+            - '&7Steady boots for rough rows.'
+
+    melon_monarch:
+      display-name: '&5Melon Monarch'
+      description: '&7Emerald-dyed attire prized by melon millionaires.'
+      pieces-required: 4
+      category: farming
+      crafting-material: MELON_SLICE
+      collection-id: MELON
+      collection-tier-required: 5
+      bonuses:
+        - '&74 Pieces: &6+35 Farming Fortune'
+        - '&74 Pieces: &a+20 Health'
+      pieces:
+        helmet:
+          material: LEATHER_HELMET
+          display-name: '&5Melon Monarch Crown'
+          armor: 2
+          health: 12
+          farming-fortune: 15
+          color: '#5CCB4A'
+          lore:
+            - '&7Trimmed in glossy emerald rind.'
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: '&5Melon Monarch Coat'
+          armor: 5
+          health: 18
+          farming-fortune: 20
+          color: '#5CCB4A'
+          lore:
+            - '&7Heavy robes for prestigious melon runs.'
+        leggings:
+          material: LEATHER_LEGGINGS
+          display-name: '&5Melon Monarch Leggings'
+          armor: 4
+          health: 14
+          farming-fortune: 18
+          color: '#5CCB4A'
+          lore:
+            - '&7Cut for speed between high-yield rows.'
+        boots:
+          material: LEATHER_BOOTS
+          display-name: '&5Melon Monarch Boots'
+          armor: 2
+          health: 10
+          farming-fortune: 12
+          color: '#5CCB4A'
+          lore:
+            - '&7Soft soles for spotless harvesting.'
+
+    wartwoven_regalia:
+      display-name: '&5Wartwoven Regalia'
+      description: '&7Alchemy-soaked vestments cultivated in soul sand gardens.'
+      pieces-required: 4
+      category: farming
+      crafting-material: NETHER_WART
+      collection-id: NETHER_WART
+      collection-tier-required: 5
+      bonuses:
+        - '&74 Pieces: &b+75 Intelligence'
+      pieces:
+        helmet:
+          material: LEATHER_HELMET
+          display-name: '&5Wartwoven Hood'
+          armor: 1
+          health: 8
+          mana: 20
+          farming-fortune: 10
+          color: '#6E1B32'
+          lore:
+            - '&7Perfumed with the bitter scent of brew rooms.'
+        chestplate:
+          material: LEATHER_CHESTPLATE
+          display-name: '&5Wartwoven Robes'
+          armor: 4
+          health: 14
+          mana: 30
+          farming-fortune: 15
