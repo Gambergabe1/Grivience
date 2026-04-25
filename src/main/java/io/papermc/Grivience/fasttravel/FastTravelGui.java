@@ -5,6 +5,7 @@ import io.papermc.Grivience.gui.SkyblockGui;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
@@ -75,6 +76,13 @@ public final class FastTravelGui implements Listener {
 
         // Destination slots (player heads)
         List<FastTravelManager.FastTravelPoint> points = new ArrayList<>(manager.getAllPoints());
+        
+        // Inject "Your Island" as first destination
+        FastTravelManager.FastTravelPoint islandPoint = createIslandPoint(player);
+        if (islandPoint != null) {
+            points.add(0, islandPoint);
+        }
+        
         int start = page * DESTINATION_SLOTS.length;
         int end = Math.min(start + DESTINATION_SLOTS.length, points.size());
 
@@ -323,6 +331,26 @@ public final class FastTravelGui implements Listener {
         item.setItemMeta(meta);
         return item;
     }
+
+    private FastTravelManager.FastTravelPoint createIslandPoint(Player player) {
+        if (plugin.getIslandManager() == null) return null;
+        var island = plugin.getIslandManager().getIsland(player);
+        if (island == null) return null;
+
+        Location spawn = plugin.getIslandManager().getSafeSpawnLocation(island);
+        if (spawn == null) return null;
+
+        return new FastTravelManager.FastTravelPoint(
+            "your_island",
+            ChatColor.GREEN + "Your Island",
+            spawn,
+            ChatColor.GRAY + "Teleport to your private island.",
+            player.getName(),
+            0,
+            ""
+        );
+    }
+
 
     private static class FastTravelHolder implements InventoryHolder {
         private Inventory inventory;

@@ -389,4 +389,22 @@ public enum MinionType {
 
     public record TierRecipe(int tier, String ingredientId, int amountPerOuterSlot) {
     }
+
+    public Material placeMaterial() {
+        return switch (this) {
+            case COBBLESTONE -> Material.COBBLESTONE;
+            case COAL -> Material.COAL_ORE;
+            case IRON -> Material.IRON_ORE;
+            case GOLD -> Material.GOLD_ORE;
+            case REDSTONE -> Material.REDSTONE_ORE;
+            case LAPIS -> Material.LAPIS_ORE;
+            case DIAMOND -> Material.DIAMOND_ORE;
+            case EMERALD -> Material.EMERALD_ORE;
+            case WHEAT -> Material.WHEAT;
+            case CARROT -> Material.CARROTS;
+            case POTATO -> Material.POTATOES;
+            case SUGAR_CANE -> Material.SUGAR_CANE;
+            case NETHER_WART -> Material.NETHER_WART;
+        };
+    }
 }

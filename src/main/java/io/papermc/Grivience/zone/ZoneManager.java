@@ -338,7 +338,7 @@ public final class ZoneManager {
 
     private void importConfigAreas() {
         // Main Hub Zone - Base for all sub-zones
-        String hubWorld = plugin.getConfig().getString("skyblock.hub-world", "Hub 2");
+        String hubWorld = plugin.getConfig().getString("skyblock.hub-world", "hub2");
         importHardcodedArea("hub_main", "The Hub", hubWorld, 
             -1000, 0, -1000, 1000, 255, 1000, ChatColor.GOLD, 1);
 

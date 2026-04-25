@@ -15,8 +15,8 @@ public record SkyblockPlayerStats(
         double critChancePercent,
         double critDamagePercent,
         double intelligence,
-        double farmingFortune
+        double farmingFortune,
+        double miningFortune,
+        double foragingFortune
 ) {
 }
-
-

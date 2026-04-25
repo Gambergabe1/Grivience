@@ -21,6 +21,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.Keyed;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -41,13 +42,20 @@ public final class RecipeUnlockListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        syncRecipeBook(event.getPlayer());
+        Player player = event.getPlayer();
+        if (player == null) {
+            return;
+        }
+
+        // The recipe book can still be initializing during PlayerJoinEvent. Defer sync by one tick so
+        // essential vanilla recipes reliably stick for fresh joins when limited crafting is enabled.
+        Bukkit.getScheduler().runTask(plugin, () -> syncRecipeBook(player));
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onRecipeDiscover(PlayerRecipeDiscoverEvent event) {
         NamespacedKey key = event.getRecipe();
-        if (isVanillaRecipeKey(key)) {
+        if (isVanillaRecipeKey(key) && !isEssentialVanillaRecipe(key)) {
             event.setCancelled(true);
         }
     }
@@ -58,6 +66,7 @@ public final class RecipeUnlockListener implements Listener {
         }
 
         clearVanillaRecipes(player);
+        discoverEssentialVanillaRecipes(player);
         int customUnlockedCount = 0;
 
         for (SkyblockRecipe customRecipe : RecipeRegistry.getAll()) {
@@ -96,7 +105,7 @@ public final class RecipeUnlockListener implements Listener {
 
         List<NamespacedKey> vanillaRecipes = new ArrayList<>();
         for (NamespacedKey key : player.getDiscoveredRecipes()) {
-            if (isVanillaRecipeKey(key)) {
+            if (isVanillaRecipeKey(key) && !isEssentialVanillaRecipe(key)) {
                 vanillaRecipes.add(key);
             }
         }
@@ -106,8 +115,57 @@ public final class RecipeUnlockListener implements Listener {
         }
     }
 
+    private void discoverEssentialVanillaRecipes(Player player) {
+        List<NamespacedKey> keys = new ArrayList<>();
+        for (Iterator<Recipe> it = Bukkit.recipeIterator(); it.hasNext(); ) {
+            NamespacedKey key = recipeKey(it.next());
+            if (isEssentialVanillaRecipe(key)) {
+                keys.add(key);
+            }
+        }
+        if (!keys.isEmpty()) {
+            player.discoverRecipes(keys);
+        }
+    }
+
+    static boolean isEssentialVanillaRecipe(NamespacedKey key) {
+        if (key == null || !NamespacedKey.MINECRAFT.equalsIgnoreCase(key.getNamespace())) {
+            return false;
+        }
+        
+        String path = key.getKey().toLowerCase();
+        
+        // Essential Building & Utility
+        if (path.contains("planks") || path.contains("slab") || path.contains("stairs") || 
+            path.contains("fence") || path.contains("door") || path.contains("trapdoor") ||
+            path.contains("button") || path.contains("pressure_plate") || path.contains("gate") ||
+            path.contains("sign") || path.contains("chest") || path.contains("stick") ||
+            path.contains("crafting_table") || path.contains("furnace") || path.contains("torch") ||
+            path.contains("ladder") || path.contains("glass_pane") || path.contains("bowl") ||
+            path.contains("boat") || path.equals("paper") || path.equals("book") || 
+            path.equals("bucket") || path.equals("bread") || path.contains("glass") ||
+            path.contains("wool") || path.contains("carpet") || path.contains("terracotta") ||
+            path.contains("concrete") || path.contains("stone_brick") || path.contains("polished")) {
+            return true;
+        }
+        
+        // Basic Tools (Wood/Stone)
+        if (path.startsWith("wooden_") || path.startsWith("stone_")) {
+            return true;
+        }
+        
+        return false;
+    }
+
     private boolean isVanillaRecipeKey(NamespacedKey key) {
         return key != null && NamespacedKey.MINECRAFT.equalsIgnoreCase(key.getNamespace());
+    }
+
+    static NamespacedKey recipeKey(Recipe recipe) {
+        if (!(recipe instanceof Keyed keyed)) {
+            return null;
+        }
+        return keyed.getKey();
     }
 
     private boolean meetsCollectionRequirement(Player player, String collectionId, int requiredTier) {

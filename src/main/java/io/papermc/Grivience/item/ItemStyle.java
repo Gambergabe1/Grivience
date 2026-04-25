@@ -9,7 +9,7 @@ public enum ItemStyle {
 
     public static ItemStyle parse(String input) {
         if (input == null || input.isBlank()) {
-            return JAPANESE;
+            return SKYBLOCK;
         }
         String normalized = input.trim().toUpperCase(Locale.ROOT).replace('-', '_');
         for (ItemStyle style : values()) {
@@ -17,6 +17,6 @@ public enum ItemStyle {
                 return style;
             }
         }
-        return JAPANESE;
+        return SKYBLOCK;
     }
 }

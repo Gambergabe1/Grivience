@@ -5,6 +5,8 @@ import io.papermc.Grivience.gui.SkyblockGui;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -13,6 +15,7 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -31,7 +34,7 @@ public final class QuestGui implements Listener {
     private static final String PRE_TITLE_PREFIX = SkyblockGui.title("Prereqs: ");
     private static final int PAGE_SIZE = 36;
 
-    public enum QuestFilter { ACTIVE, AVAILABLE, COMPLETED }
+    public enum QuestFilter { HUB, FARMHUB, MINEHUB }
 
     private final GriviencePlugin plugin;
     private final QuestManager questManager;
@@ -42,16 +45,18 @@ public final class QuestGui implements Listener {
         this.questManager = questManager;
     }
 
-    public void openPlayerMenu(Player player) { openPlayerMenu(player, QuestFilter.ACTIVE, 0); }
+    public void openPlayerMenu(Player player) { openPlayerMenu(player, QuestFilter.HUB, 0); }
 
     public void openPlayerMenu(Player player, QuestFilter filter, int requestedPage) {
         List<ConversationQuest> filtered = filterQuests(player, questManager.questsSorted(), filter);
         int page = normalizePage(requestedPage, filtered.size());
         Inventory inv = Bukkit.createInventory(new PlayerMenuHolder(filter, page), 54, PLAYER_TITLE);
         fillSkyblockBackground(inv);
-        inv.setItem(46, filterButton(QuestFilter.ACTIVE, filter == QuestFilter.ACTIVE));
-        inv.setItem(47, filterButton(QuestFilter.AVAILABLE, filter == QuestFilter.AVAILABLE));
-        inv.setItem(48, filterButton(QuestFilter.COMPLETED, filter == QuestFilter.COMPLETED));
+        
+        inv.setItem(46, filterButton(QuestFilter.HUB, filter == QuestFilter.HUB));
+        inv.setItem(47, filterButton(QuestFilter.FARMHUB, filter == QuestFilter.FARMHUB));
+        inv.setItem(48, filterButton(QuestFilter.MINEHUB, filter == QuestFilter.MINEHUB));
+        
         fillQuestPage(player, inv, filtered, page, false);
         inv.setItem(45, navItem(Material.ARROW, ChatColor.GREEN + "Prev Page"));
         inv.setItem(49, SkyblockGui.closeButton());
@@ -60,19 +65,39 @@ public final class QuestGui implements Listener {
     }
 
     private List<ConversationQuest> filterQuests(Player player, List<ConversationQuest> quests, QuestFilter filter) {
-        return quests.stream().filter(q -> {
-            boolean active = questManager.isQuestActive(player, q.id());
-            boolean completed = questManager.hasCompletedQuest(player, q.id());
-            return switch (filter) {
-                case ACTIVE -> active;
-                case COMPLETED -> completed;
-                case AVAILABLE -> !active && !completed && q.enabled();
-            };
-        }).toList();
+        String worldTarget = switch (filter) {
+            case HUB -> "Hub";
+            case FARMHUB -> "Farmhub";
+            case MINEHUB -> "Minehub";
+        };
+        
+        return quests.stream()
+                .filter(q -> q.world() != null && q.world().equalsIgnoreCase(worldTarget))
+                .filter(q -> q.enabled())
+                .toList();
     }
 
     private ItemStack filterButton(QuestFilter filter, boolean active) {
-        return SkyblockGui.button(active ? Material.LIME_DYE : Material.GRAY_DYE, (active ? ChatColor.GREEN : ChatColor.GRAY) + filter.name(), List.of(ChatColor.GRAY + "Click to filter"));
+        Material mat = switch (filter) {
+            case HUB -> Material.STONE;
+            case FARMHUB -> Material.GRASS_BLOCK;
+            case MINEHUB -> Material.COBBLESTONE;
+        };
+        
+        String name = (active ? ChatColor.GREEN : ChatColor.GRAY) + switch (filter) {
+            case HUB -> "Hub Quests";
+            case FARMHUB -> "Farmhub Quests";
+            case MINEHUB -> "Minehub Quests";
+        };
+        
+        ItemStack item = SkyblockGui.button(mat, name, List.of(ChatColor.GRAY + "Click to filter by world"));
+        if (active) {
+            ItemMeta meta = item.getItemMeta();
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     public void openAdminMenu(Player player) { openAdminMenu(player, 0); }
@@ -105,6 +130,7 @@ public final class QuestGui implements Listener {
         inv.setItem(14, actionItem(q.repeatable() ? Material.CLOCK : Material.COBWEB, ChatColor.YELLOW + "Repeatable", List.of(statusLine("Repeatable", q.repeatable()))));
         inv.setItem(15, actionItem(q.enabled() ? Material.LIME_DYE : Material.GRAY_DYE, ChatColor.YELLOW + "Enabled", List.of(statusLine("Enabled", q.enabled()))));
         inv.setItem(16, actionItem(Material.CHEST, ChatColor.YELLOW + "Rewards", List.of(ChatColor.GRAY + "Count: " + q.rewardCommands().size())));
+        inv.setItem(17, actionItem(Material.GRASS_BLOCK, ChatColor.YELLOW + "Set World", List.of(ChatColor.GRAY + "Current: " + ChatColor.WHITE + q.world())));
         inv.setItem(19, actionItem(Material.OAK_SIGN, ChatColor.YELLOW + "Starter NPC", List.of(ChatColor.GRAY + (q.hasStarterNpc() ? q.starterNpcId() : "none"))));
         inv.setItem(20, actionItem(Material.BELL, ChatColor.YELLOW + "Target NPC", List.of(ChatColor.GRAY + q.targetNpcId())));
         inv.setItem(31, actionItem(Material.EMERALD, ChatColor.GREEN + "Start (Self)", List.of()));
@@ -186,9 +212,9 @@ public final class QuestGui implements Listener {
     }
 
     private void handlePlayerMenuClick(Player p, PlayerMenuHolder h, int s, boolean r) {
-        if (s == 46) openPlayerMenu(p, QuestFilter.ACTIVE, 0);
-        else if (s == 47) openPlayerMenu(p, QuestFilter.AVAILABLE, 0);
-        else if (s == 48) openPlayerMenu(p, QuestFilter.COMPLETED, 0);
+        if (s == 46) openPlayerMenu(p, QuestFilter.HUB, 0);
+        else if (s == 47) openPlayerMenu(p, QuestFilter.FARMHUB, 0);
+        else if (s == 48) openPlayerMenu(p, QuestFilter.MINEHUB, 0);
         else if (s == 45) openPlayerMenu(p, h.filter, h.page - 1);
         else if (s == 53) openPlayerMenu(p, h.filter, h.page + 1);
         else if (s == 49) p.closeInventory();
@@ -226,6 +252,7 @@ public final class QuestGui implements Listener {
             case 14 -> { questManager.setRepeatable(qId, !q.repeatable()); openQuestEditor(p, qId); }
             case 15 -> { questManager.setEnabled(qId, !q.enabled()); openQuestEditor(p, qId); }
             case 16 -> openRewardEditor(p, qId, 0);
+            case 17 -> queuePrompt(p, new Prompt(PromptType.SET_WORLD, qId, 0), ChatColor.YELLOW + "World (Hub, Farmhub, Minehub):");
             case 19 -> queuePrompt(p, new Prompt(PromptType.SET_STARTER, qId, 0), ChatColor.YELLOW + "Starter:");
             case 20 -> queuePrompt(p, new Prompt(PromptType.SET_TARGET, qId, 0), ChatColor.YELLOW + "Target:");
             case 31 -> { questManager.startQuest(p, qId, QuestTriggerSource.GUI, true); openQuestEditor(p, qId); }
@@ -282,6 +309,7 @@ public final class QuestGui implements Listener {
             case CREATE_QUEST -> { questManager.createQuest(m, m); openQuestEditor(p, m); }
             case SET_NAME -> { questManager.setDisplayName(pr.questId, m); openQuestEditor(p, pr.questId); }
             case SET_DESCRIPTION -> { questManager.setDescription(pr.questId, m); openQuestEditor(p, pr.questId); }
+            case SET_WORLD -> { questManager.setWorld(pr.questId, m); openQuestEditor(p, pr.questId); }
             case ADD_REWARD -> { questManager.addRewardCommand(pr.questId, m); openRewardEditor(p, pr.questId, pr.page); }
             case ADD_OBJ_DESC -> { Prompt next = new Prompt(PromptType.ADD_OBJ_TARGET, pr.questId, 0); next.tempData = m; next.tempType = pr.tempType; queuePrompt(p, next, ChatColor.YELLOW + "Target:"); }
             case ADD_OBJ_TARGET -> { Prompt next = new Prompt(PromptType.ADD_OBJ_AMOUNT, pr.questId, 0); next.tempData = pr.tempData; next.tempData2 = m; next.tempType = pr.tempType; queuePrompt(p, next, ChatColor.YELLOW + "Amount:"); }
@@ -322,12 +350,35 @@ public final class QuestGui implements Listener {
         boolean act = questManager.isQuestActive(p, q.id());
         boolean comp = questManager.hasCompletedQuest(p, q.id());
         List<String> lore = new ArrayList<>(List.of(ChatColor.GRAY + q.description(), ""));
-        if (!q.objectives().isEmpty() && act) {
-            lore.add(ChatColor.WHITE + "Objectives:");
-            for (QuestObjective o : q.objectives()) lore.add(ChatColor.GRAY + "- " + o.description());
-            lore.add("");
+        
+        if (act) {
+            QuestProgress prog = questManager.getProgress(p, q.id());
+            if (prog != null) {
+                if (!q.objectives().isEmpty()) {
+                    lore.add(ChatColor.WHITE + "Objectives:");
+                    for (int i = 0; i < q.objectives().size(); i++) {
+                        QuestObjective obj = q.objectives().get(i);
+                        int current = prog.getObjectiveProgress(i);
+                        lore.add(ChatColor.GRAY + "- " + (obj.isComplete(current) ? ChatColor.STRIKETHROUGH : "") + obj.progressLabel(current));
+                    }
+                    lore.add("");
+                } else if (q.hasTargetNpc()) {
+                    lore.add(ChatColor.WHITE + "Objective:");
+                    lore.add(ChatColor.GRAY + "- Talk to " + ChatColor.AQUA + q.targetNpcId());
+                    lore.add("");
+                }
+            }
         }
+        
         lore.add(ChatColor.GRAY + "Status: " + questManager.progressLabel(p, q));
+        if (act) {
+            lore.add("");
+            lore.add(ChatColor.RED + "Right-Click to cancel!");
+        } else if (!comp || q.repeatable()) {
+            lore.add("");
+            lore.add(ChatColor.YELLOW + "Click to start!");
+        }
+
         return actionItem(act ? Material.COMPASS : (comp ? Material.LIME_DYE : Material.BOOK), questManager.color(q.displayName()), lore);
     }
 
@@ -352,5 +403,5 @@ public final class QuestGui implements Listener {
     private record ObjectiveTypeHolder(String questId) implements QuestHolder {}
     private record PrerequisitesHolder(String questId) implements QuestHolder {}
     private static class Prompt { final PromptType type; final String questId; final int page; String tempData, tempData2; QuestObjective.ObjectiveType tempType; Prompt(PromptType t, String q, int p) { this.type = t; this.questId = q; this.page = p; } }
-    private enum PromptType { CREATE_QUEST, SET_NAME, SET_DESCRIPTION, SET_STARTER, SET_TARGET, ADD_REWARD, ADD_OBJ_DESC, ADD_OBJ_TARGET, ADD_OBJ_AMOUNT, ADD_PREREQUISITE }
+    private enum PromptType { CREATE_QUEST, SET_NAME, SET_DESCRIPTION, SET_WORLD, SET_STARTER, SET_TARGET, ADD_REWARD, ADD_OBJ_DESC, ADD_OBJ_TARGET, ADD_OBJ_AMOUNT, ADD_PREREQUISITE }
 }

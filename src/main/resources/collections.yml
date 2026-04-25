@@ -1469,6 +1469,7 @@ collections:
     enabled: true
     items:
       - titanium
+      - enchanted_titanium
     tiers:
       tier-1:
         amount: 10
@@ -1858,6 +1859,7 @@ collections:
     enabled: true
     items:
       - sapphire
+      - enchanted_sapphire
     tiers:
       tier-1:
         amount: 10

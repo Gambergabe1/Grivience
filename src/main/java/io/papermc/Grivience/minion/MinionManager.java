@@ -1143,6 +1143,61 @@ public final class MinionManager {
         }
     }
 
+    private boolean isPlayerNearby(Location loc) {
+        if (loc == null || loc.getWorld() == null) return false;
+        if (!loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) return false;
+        return !loc.getWorld().getNearbyPlayers(loc, 48.0).isEmpty();
+    }
+
+    private boolean doPhysicalAction(MinionInstance minion, int actionProgress, int outputMultiplier, double constellationFragmentChance) {
+        Location loc = minion.location();
+        if (loc == null || loc.getWorld() == null) return false;
+        
+        Material placeMat = minion.type().placeMaterial();
+        Block center = loc.getBlock();
+        
+        List<Block> validBlocks = new ArrayList<>();
+        // 5x5 area around the minion
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                if (dx == 0 && dz == 0) continue; // Don't interact with the minion's own block
+                Block b = center.getRelative(dx, -1, dz);
+                validBlocks.add(b);
+            }
+        }
+        
+        Collections.shuffle(validBlocks, ThreadLocalRandom.current());
+        
+        if (actionProgress == 1) {
+            // Try to place block (find air)
+            for (Block b : validBlocks) {
+                if (b.getType().isAir() || b.getType() == Material.CAVE_AIR || b.getType() == Material.VOID_AIR) {
+                    b.setType(placeMat, false);
+                    if (b.getBlockData() instanceof org.bukkit.block.data.Ageable ageable) {
+                        ageable.setAge(ageable.getMaximumAge());
+                        b.setBlockData(ageable, false);
+                    }
+                    loc.getWorld().playSound(b.getLocation(), Sound.BLOCK_STONE_PLACE, 0.5f, 1.0f);
+                    return true;
+                }
+            }
+        } else if (actionProgress >= ACTIONS_PER_ITEM) {
+            // Try to break block
+            for (Block b : validBlocks) {
+                if (b.getType() == placeMat) {
+                    b.setType(Material.AIR, false);
+                    loc.getWorld().playSound(b.getLocation(), Sound.BLOCK_STONE_BREAK, 0.5f, 1.0f);
+                    return generateAndStore(minion, outputMultiplier, constellationFragmentChance);
+                }
+            }
+        }
+        // Action failed physically (e.g. no space). We still simulate it mathematically so they don't get stuck.
+        if (actionProgress >= ACTIONS_PER_ITEM) {
+            return generateAndStore(minion, outputMultiplier, constellationFragmentChance);
+        }
+        return true;
+    }
+
     private void processSingleMinion(MinionInstance minion, Island island, long now) {
         long last = minion.lastActionAtMs();
         if (last <= 0L) {
@@ -1174,6 +1229,7 @@ public final class MinionManager {
         double constellationSpeedMultiplier = constellationSpeedMultiplierForIsland(islandId);
         double constellationFragmentChance = constellationFragmentChanceForIsland(islandId);
         int effectiveMaxActionsPerTick = effectiveMaxActionsPerTick();
+        boolean physical = isPlayerNearby(minion.location());
 
         while (cursor < processUntil && actionsProcessed < effectiveMaxActionsPerTick) {
             FuelDefinition fuel = activeFuelAt(minion, cursor);
@@ -1197,12 +1253,27 @@ public final class MinionManager {
             actionsProcessed++;
             actionProgress++;
 
-            if (actionProgress >= ACTIONS_PER_ITEM) {
-                actionProgress -= ACTIONS_PER_ITEM;
-                int outputMultiplier = fuel == null ? 1 : Math.max(1, (int) Math.round(fuel.dropMultiplier()));
-                if (!generateAndStore(minion, outputMultiplier, constellationFragmentChance)) {
-                    storageBlocked = true;
-                    break;
+            if (physical) {
+                boolean success = false;
+                if (actionProgress == 1) {
+                    success = doPhysicalAction(minion, actionProgress, 1, constellationFragmentChance);
+                } else if (actionProgress >= ACTIONS_PER_ITEM) {
+                    actionProgress -= ACTIONS_PER_ITEM;
+                    int outputMultiplier = fuel == null ? 1 : Math.max(1, (int) Math.round(fuel.dropMultiplier()));
+                    success = doPhysicalAction(minion, ACTIONS_PER_ITEM, outputMultiplier, constellationFragmentChance);
+                    if (!success && !generateAndStore(minion, outputMultiplier, constellationFragmentChance)) {
+                        storageBlocked = true;
+                        break;
+                    }
+                }
+            } else {
+                if (actionProgress >= ACTIONS_PER_ITEM) {
+                    actionProgress -= ACTIONS_PER_ITEM;
+                    int outputMultiplier = fuel == null ? 1 : Math.max(1, (int) Math.round(fuel.dropMultiplier()));
+                    if (!generateAndStore(minion, outputMultiplier, constellationFragmentChance)) {
+                        storageBlocked = true;
+                        break;
+                    }
                 }
             }
         }
@@ -1272,6 +1343,14 @@ public final class MinionManager {
 
         if (!storeDrops(minion, drops)) {
             return false;
+        }
+
+        // Add to player's collection progress
+        if (plugin.getCollectionsManager() != null) {
+            org.bukkit.OfflinePlayer owner = Bukkit.getOfflinePlayer(minion.ownerId());
+            for (Map.Entry<String, Integer> entry : drops.entrySet()) {
+                plugin.getCollectionsManager().addCollection(owner.getPlayer(), entry.getKey(), entry.getValue());
+            }
         }
 
         if (upgrades.contains("super_compactor_3000")) {

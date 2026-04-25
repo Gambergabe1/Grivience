@@ -1,6 +1,8 @@
 package io.papermc.Grivience.crafting;
 
 import io.papermc.Grivience.GriviencePlugin;
+import io.papermc.Grivience.collections.CollectionsManager;
+import io.papermc.Grivience.collections.PlayerCollectionProgress;
 import io.papermc.Grivience.gui.SkyblockGui;
 import io.papermc.Grivience.util.DropDeliveryUtil;
 import org.bukkit.Bukkit;
@@ -154,18 +156,72 @@ public final class CraftingGuiManager implements Listener {
 
         inv.setItem(4, createCategoryItem(category));
 
-        List<SkyblockRecipe> recipes = RecipeRegistry.getByCategory(category);
+        // Get both Registry and Catalog recipes
+        List<SkyblockRecipe> registryRecipes = RecipeRegistry.getByCategory(category);
+        CraftingGuideCatalog catalog = buildGuideCatalog();
+        List<CraftingGuideCatalog.GuideRecipe> catalogRecipes = catalog.recipes().stream()
+                .filter(r -> r.category() == category && !r.id().startsWith("registry:"))
+                .toList();
+
         int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
+        int slotIndex = 0;
         
-        for (int i = 0; i < recipes.size() && i < slots.length; i++) {
-            SkyblockRecipe recipe = recipes.get(i);
-            inv.setItem(slots[i], createRecipeIcon(recipe, player));
+        // Fill registry recipes
+        for (int i = 0; i < registryRecipes.size() && slotIndex < slots.length; i++) {
+            inv.setItem(slots[slotIndex++], createRecipeIcon(registryRecipes.get(i), player));
+        }
+        
+        // Fill catalog recipes (e.g. custom armors)
+        for (int i = 0; i < catalogRecipes.size() && slotIndex < slots.length; i++) {
+            inv.setItem(slots[slotIndex++], createGuideRecipeIconForCategory(catalogRecipes.get(i), player));
         }
 
         inv.setItem(45, SkyblockGui.backButton("Main Menu"));
         inv.setItem(52, SkyblockGui.closeButton());
 
         player.openInventory(inv);
+    }
+
+    private ItemStack createGuideRecipeIconForCategory(CraftingGuideCatalog.GuideRecipe recipe, Player player) {
+        boolean unlocked = true;
+        String collectionId = recipe.collectionId();
+        int requiredTier = recipe.collectionTierRequired();
+
+        if (collectionId != null && !collectionId.isBlank() && requiredTier > 0) {
+            CollectionsManager collectionsManager = plugin.getCollectionsManager();
+            if (collectionsManager != null) {
+                PlayerCollectionProgress progress = collectionsManager.getPlayerProgress(player, collectionId);
+                unlocked = progress != null && progress.isTierUnlocked(requiredTier);
+            }
+        }
+
+        ItemStack item = unlocked ? recipe.result().clone() : new ItemStack(Material.BARRIER);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        // Set the custom name for both locked and unlocked states
+        meta.setDisplayName((unlocked ? ChatColor.GREEN : ChatColor.RED) + recipe.name());
+
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Category: " + ChatColor.GREEN + (recipe.category() != null ? recipe.category().getDisplayName() : "Unknown"));
+        lore.add("");
+
+        if (collectionId != null && !collectionId.isBlank()) {
+            ChatColor color = unlocked ? ChatColor.GREEN : ChatColor.RED;
+            lore.add(color + "Requires " + collectionId + " Collection Tier " + requiredTier);
+            lore.add("");
+        }
+
+        if (unlocked) {
+            lore.add(ChatColor.YELLOW + "Click to view recipe!");
+        } else {
+            lore.add(ChatColor.RED + "This recipe is currently locked!");
+        }
+
+        meta.setLore(lore);
+        meta.getPersistentDataContainer().set(valueKey, PersistentDataType.STRING, recipe.id());
+        item.setItemMeta(meta);
+        return item;
     }
 
     private void openMaterialIndex(Player player, int page) {
@@ -258,21 +314,41 @@ public final class CraftingGuiManager implements Listener {
     }
 
     private ItemStack createRecipeIcon(SkyblockRecipe recipe, Player player) {
-        ItemStack item = recipe.getResult().clone();
+        boolean unlocked = true;
+        String collectionId = recipe.getCollectionId();
+        int requiredTier = recipe.getCollectionTierRequired();
+
+        if (collectionId != null && !collectionId.isBlank() && requiredTier > 0) {
+            CollectionsManager collectionsManager = plugin.getCollectionsManager();
+            if (collectionsManager != null) {
+                PlayerCollectionProgress progress = collectionsManager.getPlayerProgress(player, collectionId);
+                unlocked = progress != null && progress.isTierUnlocked(requiredTier);
+            }
+        }
+
+        ItemStack item = unlocked ? recipe.getResult().clone() : new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
-        
+        if (meta == null) return item;
+
+        // Set the custom name for both locked and unlocked states
+        meta.setDisplayName((unlocked ? ChatColor.GREEN : ChatColor.RED) + recipe.getName());
+
         List<String> lore = new ArrayList<>();
         lore.add(ChatColor.GRAY + "Category: " + ChatColor.GREEN + recipe.getCategory().getDisplayName());
         lore.add("");
-        
-        // Requirements (simplified for now)
-        if (recipe.getCollectionId() != null) {
-            lore.add(ChatColor.RED + "Requires " + recipe.getCollectionId() + " Collection Tier " + recipe.getCollectionTierRequired());
+
+        if (collectionId != null && !collectionId.isBlank()) {
+            ChatColor color = unlocked ? ChatColor.GREEN : ChatColor.RED;
+            lore.add(color + "Requires " + collectionId + " Collection Tier " + requiredTier);
             lore.add("");
         }
-        
-        lore.add(ChatColor.YELLOW + "Click to view recipe!");
-        
+
+        if (unlocked) {
+            lore.add(ChatColor.YELLOW + "Click to view recipe!");
+        } else {
+            lore.add(ChatColor.RED + "This recipe is currently locked!");
+        }
+
         meta.setLore(lore);
         meta.getPersistentDataContainer().set(valueKey, PersistentDataType.STRING, recipe.getKey().toString());
         item.setItemMeta(meta);
@@ -605,11 +681,15 @@ public final class CraftingGuiManager implements Listener {
         }
 
         if (item != null && item.hasItemMeta()) {
-            String keyStr = item.getItemMeta().getPersistentDataContainer().get(valueKey, PersistentDataType.STRING);
-            if (keyStr != null) {
-                NamespacedKey key = NamespacedKey.fromString(keyStr);
-                if (key != null) {
+            String val = item.getItemMeta().getPersistentDataContainer().get(valueKey, PersistentDataType.STRING);
+            if (val != null) {
+                // Try Registry first
+                NamespacedKey key = NamespacedKey.fromString(val);
+                if (key != null && RecipeRegistry.getByKey(key).isPresent()) {
                     RecipeRegistry.getByKey(key).ifPresent(recipe -> openRecipeDetail(player, recipe));
+                } else {
+                    // Try Catalog
+                    buildGuideCatalog().recipe(val).ifPresent(recipe -> openGuideRecipeDetail(player, recipe, "", 0, 0));
                 }
             }
         }

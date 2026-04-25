@@ -190,49 +190,61 @@ public final class MinehubOreGenerationListener implements Listener {
     }
 
     private int getRequiredBreakingPower(Material material) {
-        // Basic ores - no drill required (breaking power 0)
-        if (material == Material.COAL_ORE || material == Material.DEEPSLATE_COAL_ORE
-            || material == Material.IRON_ORE || material == Material.DEEPSLATE_IRON_ORE
-            || material == Material.COPPER_ORE || material == Material.DEEPSLATE_COPPER_ORE
-            || material == Material.IRON_BLOCK) {
+        // Basic vanilla blocks and ores - no drill required (breaking power 0)
+        if (!isMiningMaterial(material)) {
             return 0;
         }
 
-        // Uncommon ores - require basic drill (breaking power 5)
-        if (material == Material.GOLD_ORE || material == Material.DEEPSLATE_GOLD_ORE
-            || material == Material.LAPIS_ORE || material == Material.DEEPSLATE_LAPIS_ORE
-            || material == Material.LAPIS_BLOCK
-            || material == Material.REDSTONE_ORE || material == Material.DEEPSLATE_REDSTONE_ORE
-            || material == Material.REDSTONE_BLOCK) {
+        // Level 3: Lapis Block
+        if (material == Material.LAPIS_BLOCK) {
+            return 3;
+        }
+
+        // Level 4: Gold/Redstone Blocks / Endstone
+        if (material == Material.GOLD_BLOCK || material == Material.REDSTONE_BLOCK || material == Material.END_STONE) {
+            return 4;
+        }
+
+        // Level 5: Titanium (Requires Starter Drill - Ironcrest)
+        if (material == Material.LIGHT_GRAY_STAINED_GLASS || material == Material.LIGHT_GRAY_WOOL || material == Material.GRAY_CONCRETE) {
             return 5;
         }
 
-        // Sapphire - require basic drill (breaking power 5)
-        if (material == Material.BLUE_STAINED_GLASS || material == Material.BLUE_STAINED_GLASS_PANE
-            || material == Material.BLUE_CONCRETE_POWDER) {
-            return 5;
-        }
-
-        // Diamond/Emerald - require Titanium drill (breaking power 7)
-        if (material == Material.DIAMOND_ORE || material == Material.DEEPSLATE_DIAMOND_ORE
-            || material == Material.DIAMOND_BLOCK
-            || material == Material.EMERALD_ORE || material == Material.DEEPSLATE_EMERALD_ORE
+        // Level 6: Sapphire / Emerald Block
+        if (material == Material.BLUE_STAINED_GLASS || material == Material.BLUE_STAINED_GLASS_PANE || material == Material.BLUE_CONCRETE_POWDER
             || material == Material.EMERALD_BLOCK) {
+            return 6;
+        }
+
+        // Level 7: Kunzite / Diamond Block / Obsidian
+        if (material == Material.AMETHYST_CLUSTER || material == Material.DIAMOND_BLOCK || material == Material.OBSIDIAN) {
             return 7;
         }
 
-        // Titanium - require Titanium drill (breaking power 7)
-        if (material == Material.LIGHT_GRAY_STAINED_GLASS || material == Material.LIGHT_GRAY_WOOL
-            || material == Material.GRAY_CONCRETE) {
-            return 7;
-        }
-
-        // Obsidian - require Gemstone drill (breaking power 8)
-        if (material == Material.OBSIDIAN) {
+        // Level 8: Obsidian Core
+        if (material == Material.REINFORCED_DEEPSLATE) {
             return 8;
         }
 
-        return 5; // Default to basic drill requirement
+        return 1; // Generic minimum for other mining blocks
+    }
+
+    private boolean isMiningMaterial(Material mat) {
+        String name = mat.name();
+        // Vanilla Ores are EXEMPT (Breaking Power 0)
+        if (name.contains("_ORE")) {
+            return false;
+        }
+
+        // Custom "Ores" and Mining System Materials
+        return name.contains("_BLOCK") || 
+               mat == Material.OBSIDIAN || 
+               mat == Material.AMETHYST_CLUSTER ||
+               mat == Material.REINFORCED_DEEPSLATE ||
+               mat == Material.END_STONE ||
+               name.contains("STAINED_GLASS") || 
+               name.contains("CONCRETE") ||
+               name.contains("WOOL");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -326,7 +338,7 @@ public final class MinehubOreGenerationListener implements Listener {
             org.bukkit.inventory.ItemStack sapphire = plugin.getCustomItemService().createItemByKey("SAPPHIRE");
             if (sapphire != null) {
                 sapphire.setAmount(amount);
-                io.papermc.Grivience.util.DropDeliveryUtil.giveToInventoryOrDrop(event.getPlayer(), sapphire, block.getLocation().add(0.5, 0.5, 0.5));
+                io.papermc.Grivience.util.DropDeliveryUtil.giveToInventoryOrDrop(event.getPlayer(), sapphire, block.getLocation().add(0.5, 0.5, 0.5), true);
             }
         } else if (isTitanium && plugin.getCustomItemService() != null) {
             event.setDropItems(false);
@@ -334,7 +346,7 @@ public final class MinehubOreGenerationListener implements Listener {
             org.bukkit.inventory.ItemStack titanium = plugin.getCustomItemService().createItemByKey("TITANIUM");
             if (titanium != null) {
                 titanium.setAmount(amount);
-                io.papermc.Grivience.util.DropDeliveryUtil.giveToInventoryOrDrop(event.getPlayer(), titanium, block.getLocation().add(0.5, 0.5, 0.5));
+                io.papermc.Grivience.util.DropDeliveryUtil.giveToInventoryOrDrop(event.getPlayer(), titanium, block.getLocation().add(0.5, 0.5, 0.5), true);
             }
         }
     }
@@ -343,24 +355,21 @@ public final class MinehubOreGenerationListener implements Listener {
         if (loc == null || loc.getWorld() == null) return false;
         String worldName = loc.getWorld().getName();
         
+        // EXPLICITLY IGNORE ISLAND WORLD
+        // Island protections are handled by IslandProtectionListener.
+        // Mining node protections should NEVER apply to player islands.
+        String islandWorld = plugin.getConfig().getString("skyblock.world-name", "skyblock_world");
+        if (worldName.equalsIgnoreCase(islandWorld)) {
+            return false;
+        }
+
         // Check global Minehub world
         String minehubWorld = plugin.getConfig().getString("skyblock.minehub-world", "Minehub");
         if (worldName.equalsIgnoreCase(minehubWorld) || worldName.equalsIgnoreCase("Minehub")) {
             return true;
         }
 
-        // Check global Hub world (requested to have same protections)
-        String hubWorld = plugin.getConfig().getString("skyblock.hub-world", "world");
-        if (worldName.equalsIgnoreCase(hubWorld)) {
-            return true;
-        }
-
-        // Check Hub 2 explicitly (user world)
-        if (worldName.equalsIgnoreCase("Hub 2")) {
-            return true;
-        }
-        
-        // Check specific mining areas
+        // Check specific mining areas (if they are in this world)
         ConfigurationSection areas = plugin.getConfig().getConfigurationSection("skyblock.minehub-ore-gen.areas");
         if (areas != null) {
             for (String key : areas.getKeys(false)) {
@@ -563,6 +572,29 @@ public final class MinehubOreGenerationListener implements Listener {
             }
         }
         return null;
+    }
+
+    public List<String> getAllLayerNames() {
+        List<String> names = new ArrayList<>();
+        for (OreLayer layer : getConfiguredLayers()) {
+            names.add(layer.name());
+        }
+        
+        // Also add names from specific areas
+        ConfigurationSection areas = plugin.getConfig().getConfigurationSection("skyblock.minehub-ore-gen.areas");
+        if (areas != null) {
+            for (String key : areas.getKeys(false)) {
+                ConfigurationSection layersSection = areas.getConfigurationSection(key + ".layers");
+                if (layersSection != null) {
+                    for (String lKey : layersSection.getKeys(false)) {
+                        String name = layersSection.getString(lKey + ".name");
+                        if (name != null) names.add(name);
+                    }
+                }
+            }
+        }
+        
+        return names;
     }
 
     private List<OreLayer> getConfiguredLayers() {

@@ -101,7 +101,8 @@ public class NpcShopGui implements Listener {
                 lore.add(ChatColor.GRAY + "Cost");
                 lore.add(ChatColor.GOLD + String.format("%,.1f", shopItem.price()) + " Coins");
                 lore.add("");
-                lore.add(ChatColor.YELLOW + "Click to buy!");
+                lore.add(ChatColor.YELLOW + "Left-Click to buy 1!");
+                lore.add(ChatColor.YELLOW + "Right-Click to buy 64!");
             }
             meta.setLore(lore);
             base.setItemMeta(meta);
@@ -176,7 +177,8 @@ public class NpcShopGui implements Listener {
                         if (clickedItem.isCategory()) {
                             open(player, plugin.getNpcShopManager().getShop(clickedItem.targetShopId()));
                         } else {
-                            buyItem(player, clickedItem);
+                            int amount = event.isRightClick() ? 64 : 1;
+                            buyItem(player, clickedItem, amount);
                         }
                     }
                 }
@@ -186,15 +188,29 @@ public class NpcShopGui implements Listener {
         }
     }
     
-    private void buyItem(Player player, NpcShopItem shopItem) {
-        if (economyService.has(player, shopItem.price())) {
-            economyService.withdraw(player, shopItem.price());
-            player.getInventory().addItem(shopItem.item().clone());
-            String itemName = shopItem.item().getType().name();
-            if (shopItem.item().hasItemMeta() && shopItem.item().getItemMeta().hasDisplayName()) {
-                itemName = shopItem.item().getItemMeta().getDisplayName();
+    private void buyItem(Player player, NpcShopItem shopItem, int multiplier) {
+        double totalCost = shopItem.price() * multiplier;
+        if (economyService.has(player, totalCost)) {
+            ItemStack template = shopItem.item().clone();
+            int unitAmount = template.getAmount();
+            int totalAmount = unitAmount * multiplier;
+            
+            // Check if player has space (rough check or just use DropDeliveryUtil)
+            economyService.withdraw(player, totalCost);
+            
+            ItemStack toGive = template.clone();
+            toGive.setAmount(totalAmount);
+            
+            // Using a helper to give items safely
+            io.papermc.Grivience.util.DropDeliveryUtil.giveToInventoryOrDrop(player, toGive, player.getLocation());
+            
+            String itemName = template.getType().name();
+            if (template.hasItemMeta() && template.getItemMeta().hasDisplayName()) {
+                itemName = template.getItemMeta().getDisplayName();
             }
-            player.sendMessage(ChatColor.GREEN + "You bought " + itemName + ChatColor.GREEN + " for " + ChatColor.GOLD + String.format("%,.1f", shopItem.price()) + " Coins!");
+            
+            String amountStr = (totalAmount > 1) ? totalAmount + "x " : "";
+            player.sendMessage(ChatColor.GREEN + "You bought " + amountStr + itemName + ChatColor.GREEN + " for " + ChatColor.GOLD + String.format("%,.1f", totalCost) + " Coins!");
             player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 2.0f);
         } else {
             player.sendMessage(ChatColor.RED + "You don't have enough coins!");

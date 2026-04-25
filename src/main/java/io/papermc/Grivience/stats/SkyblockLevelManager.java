@@ -517,12 +517,14 @@ public final class SkyblockLevelManager {
         if (skillManager != null) {
             long xp = switch (material) {
                 case COAL_ORE, DEEPSLATE_COAL_ORE, IRON_ORE, DEEPSLATE_IRON_ORE, COPPER_ORE, DEEPSLATE_COPPER_ORE -> 5;
-                case GOLD_ORE, DEEPSLATE_GOLD_ORE -> 6;
+                case GOLD_ORE, DEEPSLATE_GOLD_ORE, NETHER_GOLD_ORE -> 6;
                 case LAPIS_ORE, DEEPSLATE_LAPIS_ORE, LAPIS_BLOCK, REDSTONE_ORE, DEEPSLATE_REDSTONE_ORE, REDSTONE_BLOCK -> 7;
+                case NETHER_QUARTZ_ORE -> 8;
                 case DIAMOND_ORE, DEEPSLATE_DIAMOND_ORE, DIAMOND_BLOCK -> 15;
+                case ANCIENT_DEBRIS -> 25;
                 case EMERALD_ORE, DEEPSLATE_EMERALD_ORE, EMERALD_BLOCK, OBSIDIAN, CRYING_OBSIDIAN, BLUE_STAINED_GLASS, BLUE_STAINED_GLASS_PANE, BLUE_CONCRETE_POWDER -> 20;
                 case AMETHYST_CLUSTER, BUDDING_AMETHYST, AMETHYST_BLOCK -> 25;
-                default -> 1;
+                default -> 2;
             };
             skillManager.addXp(player, io.papermc.Grivience.skills.SkyblockSkill.MINING, xp);
         }
@@ -532,14 +534,33 @@ public final class SkyblockLevelManager {
     public void recordForagingLog(Player player, Material material) {
         if (player == null || material == null) return;
         incrementCounter(player, "foraging_logs", 1L);
-        if (skillManager != null) skillManager.addXp(player, io.papermc.Grivience.skills.SkyblockSkill.FORAGING, 1);
+        if (skillManager != null) {
+            long xp = switch (material) {
+                case CRIMSON_STEM, WARPED_STEM, CRIMSON_HYPHAE, WARPED_HYPHAE -> 9;
+                case DARK_OAK_LOG, DARK_OAK_WOOD -> 8;
+                case JUNGLE_LOG, JUNGLE_WOOD -> 7;
+                default -> 6;
+            };
+            skillManager.addXp(player, io.papermc.Grivience.skills.SkyblockSkill.FORAGING, xp);
+        }
         if (foragingLogXp > 0L) addXp(player, foragingLogXp, "Foraging", true);
     }
 
     public void recordFarmingHarvest(Player player, Material material) {
         if (player == null || material == null) return;
         incrementCounter(player, "farming_harvests", 1L);
-        if (skillManager != null) skillManager.addXp(player, io.papermc.Grivience.skills.SkyblockSkill.FARMING, 1);
+        if (skillManager != null) {
+            long xp = switch (material) {
+                case WHEAT, CARROTS, POTATOES, BEETROOTS -> 4;
+                case SUGAR_CANE, CACTUS, COCOA -> 2;
+                case MELON, PUMPKIN -> 5;
+                case NETHER_WART -> 6;
+                case SWEET_BERRY_BUSH -> 3;
+                case BAMBOO, KELP, KELP_PLANT -> 1;
+                default -> 1;
+            };
+            skillManager.addXp(player, io.papermc.Grivience.skills.SkyblockSkill.FARMING, xp);
+        }
         if (farmingHarvestXp > 0L) addXp(player, farmingHarvestXp, "Farming", true);
     }
 
@@ -894,9 +915,21 @@ public final class SkyblockLevelManager {
         try { return Material.valueOf(s.toUpperCase(Locale.ROOT)); } catch (Exception e) { return def; }
     }
 
-    public boolean isMiningMaterial(Material m) { return m.name().endsWith("_ORE") || m == Material.ANCIENT_DEBRIS || m == Material.OBSIDIAN || m == Material.CRYING_OBSIDIAN || m == Material.GLOWSTONE || m.name().contains("AMETHYST"); }
-    public boolean isForagingMaterial(Material m) { return m.name().endsWith("_LOG") || m.name().endsWith("_WOOD"); }
-    public boolean isFarmingMaterial(Material m) { return m == Material.WHEAT || m == Material.CARROTS || m == Material.POTATOES || m == Material.NETHER_WART || m == Material.SUGAR_CANE || m == Material.MELON || m == Material.PUMPKIN || m == Material.CACTUS; }
+    public boolean isMiningMaterial(Material m) { 
+        return m.name().endsWith("_ORE") || m == Material.ANCIENT_DEBRIS || m == Material.OBSIDIAN || 
+               m == Material.CRYING_OBSIDIAN || m == Material.GLOWSTONE || m.name().contains("AMETHYST") ||
+               m == Material.NETHER_QUARTZ_ORE || m == Material.NETHER_GOLD_ORE; 
+    }
+    public boolean isForagingMaterial(Material m) { 
+        String name = m.name();
+        return name.endsWith("_LOG") || name.endsWith("_WOOD") || name.endsWith("_STEM") || name.endsWith("_HYPHAE"); 
+    }
+    public boolean isFarmingMaterial(Material m) { 
+        return m == Material.WHEAT || m == Material.CARROTS || m == Material.POTATOES || m == Material.BEETROOTS || 
+               m == Material.NETHER_WART || m == Material.SUGAR_CANE || m == Material.CACTUS || 
+               m == Material.MELON || m == Material.PUMPKIN || m == Material.COCOA || m == Material.SWEET_BERRY_BUSH ||
+               m == Material.BAMBOO || m == Material.KELP || m == Material.KELP_PLANT;
+    }
 
     public boolean hasMinerFullSet(Player player) {
         return armorManager != null && armorManager.hasEquippedPieces(player, "miner", 4);

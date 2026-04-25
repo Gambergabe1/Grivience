@@ -8,6 +8,7 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlotGroup;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -220,6 +221,39 @@ public final class SkyblockCombatEngine implements Listener {
         SkyblockPlayerStats stats = statsService.compute(player);
         cached.put(player.getUniqueId(), stats);
         applyAttributes(player, stats);
+        refreshEquipmentLore(player);
+    }
+
+    private void refreshEquipmentLore(Player player) {
+        if (plugin.getCustomArmorManager() == null) return;
+        
+        // Check armor contents
+        ItemStack[] armor = player.getInventory().getArmorContents();
+        boolean changed = false;
+        for (int i = 0; i < armor.length; i++) {
+            ItemStack piece = armor[i];
+            if (piece != null && plugin.getCustomArmorManager().isCustomArmor(piece)) {
+                ItemStack updated = plugin.getCustomArmorManager().updateArmorLore(piece);
+                if (updated != null) {
+                    armor[i] = updated;
+                    changed = true;
+                }
+            }
+        }
+        if (changed) {
+            player.getInventory().setArmorContents(armor);
+        }
+
+        // Also check hotbar/inventory for custom armor that might be there
+        for (int i = 0; i < 36; i++) {
+            ItemStack item = player.getInventory().getItem(i);
+            if (item != null && plugin.getCustomArmorManager().isCustomArmor(item)) {
+                ItemStack updated = plugin.getCustomArmorManager().updateArmorLore(item);
+                if (updated != null) {
+                    player.getInventory().setItem(i, updated);
+                }
+            }
+        }
     }
 
     private void applyAttributes(Player player, SkyblockPlayerStats stats) {

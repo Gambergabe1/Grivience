@@ -11,56 +11,24 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Manages quest definitions, player progress, and objective tracking.
+ */
 public final class QuestManager {
-    public enum StartResult {
-        STARTED,
-        QUEST_NOT_FOUND,
-        QUEST_DISABLED,
-        ALREADY_ACTIVE,
-        ALREADY_COMPLETED
-    }
-
-    public enum CompleteResult {
-        COMPLETED,
-        QUEST_NOT_FOUND,
-        QUEST_DISABLED,
-        NOT_ACTIVE
-    }
-
-    public enum CancelResult {
-        CANCELED,
-        QUEST_NOT_FOUND,
-        NOT_ACTIVE
-    }
-
     private static final String QUESTS_FILE_NAME = "quests.yml";
     private static final String PROGRESS_FILE_NAME = "quest-progress.yml";
 
     private final GriviencePlugin plugin;
-    private final ProfileEconomyService profileEconomy;
     private final File questsFile;
     private final File progressFile;
-
     private final Map<String, ConversationQuest> quests = new LinkedHashMap<>();
-    // Quest progress is keyed by the active profile's canonical UUID so separate profiles do not share state.
-    private final Map<UUID, Map<String, QuestProgress>> progressByPlayer = new HashMap<>();
+    private final Map<String, Map<String, QuestProgress>> progressByPlayer = new ConcurrentHashMap<>();
 
     public QuestManager(GriviencePlugin plugin) {
         this.plugin = plugin;
-        this.profileEconomy = new ProfileEconomyService(plugin);
         this.questsFile = new File(plugin.getDataFolder(), QUESTS_FILE_NAME);
         this.progressFile = new File(plugin.getDataFolder(), PROGRESS_FILE_NAME);
         reload();
@@ -69,11 +37,14 @@ public final class QuestManager {
     public synchronized void reload() {
         loadQuestDefinitions();
         loadProgress();
-        plugin.getLogger().info("Quest system loaded with " + quests.size() + " conversation quest(s).");
     }
 
-    public synchronized Collection<ConversationQuest> quests() {
-        return Collections.unmodifiableCollection(new ArrayList<>(quests.values()));
+    public synchronized Map<String, ConversationQuest> quests() {
+        return Collections.unmodifiableMap(quests);
+    }
+
+    public synchronized List<String> questIds() {
+        return new ArrayList<>(quests.keySet());
     }
 
     public synchronized List<ConversationQuest> questsSorted() {
@@ -96,9 +67,12 @@ public final class QuestManager {
                 normalizedId,
                 prettyName,
                 "Talk to " + normalizedId + ".",
+                "Hub",
                 "",
                 normalizedId,
                 List.of(),
+                List.of(),
+                new ArrayList<>(),
                 false,
                 true
         );
@@ -141,6 +115,16 @@ public final class QuestManager {
         return true;
     }
 
+    public synchronized boolean setWorld(String questId, String world) {
+        ConversationQuest quest = quest(questId);
+        if (quest == null) {
+            return false;
+        }
+        quest.setWorld(world);
+        saveQuestDefinitions();
+        return true;
+    }
+
     public synchronized boolean setStarterNpc(String questId, String starterNpcId) {
         ConversationQuest quest = quest(questId);
         if (quest == null) {
@@ -156,7 +140,7 @@ public final class QuestManager {
         if (quest == null) {
             return false;
         }
-        quest.setTargetNpcId(targetNpcId);
+        quest.setTargetNpcId(Objects.requireNonNullElse(targetNpcId, questId));
         saveQuestDefinitions();
         return true;
     }
@@ -181,22 +165,19 @@ public final class QuestManager {
         return true;
     }
 
-    public synchronized boolean addRewardCommand(String questId, String rewardCommand) {
+    public synchronized boolean addRewardCommand(String questId, String command) {
         ConversationQuest quest = quest(questId);
-        if (quest == null || rewardCommand == null || rewardCommand.isBlank()) {
+        if (quest == null || command == null || command.isBlank()) {
             return false;
         }
-        quest.rewardCommands().add(rewardCommand.trim());
+        quest.rewardCommands().add(command.trim());
         saveQuestDefinitions();
         return true;
     }
 
     public synchronized boolean removeRewardCommand(String questId, int index) {
         ConversationQuest quest = quest(questId);
-        if (quest == null) {
-            return false;
-        }
-        if (index < 0 || index >= quest.rewardCommands().size()) {
+        if (quest == null || index < 0 || index >= quest.rewardCommands().size()) {
             return false;
         }
         quest.rewardCommands().remove(index);
@@ -214,296 +195,204 @@ public final class QuestManager {
         return true;
     }
 
-    public synchronized StartResult startQuest(Player player, String questId, QuestTriggerSource source, boolean notifyPlayer) {
+    public synchronized StartResult startQuest(Player player, String questId, QuestTriggerSource source, boolean notify) {
         ConversationQuest quest = quest(questId);
-        if (quest == null) {
-            return StartResult.QUEST_NOT_FOUND;
-        }
-        if (!quest.enabled()) {
-            return StartResult.QUEST_DISABLED;
-        }
+        if (quest == null) return StartResult.QUEST_NOT_FOUND;
+        if (!quest.enabled()) return StartResult.QUEST_DISABLED;
 
-        UUID progressId = resolveProgressId(player);
+        UUID playerId = player.getUniqueId();
+        String progressId = resolveProgressId(playerId).toString();
+        Map<String, QuestProgress> playerProgress = progressByPlayer.computeIfAbsent(progressId, k -> new ConcurrentHashMap<>());
         
+        QuestProgress progress = playerProgress.get(quest.id());
+        if (progress != null && progress.active()) return StartResult.ALREADY_ACTIVE;
+        if (progress != null && progress.hasCompletedAtLeastOnce() && !quest.repeatable()) return StartResult.ALREADY_COMPLETED;
+
         // Check prerequisites
         for (String preId : quest.prerequisites()) {
-            if (!hasCompletedQuest(progressId, preId)) {
-                if (notifyPlayer) {
-                    ConversationQuest pre = quest(preId);
-                    String name = pre != null ? color(pre.displayName()) : preId;
-                    player.sendMessage(ChatColor.RED + "You must complete " + name + ChatColor.RED + " first!");
+            QuestProgress preProg = playerProgress.get(preId);
+            if (preProg == null || !preProg.hasCompletedAtLeastOnce()) {
+                if (notify && source == QuestTriggerSource.COMMAND) {
+                    player.sendMessage(ChatColor.RED + "You haven't unlocked this quest yet!");
                 }
-                return StartResult.QUEST_DISABLED;
+                return StartResult.PREREQUISITE_NOT_MET;
             }
         }
 
-        QuestProgress progress = progress(progressId, quest.id(), true);
-        if (progress.active()) {
-            return StartResult.ALREADY_ACTIVE;
+        if (progress == null) {
+            progress = new QuestProgress();
+            playerProgress.put(quest.id(), progress);
         }
-        if (!quest.repeatable() && progress.hasCompletedAtLeastOnce()) {
-            return StartResult.ALREADY_COMPLETED;
-        }
-
+        
         progress.setActive(true);
         saveProgress();
 
-        if (notifyPlayer) {
-            player.sendMessage(ChatColor.GOLD + "[Quest] " + ChatColor.GREEN + "Started: " + color(quest.displayName()));
-            if (quest.hasTargetNpc() && quest.objectives().isEmpty()) {
-                player.sendMessage(ChatColor.GRAY + "Talk to NPC " + ChatColor.AQUA + quest.targetNpcId() + ChatColor.GRAY + " to complete it.");
-            } else if (!quest.objectives().isEmpty()) {
-                player.sendMessage(ChatColor.GRAY + "Check your quest log (/quest) for objectives.");
-            }
+        if (notify) {
+            player.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "[Quest Started] " + color(quest.displayName()));
+            player.sendMessage(ChatColor.YELLOW + quest.description());
         }
 
-        if (source != QuestTriggerSource.ZNPCS_EVENT) {
-            plugin.getLogger().fine("Quest " + quest.id() + " started for " + player.getName() + " via " + source);
-        }
         return StartResult.STARTED;
     }
 
-    public synchronized CompleteResult completeQuest(Player player, String questId, QuestTriggerSource source, boolean notifyPlayer) {
+    public synchronized CancelResult cancelQuest(Player player, String questId, boolean notify) {
         ConversationQuest quest = quest(questId);
-        if (quest == null) {
-            return CompleteResult.QUEST_NOT_FOUND;
-        }
-        if (!quest.enabled()) {
-            return CompleteResult.QUEST_DISABLED;
+        if (quest == null) return CancelResult.QUEST_NOT_FOUND;
+
+        String progressId = resolveProgressId(player.getUniqueId()).toString();
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(progressId);
+        if (playerProgress == null || !playerProgress.containsKey(quest.id())) return CancelResult.NOT_ACTIVE;
+
+        QuestProgress progress = playerProgress.get(quest.id());
+        if (!progress.active()) return CancelResult.NOT_ACTIVE;
+
+        progress.setActive(false);
+        saveProgress();
+
+        if (notify) {
+            player.sendMessage(ChatColor.RED + "Quest canceled: " + color(quest.displayName()));
         }
 
-        UUID progressId = resolveProgressId(player);
-        QuestProgress progress = progress(progressId, quest.id(), false);
-        if (progress == null || !progress.active()) {
-            return CompleteResult.NOT_ACTIVE;
+        return CancelResult.CANCELED;
+    }
+
+    public synchronized CompleteResult completeQuest(Player player, String questId, QuestTriggerSource source, boolean notify) {
+        ConversationQuest quest = quest(questId);
+        if (quest == null) return CompleteResult.QUEST_NOT_FOUND;
+
+        String progressId = resolveProgressId(player).toString();
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(progressId);
+        if (playerProgress == null || !playerProgress.containsKey(quest.id())) return CompleteResult.NOT_ACTIVE;
+
+        QuestProgress progress = playerProgress.get(quest.id());
+        if (!progress.active()) return CompleteResult.NOT_ACTIVE;
+
+        // Check if all objectives are complete
+        if (!isObjectivesComplete(quest, progress)) {
+            return CompleteResult.OBJECTIVES_NOT_MET;
         }
 
         progress.setActive(false);
         progress.incrementCompletions();
         saveProgress();
 
-        if (plugin.getSkyblockLevelManager() != null) {
-            plugin.getSkyblockLevelManager().recordQuestCompletion(player, quest.id());
-        }
-
         runRewardCommands(player, quest);
 
-        if (notifyPlayer) {
-            player.sendMessage(ChatColor.GOLD + "[Quest] " + ChatColor.GREEN + "Completed: " + color(quest.displayName()));
-            if (!quest.rewardCommands().isEmpty()) {
-                player.sendMessage(ChatColor.GRAY + "Rewards granted: " + ChatColor.YELLOW + quest.rewardCommands().size() + " command(s).");
-            }
+        if (notify) {
+            player.sendMessage("");
+            player.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "QUEST COMPLETE!");
+            player.sendMessage(ChatColor.YELLOW + ChatColor.stripColor(color(quest.displayName())));
+            player.sendMessage("");
         }
 
-        if (source != QuestTriggerSource.ZNPCS_EVENT) {
-            plugin.getLogger().fine("Quest " + quest.id() + " completed for " + player.getName() + " via " + source);
-        }
         return CompleteResult.COMPLETED;
     }
 
-    public synchronized CancelResult cancelQuest(Player player, String questId, boolean notifyPlayer) {
-        ConversationQuest quest = quest(questId);
-        if (quest == null) {
-            return CancelResult.QUEST_NOT_FOUND;
-        }
-
-        UUID progressId = resolveProgressId(player);
-        QuestProgress progress = progress(progressId, quest.id(), false);
-        if (progress == null || !progress.active()) {
-            return CancelResult.NOT_ACTIVE;
-        }
-
-        progress.setActive(false);
-        saveProgress();
-
-        if (notifyPlayer) {
-            player.sendMessage(ChatColor.GOLD + "[Quest] " + ChatColor.RED + "Canceled: " + color(quest.displayName()));
-        }
-
-        return CancelResult.CANCELED;
-    }
-
     public synchronized void advanceObjective(Player player, QuestObjective.ObjectiveType type, String target, int amount) {
-        UUID progressId = resolveProgressId(player);
-        Map<String, QuestProgress> playerProgressMap = progressByPlayer.get(progressId);
-        if (playerProgressMap == null) return;
+        String progressId = resolveProgressId(player).toString();
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(progressId);
+        if (playerProgress == null) return;
 
         boolean changed = false;
-        for (Map.Entry<String, QuestProgress> entry : playerProgressMap.entrySet()) {
+        for (Map.Entry<String, QuestProgress> entry : playerProgress.entrySet()) {
             QuestProgress prog = entry.getValue();
             if (!prog.active()) continue;
-            ConversationQuest quest = quests.get(entry.getKey());
-            if (quest == null) continue;
+            ConversationQuest q = quest(entry.getKey());
+            if (q == null) continue;
 
-            for (int i = 0; i < quest.objectives().size(); i++) {
-                QuestObjective obj = quest.objectives().get(i);
+            for (int i = 0; i < q.objectives().size(); i++) {
+                QuestObjective obj = q.objectives().get(i);
                 if (obj.type() == type && (obj.target().isEmpty() || obj.target().equalsIgnoreCase(target))) {
                     int current = prog.getObjectiveProgress(i);
                     if (current < obj.amount()) {
-                        prog.incrementObjectiveProgress(i, amount);
+                        prog.setObjectiveProgress(i, Math.min(obj.amount(), current + amount));
                         changed = true;
                         
-                        if (allObjectivesComplete(prog, quest)) {
-                            completeQuest(player, quest.id(), QuestTriggerSource.COMMAND, true);
+                        if (prog.getObjectiveProgress(i) >= obj.amount()) {
+                            player.sendMessage(ChatColor.GREEN + "[Quest] Objective complete: " + obj.description());
+                            if (isObjectivesComplete(q, prog)) {
+                                player.sendMessage(ChatColor.GOLD + "[Quest] All objectives complete! Return to " + ChatColor.AQUA + q.targetNpcId() + ChatColor.GOLD + " to finish.");
+                            }
                         }
                     }
                 }
             }
         }
-        if (changed) saveProgress();
+
+        if (changed) {
+            saveProgress();
+        }
     }
 
-    private boolean allObjectivesComplete(QuestProgress progress, ConversationQuest quest) {
-        if (quest.objectives().isEmpty()) return true;
+    private boolean isObjectivesComplete(ConversationQuest quest, QuestProgress progress) {
         for (int i = 0; i < quest.objectives().size(); i++) {
-            if (!quest.objectives().get(i).isComplete(progress.getObjectiveProgress(i))) {
+            if (progress.getObjectiveProgress(i) < quest.objectives().get(i).amount()) {
                 return false;
             }
         }
         return true;
     }
 
-    public synchronized int handleNpcConversation(Player player, String npcId, QuestTriggerSource source, boolean notifyPlayer) {
-        String normalizedNpcId = ConversationQuest.normalizeNpcId(npcId);
-        if (normalizedNpcId.isBlank()) {
-            return 0;
-        }
-
-        int changedQuests = 0;
-        UUID progressId = resolveProgressId(player);
-        for (ConversationQuest quest : quests.values()) {
-            if (!quest.enabled()) {
-                continue;
-            }
-
-            boolean starterMatch = quest.matchesStarterNpc(normalizedNpcId);
-            boolean targetMatch = quest.matchesTargetNpc(normalizedNpcId);
-            if (!starterMatch && !targetMatch) {
-                continue;
-            }
-
-            QuestProgress progress = progress(progressId, quest.id(), true);
-            boolean targetCanStartQuest = !quest.hasStarterNpc() && targetMatch;
-
-            if ((starterMatch || targetCanStartQuest) && !progress.active()) {
-                if (!quest.repeatable() && progress.hasCompletedAtLeastOnce()) {
-                    continue;
-                }
-                StartResult startResult = startQuest(player, quest.id(), source, notifyPlayer);
-                if (startResult == StartResult.STARTED) {
-                    changedQuests++;
-                    if (targetMatch) {
-                        CompleteResult completeResult = completeQuest(player, quest.id(), source, notifyPlayer);
-                        if (completeResult == CompleteResult.COMPLETED) {
-                            changedQuests++;
-                        }
-                    }
-                    continue;
-                }
-            }
-
-            if (targetMatch && progress.active()) {
-                CompleteResult completeResult = completeQuest(player, quest.id(), source, notifyPlayer);
-                if (completeResult == CompleteResult.COMPLETED) {
-                    changedQuests++;
+    public synchronized int handleNpcConversation(Player player, String npcId, QuestTriggerSource source, boolean notify) {
+        int changes = 0;
+        
+        // 1. Try to complete active quests
+        List<ConversationQuest> active = activeQuests(player);
+        for (ConversationQuest q : active) {
+            if (q.matchesTargetNpc(npcId)) {
+                CompleteResult res = completeQuest(player, q.id(), source, notify);
+                if (res == CompleteResult.COMPLETED) {
+                    changes++;
+                } else if (res == CompleteResult.OBJECTIVES_NOT_MET && notify) {
+                    player.sendMessage(ChatColor.YELLOW + "[Quest] " + ChatColor.WHITE + q.targetNpcId() + ": " + ChatColor.GRAY + "You haven't finished your tasks yet!");
                 }
             }
         }
 
-        return changedQuests;
-    }
-
-    public synchronized boolean isQuestActive(UUID playerId, String questId) {
-        QuestProgress progress = progress(resolveProgressId(playerId), ConversationQuest.normalizeId(questId), false);
-        return progress != null && progress.active();
-    }
-
-    public synchronized boolean hasCompletedQuest(UUID playerId, String questId) {
-        QuestProgress progress = progress(resolveProgressId(playerId), ConversationQuest.normalizeId(questId), false);
-        return progress != null && progress.hasCompletedAtLeastOnce();
-    }
-
-    public synchronized int completionCount(UUID playerId, String questId) {
-        QuestProgress progress = progress(resolveProgressId(playerId), ConversationQuest.normalizeId(questId), false);
-        return progress == null ? 0 : progress.completions();
-    }
-
-    public synchronized List<ConversationQuest> activeQuests(UUID playerId) {
-        Map<String, QuestProgress> playerProgress = progressByPlayer.get(resolveProgressId(playerId));
-        if (playerProgress == null || playerProgress.isEmpty()) {
-            return List.of();
-        }
-
-        List<ConversationQuest> active = new ArrayList<>();
-        for (Map.Entry<String, QuestProgress> entry : playerProgress.entrySet()) {
-            if (!entry.getValue().active()) {
-                continue;
-            }
-            ConversationQuest quest = quests.get(entry.getKey());
-            if (quest != null) {
-                active.add(quest);
+        // 2. Try to start available quests
+        for (ConversationQuest q : quests.values()) {
+            if (q.enabled() && q.matchesStarterNpc(npcId)) {
+                StartResult res = startQuest(player, q.id(), source, notify);
+                if (res == StartResult.STARTED) {
+                    changes++;
+                }
             }
         }
-        active.sort(Comparator.comparing(ConversationQuest::id));
-        return active;
-    }
 
-    private QuestProgress progress(UUID playerId, String questId, boolean createIfMissing) {
-        if (playerId == null) {
-            return null;
-        }
-        String normalizedQuestId = ConversationQuest.normalizeId(questId);
-        if (normalizedQuestId.isBlank()) {
-            return null;
-        }
-        Map<String, QuestProgress> playerMap = progressByPlayer.get(playerId);
-        if (playerMap == null) {
-            if (!createIfMissing) {
-                return null;
-            }
-            playerMap = new HashMap<>();
-            progressByPlayer.put(playerId, playerMap);
-        }
-
-        QuestProgress questProgress = playerMap.get(normalizedQuestId);
-        if (questProgress == null && createIfMissing) {
-            questProgress = new QuestProgress();
-            playerMap.put(normalizedQuestId, questProgress);
-        }
-        return questProgress;
+        return changes;
     }
 
     public synchronized boolean isQuestActive(Player player, String questId) {
-        UUID progressId = resolveProgressId(player);
-        QuestProgress progress = progress(progressId, ConversationQuest.normalizeId(questId), false);
-        return progress != null && progress.active();
+        String progressId = resolveProgressId(player).toString();
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(progressId);
+        if (playerProgress == null) return false;
+        QuestProgress prog = playerProgress.get(questId);
+        return prog != null && prog.active();
     }
 
     public synchronized boolean hasCompletedQuest(Player player, String questId) {
-        UUID progressId = resolveProgressId(player);
-        QuestProgress progress = progress(progressId, ConversationQuest.normalizeId(questId), false);
-        return progress != null && progress.hasCompletedAtLeastOnce();
+        String progressId = resolveProgressId(player).toString();
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(progressId);
+        if (playerProgress == null) return false;
+        QuestProgress prog = playerProgress.get(questId);
+        return prog != null && prog.hasCompletedAtLeastOnce();
     }
 
-    public synchronized int completionCount(Player player, String questId) {
-        UUID progressId = resolveProgressId(player);
-        QuestProgress progress = progress(progressId, ConversationQuest.normalizeId(questId), false);
-        return progress == null ? 0 : progress.completions();
+    public synchronized QuestProgress getProgress(Player player, String questId) {
+        String progressId = resolveProgressId(player).toString();
+        Map<String, QuestProgress> playerProgress = progressByPlayer.get(progressId);
+        return playerProgress != null ? playerProgress.get(questId) : null;
     }
 
     public synchronized List<ConversationQuest> activeQuests(Player player) {
-        UUID progressId = resolveProgressId(player);
+        String progressId = resolveProgressId(player).toString();
         Map<String, QuestProgress> playerProgress = progressByPlayer.get(progressId);
-        if (playerProgress == null || playerProgress.isEmpty()) {
-            return List.of();
-        }
+        if (playerProgress == null) return List.of();
 
         List<ConversationQuest> active = new ArrayList<>();
         for (Map.Entry<String, QuestProgress> entry : playerProgress.entrySet()) {
-            if (!entry.getValue().active()) {
-                continue;
-            }
-            ConversationQuest quest = quests.get(entry.getKey());
+            if (!entry.getValue().active()) continue;
+            ConversationQuest quest = quest(entry.getKey());
             if (quest != null) {
                 active.add(quest);
             }
@@ -544,6 +433,8 @@ public final class QuestManager {
             if (parsed.startsWith("/")) {
                 parsed = parsed.substring(1);
             }
+            
+            ProfileEconomyService profileEconomy = new ProfileEconomyService(plugin);
             if (profileEconomy.executeEcoLikeCommand(player, parsed)) {
                 continue;
             }
@@ -616,6 +507,7 @@ public final class QuestManager {
                     questId,
                     questSection.getString("display-name", key),
                     questSection.getString("description", "Talk to an NPC."),
+                    questSection.getString("world", "Hub"),
                     questSection.getString("starter-npc", ""),
                     questSection.getString("target-npc", ""),
                     questSection.getStringList("rewards"),
@@ -647,9 +539,12 @@ public final class QuestManager {
                 "village_greeting",
                 "&aVillage Greeting",
                 "Talk to the village elder.",
+                "Hub",
                 "elder_start",
                 "elder_finish",
                 List.of("eco give {player} 1000"),
+                List.of(),
+                new ArrayList<>(),
                 false,
                 true
         );
@@ -662,11 +557,14 @@ public final class QuestManager {
             String base = "quests." + quest.id() + ".";
             yaml.set(base + "display-name", quest.displayName());
             yaml.set(base + "description", quest.description());
+            yaml.set(base + "world", quest.world());
             yaml.set(base + "starter-npc", quest.starterNpcId());
             yaml.set(base + "target-npc", quest.targetNpcId());
-            yaml.set(base + "rewards", new ArrayList<>(quest.rewardCommands()));
-            yaml.set(base + "prerequisites", new ArrayList<>(quest.prerequisites()));
-            
+            yaml.set(base + "rewards", quest.rewardCommands());
+            yaml.set(base + "prerequisites", quest.prerequisites());
+            yaml.set(base + "repeatable", quest.repeatable());
+            yaml.set(base + "enabled", quest.enabled());
+
             if (!quest.objectives().isEmpty()) {
                 for (int i = 0; i < quest.objectives().size(); i++) {
                     QuestObjective obj = quest.objectives().get(i);
@@ -677,275 +575,132 @@ public final class QuestManager {
                     yaml.set(objBase + "description", obj.description());
                 }
             }
-
-            yaml.set(base + "repeatable", quest.repeatable());
-            yaml.set(base + "enabled", quest.enabled());
         }
+
         try {
             yaml.save(questsFile);
-        } catch (IOException exception) {
-            plugin.getLogger().severe("Failed to save quests.yml: " + exception.getMessage());
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save quests to " + questsFile.getName() + ": " + e.getMessage());
         }
     }
 
     private void loadProgress() {
         progressByPlayer.clear();
-
-        if (!progressFile.exists()) {
-            saveProgress();
-            return;
-        }
+        if (!progressFile.exists()) return;
 
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(progressFile);
         ConfigurationSection playersSection = yaml.getConfigurationSection("profiles");
         if (playersSection == null) {
             playersSection = yaml.getConfigurationSection("players");
         }
-        if (playersSection == null) {
-            return;
-        }
+        if (playersSection == null) return;
 
-        for (String uuidKey : playersSection.getKeys(false)) {
-            UUID playerId;
-            try {
-                playerId = UUID.fromString(uuidKey);
-            } catch (IllegalArgumentException ignored) {
-                continue;
+        for (String playerKey : playersSection.getKeys(false)) {
+            ConfigurationSection playerSection = playersSection.getConfigurationSection(playerKey + ".quests");
+            if (playerSection == null) {
+                playerSection = playersSection.getConfigurationSection(playerKey);
             }
+            if (playerSection == null) continue;
 
-            ConfigurationSection questSection = playersSection.getConfigurationSection(uuidKey + ".quests");
-            if (questSection == null) {
-                continue;
-            }
+            Map<String, QuestProgress> quests = new ConcurrentHashMap<>();
+            for (String qId : playerSection.getKeys(false)) {
+                ConfigurationSection qSection = playerSection.getConfigurationSection(qId);
+                if (qSection == null) continue;
 
-            Map<String, QuestProgress> questProgressMap = new HashMap<>();
-            for (String questIdRaw : questSection.getKeys(false)) {
-                String questId = ConversationQuest.normalizeId(questIdRaw);
-                if (questId.isBlank()) {
-                    continue;
-                }
-                ConfigurationSection stateSection = questSection.getConfigurationSection(questIdRaw);
-                if (stateSection == null) {
-                    continue;
-                }
                 QuestProgress progress = new QuestProgress();
-                progress.setActive(stateSection.getBoolean("active", false));
-                progress.setCompletions(stateSection.getInt("completions", 0));
+                progress.setActive(qSection.getBoolean("active", false));
+                progress.setCompletions(qSection.getBoolean("completed", false) ? 1 : 0);
                 
-                ConfigurationSection objProgSection = stateSection.getConfigurationSection("objectives");
-                if (objProgSection != null) {
-                    for (String idxKey : objProgSection.getKeys(false)) {
+                ConfigurationSection objProg = qSection.getConfigurationSection("objectives");
+                if (objProg != null) {
+                    for (String oKey : objProg.getKeys(false)) {
                         try {
-                            int idx = Integer.parseInt(idxKey);
-                            progress.setObjectiveProgress(idx, objProgSection.getInt(idxKey));
+                            int idx = Integer.parseInt(oKey.replace("obj", ""));
+                            progress.setObjectiveProgress(idx, objProg.getInt(oKey, 0));
                         } catch (NumberFormatException ignored) {}
                     }
                 }
-
-                if (progress.active() || progress.completions() > 0) {
-                    questProgressMap.put(questId, progress);
-                }
+                quests.put(qId, progress);
             }
-
-            if (!questProgressMap.isEmpty()) {
-                progressByPlayer.put(playerId, questProgressMap);
-            }
+            progressByPlayer.put(playerKey, quests);
         }
     }
 
     private void saveProgress() {
         YamlConfiguration yaml = new YamlConfiguration();
-
-        for (Map.Entry<UUID, Map<String, QuestProgress>> playerEntry : progressByPlayer.entrySet()) {
-            UUID playerId = playerEntry.getKey();
+        for (Map.Entry<String, Map<String, QuestProgress>> playerEntry : progressByPlayer.entrySet()) {
+            String playerId = playerEntry.getKey();
             for (Map.Entry<String, QuestProgress> questEntry : playerEntry.getValue().entrySet()) {
-                QuestProgress progress = questEntry.getValue();
-                if (!progress.active() && progress.completions() <= 0) {
-                    continue;
-                }
+                QuestProgress prog = questEntry.getValue();
                 String base = "profiles." + playerId + ".quests." + questEntry.getKey() + ".";
-                yaml.set(base + "active", progress.active());
-                yaml.set(base + "completions", progress.completions());
+                yaml.set(base + "active", prog.active());
+                yaml.set(base + "completed", prog.hasCompletedAtLeastOnce());
                 
-                Map<Integer, Integer> objProg = progress.getAllObjectiveProgress();
-                if (!objProg.isEmpty()) {
-                    for (Map.Entry<Integer, Integer> objEntry : objProg.entrySet()) {
-                        yaml.set(base + "objectives." + objEntry.getKey(), objEntry.getValue());
-                    }
+                for (Map.Entry<Integer, Integer> objEntry : prog.getAllObjectiveProgress().entrySet()) {
+                    yaml.set(base + "objectives.obj" + objEntry.getKey(), objEntry.getValue());
                 }
             }
         }
 
         try {
             yaml.save(progressFile);
-        } catch (IOException exception) {
-            plugin.getLogger().severe("Failed to save quest-progress.yml: " + exception.getMessage());
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save quest progress to " + progressFile.getName() + ": " + e.getMessage());
         }
     }
 
-    public String color(String input) {
-        return ChatColor.translateAlternateColorCodes('&', input == null ? "" : input);
+    public String progressLabel(Player p, ConversationQuest q) {
+        if (hasCompletedQuest(p, q.id())) return ChatColor.GREEN + "Completed";
+        if (isQuestActive(p, q.id())) return ChatColor.YELLOW + "Active";
+        return ChatColor.RED + "Not Started";
     }
 
-    public String progressLabel(UUID playerId, ConversationQuest quest) {
-        QuestProgress progress = progress(resolveProgressId(playerId), quest.id(), false);
-        if (progress == null) {
-            return ChatColor.GRAY + "Not started";
-        }
-        if (progress.active()) {
-            return ChatColor.YELLOW + "In progress";
-        }
-        if (progress.hasCompletedAtLeastOnce()) {
-            if (quest.repeatable()) {
-                return ChatColor.GREEN + "Completed " + progress.completions() + "x";
-            }
-            return ChatColor.GREEN + "Completed";
-        }
-        return ChatColor.GRAY + "Not started";
+    public String color(String text) {
+        return ChatColor.translateAlternateColorCodes('&', text);
     }
 
-    public String progressLabel(Player player, ConversationQuest quest) {
-        QuestProgress progress = progress(resolveProgressId(player), quest.id(), false);
-        if (progress == null) {
-            return ChatColor.GRAY + "Not started";
+    public List<String> starterNpcIds() {
+        Set<String> ids = new HashSet<>();
+        for (ConversationQuest q : quests.values()) {
+            if (q.hasStarterNpc()) ids.add(q.starterNpcId());
+            if (q.hasTargetNpc()) ids.add(q.targetNpcId());
         }
-        if (progress.active()) {
-            return ChatColor.YELLOW + "In progress";
-        }
-        if (progress.hasCompletedAtLeastOnce()) {
-            if (quest.repeatable()) {
-                return ChatColor.GREEN + "Completed " + progress.completions() + "x";
-            }
-            return ChatColor.GREEN + "Completed";
-        }
-        return ChatColor.GRAY + "Not started";
+        return new ArrayList<>(ids);
     }
 
-    private UUID resolveProgressId(Player player) {
-        if (player == null) {
-            return null;
+    private void migrateLegacyProgress(UUID ownerId, UUID progressId) {
+        if (ownerId.equals(progressId)) return;
+        Map<String, QuestProgress> legacy = progressByPlayer.remove(ownerId.toString());
+        if (legacy != null && !legacy.isEmpty()) {
+            progressByPlayer.computeIfAbsent(progressId.toString(), k -> new ConcurrentHashMap<>()).putAll(legacy);
+            saveProgress();
         }
-
-        UUID ownerId = player.getUniqueId();
-        if (ownerId == null) {
-            return null;
-        }
-
-        io.papermc.Grivience.skyblock.profile.ProfileManager profileManager = plugin.getProfileManager();
-        if (profileManager == null) {
-            return ownerId;
-        }
-
-        io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile = profileManager.getSelectedProfile(player);
-        if (profile == null) {
-            return ownerId;
-        }
-
-        UUID progressId = canonicalProgressId(profile);
-        migrateLegacyProgress(ownerId, progressId);
-        return progressId == null ? ownerId : progressId;
     }
 
     private UUID resolveProgressId(UUID playerId) {
-        if (playerId == null) {
-            return null;
-        }
-
-        io.papermc.Grivience.skyblock.profile.ProfileManager profileManager = plugin.getProfileManager();
-        if (profileManager == null) {
+        if (plugin.getSkyblockLevelManager() == null || plugin.getProfileManager() == null) {
             return playerId;
         }
-
-        io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile = profileManager.findProfileById(playerId);
-        if (profile != null) {
-            UUID progressId = canonicalProgressId(profile);
-            migrateLegacyProgress(playerId, progressId);
-            return progressId == null ? playerId : progressId;
-        }
-
-        UUID selectedProfileId = profileManager.getSelectedProfileId(playerId);
-        if (selectedProfileId == null) {
-            selectedProfileId = profileManager.getFirstProfileId(playerId);
-            if (selectedProfileId == null) {
-                return playerId;
-            }
-        }
-
-        io.papermc.Grivience.skyblock.profile.SkyBlockProfile selectedProfile = profileManager.findProfileById(selectedProfileId);
-        UUID progressId = canonicalProgressId(selectedProfile);
+        var profile = plugin.getProfileManager().getSelectedProfile(playerId);
+        UUID progressId = profile != null ? profile.getCanonicalProfileId() : playerId;
         migrateLegacyProgress(playerId, progressId);
-        return progressId == null ? playerId : progressId;
+        return progressId;
     }
 
-    private UUID canonicalProgressId(io.papermc.Grivience.skyblock.profile.SkyBlockProfile profile) {
-        if (profile == null) {
-            return null;
+    private UUID resolveProgressId(Player player) {
+        if (plugin.getProfileManager() == null) {
+            return player.getUniqueId();
         }
-        UUID canonicalProfileId = profile.getCanonicalProfileId();
-        return canonicalProfileId != null ? canonicalProfileId : profile.getProfileId();
+        var profile = plugin.getProfileManager().getSelectedProfile(player);
+        UUID progressId = profile != null ? profile.getCanonicalProfileId() : player.getUniqueId();
+        UUID ownerId = player.getUniqueId();
+        migrateLegacyProgress(ownerId, progressId);
+        return progressId;
     }
 
-    private void migrateLegacyProgress(UUID legacyId, UUID progressId) {
-        if (legacyId == null || progressId == null || legacyId.equals(progressId)) {
-            return;
-        }
-
-        Map<String, QuestProgress> legacyProgress = progressByPlayer.get(legacyId);
-        if (legacyProgress == null || legacyProgress.isEmpty()) {
-            return;
-        }
-
-        Map<String, QuestProgress> targetProgress = progressByPlayer.computeIfAbsent(progressId, ignored -> new HashMap<>());
-        boolean changed = false;
-        for (Map.Entry<String, QuestProgress> entry : legacyProgress.entrySet()) {
-            if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null) {
-                continue;
-            }
-
-            String questId = ConversationQuest.normalizeId(entry.getKey());
-            QuestProgress existing = targetProgress.get(questId);
-            if (existing == null) {
-                QuestProgress migrated = new QuestProgress();
-                migrated.setActive(entry.getValue().active());
-                migrated.setCompletions(entry.getValue().completions());
-                targetProgress.put(questId, migrated);
-                changed = true;
-                continue;
-            }
-
-            if (entry.getValue().active() && !existing.active()) {
-                existing.setActive(true);
-                changed = true;
-            }
-            if (entry.getValue().completions() > existing.completions()) {
-                existing.setCompletions(entry.getValue().completions());
-                changed = true;
-            }
-        }
-
-        progressByPlayer.remove(legacyId);
-        saveProgress();
-    }
-
-    public synchronized List<String> questIds() {
-        List<String> ids = new ArrayList<>(quests.keySet());
-        ids.sort(String::compareTo);
-        return ids;
-    }
-
-    public synchronized List<String> starterNpcIds() {
-        List<String> npcIds = new ArrayList<>();
-        for (ConversationQuest quest : quests.values()) {
-            if (quest.hasStarterNpc()) {
-                npcIds.add(quest.starterNpcId());
-            }
-            if (quest.hasTargetNpc()) {
-                npcIds.add(quest.targetNpcId());
-            }
-        }
-        npcIds.sort(String::compareTo);
-        return npcIds;
-    }
+    public enum StartResult { QUEST_NOT_FOUND, QUEST_DISABLED, ALREADY_ACTIVE, ALREADY_COMPLETED, PREREQUISITE_NOT_MET, STARTED }
+    public enum CancelResult { QUEST_NOT_FOUND, NOT_ACTIVE, CANCELED }
+    public enum CompleteResult { QUEST_NOT_FOUND, NOT_ACTIVE, OBJECTIVES_NOT_MET, COMPLETED }
 
     public synchronized String znpcsHint(ConversationQuest quest) {
         String command = "/quest talk " + quest.targetNpcId();

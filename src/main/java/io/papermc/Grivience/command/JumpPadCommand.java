@@ -135,11 +135,8 @@ public final class JumpPadCommand implements CommandExecutor, TabCompleter {
     private void sendInfo(CommandSender sender, String id, JumpPadManager.JumpPad pad) {
         sender.sendMessage(ChatColor.YELLOW + "--- Jump Pad: " + ChatColor.WHITE + id + ChatColor.YELLOW + " ---");
         sender.sendMessage(ChatColor.GRAY + "Status: " + (pad.isValid() ? ChatColor.GREEN + "READY" : ChatColor.RED + "INCOMPLETE (needs launch & target)"));
-        sender.sendMessage(ChatColor.GRAY + "Launch: " + describeArea(pad.getLaunch(), pad.getLaunchCorner()));
-        sender.sendMessage(ChatColor.GRAY + "Target: " + describeArea(pad.getTarget(), pad.getTargetCorner()));
-        if (pad.getTarget() != null) {
-            sender.sendMessage(ChatColor.GRAY + "World: " + ChatColor.WHITE + pad.getTarget().getWorld().getName());
-        }
+        sender.sendMessage(ChatColor.GRAY + "Launch: " + describeArea(pad.getLaunch(), pad.getLaunchCorner(), pad.getLaunchWorldName(), pad.getLaunchCornerWorldName()));
+        sender.sendMessage(ChatColor.GRAY + "Target: " + describeArea(pad.getTarget(), pad.getTargetCorner(), pad.getTargetWorldName(), pad.getTargetCornerWorldName()));
         
         // Requirements info
         if (pad.getMinSkyblockLevel() > 0 || pad.getMinCombatLevel() > 0 || pad.getMinMiningLevel() > 0 || pad.getMinFarmingLevel() > 0) {
@@ -159,6 +156,7 @@ public final class JumpPadCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GRAY + " 4. " + ChatColor.WHITE + "/jp info <id>" + ChatColor.GRAY + "   - Check configuration status.");
         sender.sendMessage(ChatColor.GRAY + "Optional:");
         sender.sendMessage(ChatColor.GRAY + " - " + ChatColor.WHITE + "/jp pos1/pos2 <id>" + ChatColor.GRAY + " - Define a launch cuboid.");
+        sender.sendMessage(ChatColor.GRAY + " - " + ChatColor.WHITE + "/jp targetpos <id>" + ChatColor.GRAY + " - Define a target arrival cuboid.");
         sender.sendMessage(ChatColor.GRAY + " - " + ChatColor.WHITE + "/jp list" + ChatColor.GRAY + "           - See all configured pads.");
     }
 
@@ -176,10 +174,22 @@ public final class JumpPadCommand implements CommandExecutor, TabCompleter {
         ));
     }
 
-    private String describeArea(Location primary, Location corner) {
-        if (primary == null) return ChatColor.RED + "UNSET";
-        if (corner == null) return String.format("%d, %d, %d", primary.getBlockX(), primary.getBlockY(), primary.getBlockZ());
-        return String.format("%d,%d,%d to %d,%d,%d",
+    private String describeArea(Location primary, Location corner, String primaryWorld, String cornerWorld) {
+        if (primary == null && primaryWorld == null) return ChatColor.RED + "UNSET";
+        
+        String worldName = (primary != null && primary.getWorld() != null) ? primary.getWorld().getName() : primaryWorld;
+        if (worldName == null) worldName = "UnknownWorld";
+
+        if (primary == null) {
+            return ChatColor.YELLOW + "[World: " + worldName + " (Deferred)]";
+        }
+
+        if (corner == null) {
+            return String.format("%s (%d, %d, %d)", worldName, primary.getBlockX(), primary.getBlockY(), primary.getBlockZ());
+        }
+        
+        return String.format("%s (%d,%d,%d to %d,%d,%d)",
+                worldName,
                 primary.getBlockX(), primary.getBlockY(), primary.getBlockZ(),
                 corner.getBlockX(), corner.getBlockY(), corner.getBlockZ());
     }

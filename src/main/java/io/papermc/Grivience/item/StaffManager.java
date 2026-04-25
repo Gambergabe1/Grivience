@@ -55,22 +55,13 @@ public final class StaffManager {
      */
     public boolean isStaff(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
-        
-        ItemMeta meta = item.getItemMeta();
-        if (!meta.hasLore()) return false;
-        
-        // Check for staff identifier in lore or custom model data
-        List<String> lore = meta.getLore();
-        if (lore != null) {
-            for (String line : lore) {
-                String lower = line.toLowerCase();
-                if (lower.contains("staff") && (lower.contains("mage") || lower.contains("ability"))) {
-                    return true;
-                }
-            }
+
+        CustomWeaponType staffType = getStaffType(item);
+        if (isMageWeaponType(staffType)) {
+            return true;
         }
-        
-        // Check persistent data container
+
+        ItemMeta meta = item.getItemMeta();
         return meta.getPersistentDataContainer().has(staffKey, PersistentDataType.BOOLEAN);
     }
 
@@ -78,6 +69,16 @@ public final class StaffManager {
      * Get the staff type from an item.
      */
     public CustomWeaponType getStaffType(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return null;
+
+        CustomItemService itemService = plugin.getCustomItemService();
+        if (itemService != null) {
+            CustomWeaponType byId = CustomWeaponType.parse(itemService.itemId(item));
+            if (isMageWeaponType(byId)) {
+                return byId;
+            }
+        }
+
         if (!item.hasItemMeta()) return null;
         
         String displayName = item.getItemMeta().getDisplayName();
@@ -131,6 +132,17 @@ public final class StaffManager {
      * Create a staff item with proper metadata.
      */
     public ItemStack createStaff(CustomWeaponType staffType) {
+        CustomItemService itemService = plugin.getCustomItemService();
+        if (itemService != null && isMageWeaponType(staffType)) {
+            ItemStack canonical = itemService.createWeapon(staffType);
+            if (canonical != null && canonical.hasItemMeta()) {
+                ItemMeta canonicalMeta = canonical.getItemMeta();
+                canonicalMeta.getPersistentDataContainer().set(staffKey, PersistentDataType.BOOLEAN, true);
+                canonical.setItemMeta(canonicalMeta);
+                return canonical;
+            }
+        }
+
         Material material = getStaffMaterial(staffType);
         ItemStack staff = new ItemStack(material);
         ItemMeta meta = staff.getItemMeta();
@@ -168,6 +180,26 @@ public final class StaffManager {
         
         staff.setItemMeta(meta);
         return staff;
+    }
+
+    private boolean isMageWeaponType(CustomWeaponType type) {
+        return switch (type) {
+            case ARCANE_STAFF,
+                 FROSTBITE_STAFF,
+                 INFERNO_STAFF,
+                 STORMCALLER_STAFF,
+                 VOIDWALKER_STAFF,
+                 CELESTIAL_STAFF,
+                 FLAME_WAND,
+                 ICE_WAND,
+                 LIGHTNING_WAND,
+                 POISON_WAND,
+                 HEALING_WAND,
+                 SCEPTER_OF_HEALING,
+                 SCEPTER_OF_DECAY,
+                 SCEPTER_OF_MENDING -> true;
+            default -> false;
+        };
     }
 
     private Material getStaffMaterial(CustomWeaponType type) {

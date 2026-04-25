@@ -45,6 +45,10 @@ public final class EndMinesManager {
         return "Deep Mines";
     }
 
+    public java.util.List<String> getAllZoneNames() {
+        return java.util.List.of("End Hub", "Chorus Grove", "Obsidian Quarry", "Crystal Cavern", "Rift Gallery", "Deep Mines");
+    }
+
     public boolean isEnabled() {
         return plugin.getConfig().getBoolean("end-mines.enabled", true);
     }

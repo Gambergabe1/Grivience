@@ -1,6 +1,7 @@
 package io.papermc.Grivience.crafting;
 
 import io.papermc.Grivience.GriviencePlugin;
+import io.papermc.Grivience.collections.CollectionsManager;
 import io.papermc.Grivience.item.CustomArmorManager;
 import io.papermc.Grivience.item.CustomArmorManager.ArmorPieceType;
 import io.papermc.Grivience.item.CustomArmorType;
@@ -625,14 +626,19 @@ public final class CraftingGuideCatalog {
                     };
                 };
 
+                // Use metadata from CustomArmorSet
+                RecipeCategory category = entry.getValue().getCategory();
+                String collectionId = entry.getValue().getCollectionId();
+                int collectionTierRequired = entry.getValue().getCollectionTierRequired();
+
                 recipes.add(recipe(
                         "armor:" + setId.toLowerCase(Locale.ROOT) + ":" + pieceType.name().toLowerCase(Locale.ROOT),
                         displayName(result, pieceType.name()),
                         result,
                         "Custom Armor",
-                        null,
-                        config.getString("custom-armor.sets." + setId + ".collection-id"),
-                        Math.max(0, config.getInt("custom-armor.sets." + setId + ".collection-tier-required", 0)),
+                        category,
+                        collectionId,
+                        collectionTierRequired,
                         ingredients
                 ));
             }

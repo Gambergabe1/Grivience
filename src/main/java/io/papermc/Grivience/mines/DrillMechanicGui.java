@@ -122,10 +122,18 @@ public final class DrillMechanicGui implements Listener {
     }
 
     public void openProjects(Player player) {
+        openProjects(player, 0);
+    }
+
+    public void openProjects(Player player, int page) {
         if (player == null) {
             return;
         }
-        DrillHolder holder = new DrillHolder(ForgeView.PROJECTS);
+        List<DrillForgeManager.ForgeProjectType> catalog = forgeManager.catalog();
+        int maxPage = Math.max(0, (catalog.size() - 1) / PROJECT_SLOTS.size());
+        int actualPage = Math.max(0, Math.min(page, maxPage));
+
+        DrillHolder holder = new DrillHolder(ForgeView.PROJECTS, actualPage);
         Inventory inventory = createInventory(holder, ForgeView.PROJECTS);
 
         inventory.setItem(0, sectionLabel(Material.GRAY_STAINED_GLASS_PANE, ChatColor.GRAY + "Project Catalog", "Available blueprints for advanced mining technology."));
@@ -144,14 +152,27 @@ public final class DrillMechanicGui implements Listener {
         inventory.setItem(34, createProjectTipsItem());
         inventory.setItem(36, sectionLabel(Material.BLACK_STAINED_GLASS_PANE, ChatColor.DARK_GRAY + "Active Processors", "Current forging cycles in progress."));
         inventory.setItem(44, sectionLabel(Material.BLACK_STAINED_GLASS_PANE, ChatColor.DARK_GRAY + "Efficiency Protocol", "High Forge Heat optimizes project duration."));
+        
+        // Navigation and Utility
         inventory.setItem(45, navItem(Material.ARROW, ChatColor.GOLD + "Back to Bay", "Return to refueling and drill fitting."));
+        
+        if (actualPage > 0) {
+            inventory.setItem(46, navItem(Material.ARROW, ChatColor.YELLOW + "Previous Page", "View previous set of projects."));
+        }
+        
         inventory.setItem(49, navItem(Material.BARRIER, ChatColor.RED + "Close", "Leave the Drill Forge."));
+        
+        if (actualPage < maxPage) {
+            inventory.setItem(52, navItem(Material.ARROW, ChatColor.YELLOW + "Next Page", "View more available projects."));
+        }
+        
         inventory.setItem(53, navItem(Material.LIGHTNING_ROD, ChatColor.AQUA + "Overdrive Chamber", "Convert stored heat into a timed drill buff."));
 
-        List<DrillForgeManager.ForgeProjectType> catalog = forgeManager.catalog();
+        int startIndex = actualPage * PROJECT_SLOTS.size();
         for (int index = 0; index < PROJECT_SLOTS.size(); index++) {
             int slot = PROJECT_SLOTS.get(index);
-            inventory.setItem(slot, index < catalog.size() ? createProjectItem(player, catalog.get(index)) : spacer(Material.BLACK_STAINED_GLASS_PANE));
+            int catalogIndex = startIndex + index;
+            inventory.setItem(slot, catalogIndex < catalog.size() ? createProjectItem(player, catalog.get(catalogIndex)) : spacer(Material.BLACK_STAINED_GLASS_PANE));
         }
 
         List<DrillForgeManager.ActiveProjectView> queue = forgeManager.activeProjects(player);
@@ -474,9 +495,31 @@ public final class DrillMechanicGui implements Listener {
     }
 
     private void handleProjectsClick(Player player, int slot) {
+        Inventory inventory = player.getOpenInventory().getTopInventory();
+        if (!(inventory.getHolder() instanceof DrillHolder holder)) {
+            return;
+        }
+        int page = holder.page;
+
         if (slot == 45) {
             playUiClick(player, 1.0F);
             openBay(player);
+            return;
+        }
+        if (slot == 46) {
+            if (page > 0) {
+                playUiClick(player, 0.9F);
+                openProjects(player, page - 1);
+            }
+            return;
+        }
+        if (slot == 52) {
+            List<DrillForgeManager.ForgeProjectType> catalog = forgeManager.catalog();
+            int maxPage = Math.max(0, (catalog.size() - 1) / PROJECT_SLOTS.size());
+            if (page < maxPage) {
+                playUiClick(player, 1.1F);
+                openProjects(player, page + 1);
+            }
             return;
         }
         if (slot == 53) {
@@ -484,19 +527,21 @@ public final class DrillMechanicGui implements Listener {
             openOverdrive(player);
             return;
         }
-        int projectIndex = PROJECT_SLOTS.indexOf(slot);
-        if (projectIndex >= 0) {
+        
+        int slotIndex = PROJECT_SLOTS.indexOf(slot);
+        if (slotIndex >= 0) {
             List<DrillForgeManager.ForgeProjectType> catalog = forgeManager.catalog();
+            int projectIndex = (page * PROJECT_SLOTS.size()) + slotIndex;
             if (projectIndex < catalog.size()) {
                 forgeManager.startProject(player, catalog.get(projectIndex));
-                openProjects(player);
+                openProjects(player, page);
             }
             return;
         }
         int queueIndex = QUEUE_SLOTS.indexOf(slot);
         if (queueIndex >= 0) {
             forgeManager.claimProject(player, queueIndex);
-            openProjects(player);
+            openProjects(player, page);
         }
     }
 
@@ -1937,10 +1982,16 @@ public final class DrillMechanicGui implements Listener {
 
     private static final class DrillHolder implements InventoryHolder {
         private final ForgeView view;
+        private final int page;
         private Inventory inventory;
 
         private DrillHolder(ForgeView view) {
+            this(view, 0);
+        }
+
+        private DrillHolder(ForgeView view, int page) {
             this.view = view;
+            this.page = page;
         }
 
         @Override

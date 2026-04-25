@@ -22,7 +22,7 @@ public class AuctionCommand implements CommandExecutor {
             return true;
         }
 
-        guiManager.openBrowser(player);
+        guiManager.openMainMenu(player);
         return true;
     }
 }

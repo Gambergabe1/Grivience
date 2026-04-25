@@ -1,11 +1,13 @@
 package io.papermc.Grivience.listener;
 
 import io.papermc.Grivience.GriviencePlugin;
+import io.papermc.Grivience.item.CustomToolType;
 import io.papermc.Grivience.stats.SkyblockCombatEngine;
 import io.papermc.Grivience.util.DropDeliveryUtil;
 import io.papermc.Grivience.util.FarmingSetBonusUtil;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Item;
@@ -15,6 +17,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -56,6 +60,9 @@ public final class FarmingFortuneListener implements Listener {
             return;
         }
 
+        // Process custom hoe counter
+        processCustomHoeCounter(player, blockType);
+
         double farmingFortune = resolveFarmingFortune(player);
         if (!Double.isFinite(farmingFortune) || farmingFortune <= 0.0D) {
             return;
@@ -80,20 +87,95 @@ public final class FarmingFortuneListener implements Listener {
         addToDropEntities(event, primaryDrop, extra);
     }
 
+    private void processCustomHoeCounter(Player player, Material blockType) {
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held == null || held.getType().isAir() || !held.hasItemMeta()) {
+            return;
+        }
+        ItemMeta meta = held.getItemMeta();
+        NamespacedKey itemIdKey = new NamespacedKey(plugin, "custom-item-id");
+        if (!meta.getPersistentDataContainer().has(itemIdKey, PersistentDataType.STRING)) {
+            return;
+        }
+        String id = meta.getPersistentDataContainer().get(itemIdKey, PersistentDataType.STRING);
+        CustomToolType toolType = CustomToolType.parse(id);
+        if (toolType == null) {
+            return;
+        }
+
+        boolean matchesCrop = false;
+        switch (toolType) {
+            case EUCLIDS_WHEAT_HOE -> matchesCrop = blockType == Material.WHEAT;
+            case GAUSS_CARROT_HOE -> matchesCrop = blockType == Material.CARROTS;
+            case PYTHAGOREAN_POTATO_HOE -> matchesCrop = blockType == Material.POTATOES;
+            case TURING_SUGAR_CANE_HOE -> matchesCrop = blockType == Material.SUGAR_CANE;
+            case NEWTON_NETHER_WARTS_HOE -> matchesCrop = blockType == Material.NETHER_WART;
+            case MELON_DICER -> matchesCrop = blockType == Material.MELON;
+            case PUMPKIN_DICER -> matchesCrop = blockType == Material.PUMPKIN;
+            default -> {}
+        }
+
+        if (matchesCrop) {
+            NamespacedKey counterKey = new NamespacedKey(plugin, "crop-counter");
+            int current = meta.getPersistentDataContainer().getOrDefault(counterKey, PersistentDataType.INTEGER, 0);
+            int updated = current + 1;
+            meta.getPersistentDataContainer().set(counterKey, PersistentDataType.INTEGER, updated);
+            held.setItemMeta(meta);
+            plugin.getCustomItemService().updateFarmingToolLore(held.getItemMeta());
+            // Since updateFarmingToolLore modifies the meta again but doesn't return it, we need to re-apply the update.
+            // Wait, CustomItemService.updateItemLore handles it better.
+            ItemStack updatedItem = plugin.getCustomItemService().updateItemLore(held);
+            player.getInventory().setItemInMainHand(updatedItem);
+        }
+    }
+
     private double resolveFarmingFortune(Player player) {
         if (plugin == null) {
             return 0.0D;
         }
+        double baseFortune = 0.0D;
         SkyblockCombatEngine engine = plugin.getSkyblockCombatEngine();
-        if (engine == null) {
-            // Fallback: base fortune (level + skill) plus vanilla Fortune-enchant contribution.
-            if (plugin.getSkyblockStatsManager() == null) {
-                return regularFortuneFarmingBonus(player);
-            }
-            return Math.max(0.0D, plugin.getSkyblockStatsManager().getFarmingFortune(player))
+        if (engine != null) {
+            baseFortune = Math.max(0.0D, engine.stats(player).farmingFortune());
+        } else if (plugin.getSkyblockStatsManager() != null) {
+            baseFortune = Math.max(0.0D, plugin.getSkyblockStatsManager().getFarmingFortune(player))
                     + regularFortuneFarmingBonus(player);
+        } else {
+            baseFortune = regularFortuneFarmingBonus(player);
         }
-        return Math.max(0.0D, engine.stats(player).farmingFortune());
+        
+        // Add custom hoe extra fortune
+        baseFortune += customHoeFarmingFortuneBonus(player);
+        
+        return baseFortune;
+    }
+
+    private double customHoeFarmingFortuneBonus(Player player) {
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held == null || held.getType().isAir() || !held.hasItemMeta()) {
+            return 0.0D;
+        }
+        ItemMeta meta = held.getItemMeta();
+        NamespacedKey itemIdKey = new NamespacedKey(plugin, "custom-item-id");
+        if (!meta.getPersistentDataContainer().has(itemIdKey, PersistentDataType.STRING)) {
+            return 0.0D;
+        }
+        String id = meta.getPersistentDataContainer().get(itemIdKey, PersistentDataType.STRING);
+        CustomToolType toolType = CustomToolType.parse(id);
+        if (toolType == null) {
+            return 0.0D;
+        }
+
+        NamespacedKey counterKey = new NamespacedKey(plugin, "crop-counter");
+        int counter = meta.getPersistentDataContainer().getOrDefault(counterKey, PersistentDataType.INTEGER, 0);
+        
+        if (counter >= 10000000) return 100.0D;
+        if (counter >= 1000000) return 80.0D;
+        if (counter >= 100000) return 60.0D;
+        if (counter >= 10000) return 40.0D;
+        if (counter > 0) return 20.0D;
+        
+        return 0.0D;
     }
 
     private double regularFortuneFarmingBonus(Player player) {

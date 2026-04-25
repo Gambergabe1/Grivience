@@ -86,7 +86,7 @@ public final class SkyblockCombatStatsService {
 
     public SkyblockPlayerStats compute(Player player) {
         if (player == null) {
-            return new SkyblockPlayerStats(baseHealth, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+            return new SkyblockPlayerStats(baseHealth, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
         }
 
         double health = baseHealth;
@@ -104,6 +104,8 @@ public final class SkyblockCombatStatsService {
         double critDamage = baseStatsManager == null ? 0.0D : Math.max(0.0D, baseStatsManager.getCritDamage(player));
         double intelligence = baseStatsManager == null ? 0.0D : Math.max(0.0D, baseStatsManager.getIntelligence(player));
         double farmingFortune = baseStatsManager == null ? 0.0D : Math.max(0.0D, baseStatsManager.getFarmingFortune(player));
+        double miningFortune = baseStatsManager == null ? 0.0D : Math.max(0.0D, baseStatsManager.getMiningFortune(player));
+        double foragingFortune = baseStatsManager == null ? 0.0D : Math.max(0.0D, baseStatsManager.getForagingFortune(player));
 
         EquipmentBonuses equipment = equipmentBonuses(player);
         health += equipment.health;
@@ -113,6 +115,8 @@ public final class SkyblockCombatStatsService {
         critDamage += equipment.critDamagePercent;
         intelligence += equipment.intelligence;
         farmingFortune += equipment.farmingFortune;
+        miningFortune += equipment.miningFortune;
+        foragingFortune += equipment.foragingFortune;
 
         WeaponBonuses weapon = heldWeaponBonuses(player);
         strength += weapon.strength;
@@ -225,8 +229,10 @@ public final class SkyblockCombatStatsService {
         critDamage = Math.max(0.0D, critDamage);
         intelligence = Math.max(0.0D, intelligence);
         farmingFortune = Math.max(0.0D, farmingFortune);
+        miningFortune = Math.max(0.0D, miningFortune);
+        foragingFortune = Math.max(0.0D, foragingFortune);
 
-        return new SkyblockPlayerStats(health, defense, strength, critChance, critDamage, intelligence, farmingFortune);
+        return new SkyblockPlayerStats(health, defense, strength, critChance, critDamage, intelligence, farmingFortune, miningFortune, foragingFortune);
     }
 
     private int countNearbyPets(Player player, String petId, double radius) {
@@ -419,7 +425,7 @@ public final class SkyblockCombatStatsService {
                 customArmorPieceCounts.getOrDefault(FarmingSetBonusUtil.WARTWOVEN_REGALIA_SET_ID, 0)
         );
 
-        return new EquipmentBonuses(health, defense, strength, critChance, critDamage, intelligence, farmingFortune);
+        return new EquipmentBonuses(health, defense, strength, critChance, critDamage, intelligence, farmingFortune, 0.0D, 0.0D);
     }
 
     private double applyTemporaryDefenseShred(Player player, double defense) {
@@ -457,7 +463,9 @@ public final class SkyblockCombatStatsService {
             double critChancePercent,
             double critDamagePercent,
             double intelligence,
-            double farmingFortune
+            double farmingFortune,
+            double miningFortune,
+            double foragingFortune
     ) {
     }
 

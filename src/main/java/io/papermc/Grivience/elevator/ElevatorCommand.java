@@ -15,10 +15,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ElevatorCommand implements CommandExecutor, TabCompleter {
+    private final io.papermc.Grivience.GriviencePlugin plugin;
     private final ElevatorManager manager;
     private final ElevatorGui gui;
 
-    public ElevatorCommand(ElevatorManager manager, ElevatorGui gui) {
+    public ElevatorCommand(io.papermc.Grivience.GriviencePlugin plugin, ElevatorManager manager, ElevatorGui gui) {
+        this.plugin = plugin;
         this.manager = manager;
         this.gui = gui;
     }
@@ -143,6 +145,25 @@ public class ElevatorCommand implements CommandExecutor, TabCompleter {
             for (Material mat : Material.values()) {
                 if (mat.name().toLowerCase().startsWith(low)) completions.add(mat.name());
                 if (completions.size() > 50) break;
+            }
+        } else if (isAdmin && ((args.length >= 5 && args[0].equalsIgnoreCase("addfloor")) || (args.length >= 4 && args[0].equalsIgnoreCase("setrequirement")))) {
+            // Provide layer names for the requirement
+            String input = String.join(" ", java.util.Arrays.copyOfRange(args, args[0].equalsIgnoreCase("addfloor") ? 4 : 3, args.length)).toLowerCase();
+            
+            List<String> layers = new ArrayList<>();
+            layers.add("none");
+            
+            if (plugin.getMinehubOreListener() != null) {
+                layers.addAll(plugin.getMinehubOreListener().getAllLayerNames());
+            }
+            if (plugin.getEndMinesManager() != null) {
+                layers.addAll(plugin.getEndMinesManager().getAllZoneNames());
+            }
+            
+            for (String layer : layers) {
+                if (layer.toLowerCase().startsWith(input)) {
+                    completions.add(layer);
+                }
             }
         }
         return completions;

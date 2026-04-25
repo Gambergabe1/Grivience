@@ -297,10 +297,19 @@ public class CollectionsManager {
         if (item == null || item.getType().isAir() || item.getAmount() <= 0) {
             return 0;
         }
-        String itemId = CollectionItemIdUtil.trackedItemIdForMaterial(item.getType());
-        if (itemId.isBlank()) {
+
+        // First check for custom item ID
+        String itemId = getCustomItemId(item);
+        
+        // If not a custom item, fall back to material name mapping
+        if (itemId == null || itemId.isBlank()) {
+            itemId = CollectionItemIdUtil.trackedItemIdForMaterial(item.getType());
+        }
+
+        if (itemId == null || itemId.isBlank()) {
             return 0;
         }
+
         return addCollection(player, itemId, item.getAmount());
     }
 

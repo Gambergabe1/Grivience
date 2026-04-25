@@ -193,9 +193,13 @@ public final class TradeListener implements Listener {
             return;
         }
 
-        coinInputByPlayer.remove(player.getUniqueId());
-
         UUID playerId = player.getUniqueId();
+        
+        // If we are currently waiting for coin input, don't cancel the session on close.
+        if (coinInputByPlayer.containsKey(playerId)) {
+            return;
+        }
+
         TradeSession session = tradeManager.getSessionByPlayer(playerId);
         if (session == null || !session.id.equals(holder.getSessionId())) {
             return;
@@ -210,6 +214,12 @@ public final class TradeListener implements Listener {
             if (current == null || !current.id.equals(holder.getSessionId())) {
                 return;
             }
+            
+            // If they are entering coins, don't cancel.
+            if (coinInputByPlayer.containsKey(playerId)) {
+                return;
+            }
+
             Inventory currentTop = player.getOpenInventory().getTopInventory();
             if (TradeGui.isTradeInventory(currentTop)) {
                 TradeGui.TradeHolder currentHolder = (TradeGui.TradeHolder) currentTop.getHolder();
@@ -245,22 +255,30 @@ public final class TradeListener implements Listener {
 
         // Handle on the main thread (trade state + inventory sync).
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            CoinInput input = coinInputByPlayer.get(playerId);
+            CoinInput input = coinInputByPlayer.remove(playerId);
             if (input == null) {
+                return;
+            }
+
+            TradeSession session = tradeManager.getSessionByPlayer(playerId);
+            if (session == null || !session.id.equals(input.sessionId) || session.stage != TradeSession.Stage.TRADE) {
+                player.sendMessage(ChatColor.RED + "You are no longer in that trade.");
                 return;
             }
 
             long now = System.currentTimeMillis();
             if (now > input.expiresAtMs) {
-                coinInputByPlayer.remove(playerId);
                 player.sendMessage(ChatColor.RED + "Coin entry timed out.");
+                tradeManager.syncTradeViews(session);
+                player.openInventory(session.participant(playerId).tradeInventory);
                 return;
             }
 
             String msg = message == null ? "" : message.trim();
             if (msg.equalsIgnoreCase("cancel")) {
-                coinInputByPlayer.remove(playerId);
                 player.sendMessage(ChatColor.YELLOW + "Coin entry cancelled.");
+                tradeManager.syncTradeViews(session);
+                player.openInventory(session.participant(playerId).tradeInventory);
                 return;
             }
 
@@ -269,19 +287,14 @@ public final class TradeListener implements Listener {
             try {
                 coins = Long.parseLong(normalized);
             } catch (NumberFormatException e) {
-                player.sendMessage(ChatColor.RED + "Invalid number. Type a whole number (e.g. 25000), or 'cancel'.");
-                return;
-            }
-
-            TradeSession session = tradeManager.getSessionByPlayer(playerId);
-            if (session == null || !session.id.equals(input.sessionId) || session.stage != TradeSession.Stage.TRADE) {
-                coinInputByPlayer.remove(playerId);
-                player.sendMessage(ChatColor.RED + "You are no longer in that trade.");
+                player.sendMessage(ChatColor.RED + "Invalid number. Coin entry cancelled.");
+                tradeManager.syncTradeViews(session);
+                player.openInventory(session.participant(playerId).tradeInventory);
                 return;
             }
 
             tradeManager.setCoinOffer(player, coins);
-            coinInputByPlayer.remove(playerId);
+            player.openInventory(session.participant(playerId).tradeInventory);
         });
     }
 
@@ -291,9 +304,12 @@ public final class TradeListener implements Listener {
         }
 
         coinInputByPlayer.put(player.getUniqueId(), new CoinInput(session.id, System.currentTimeMillis() + COIN_INPUT_TIMEOUT_MS));
+        player.closeInventory();
+        player.sendMessage("");
         player.sendMessage(ChatColor.GOLD + "Coin Offer");
         player.sendMessage(ChatColor.GRAY + "Type the number of coins to offer in chat (0 to clear).");
         player.sendMessage(ChatColor.DARK_GRAY + "Type 'cancel' to stop.");
+        player.sendMessage("");
     }
 
     private void moveToOfferSlots(Player player, Inventory tradeInventory, ItemStack stack, Inventory clickedInventory, int clickedSlot) {

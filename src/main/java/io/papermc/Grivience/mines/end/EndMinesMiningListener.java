@@ -201,13 +201,6 @@ public final class EndMinesMiningListener implements Listener {
         if (player == null) {
             return;
         }
-        
-        // Deep Pressure Penalty
-        double penalty = miningSystemManager.getDeepPressurePenalty(player);
-        if (penalty > 0 && !hasDeepcoreFullSet(player)) {
-            // Apply Slowness to simulate mining speed reduction (Mining Fatigue is better but more intrusive)
-            player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SLOWNESS, 40, (int)(penalty * 5)));
-        }
 
         if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
             return;

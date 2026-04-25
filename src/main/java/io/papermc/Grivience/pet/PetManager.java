@@ -101,13 +101,25 @@ public final class PetManager implements Listener {
         for (Map.Entry<UUID, ArmorStand> entry : activeVisualPets.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             ArmorStand pet = entry.getValue();
-            
+
             if (player == null || !player.isOnline() || !pet.isValid() || !pet.getWorld().equals(player.getWorld())) {
                 continue;
             }
 
-            Location target = player.getLocation().clone().add(0, 1.2, 0);
-            
+            // Verify helmet (ensure texture is always displayed)
+            if (pet.getEquipment().getHelmet() == null || pet.getEquipment().getHelmet().getType() != Material.PLAYER_HEAD) {
+                String equipped = equippedPet(player);
+                if (equipped != null) {
+                    PetDefinition def = pets.get(equipped);
+                    if (def != null) {
+                        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+                        applyTexture(head, def.headTexture());
+                        pet.getEquipment().setHelmet(head);
+                    }
+                }
+            }
+
+            Location target = player.getLocation().clone().add(0, 1.2, 0);            
             // Offset to the side and slightly behind
             Vector direction = player.getLocation().getDirection().setY(0).normalize();
             Vector side = new Vector(-direction.getZ(), 0, direction.getX()).normalize();
@@ -606,6 +618,9 @@ public final class PetManager implements Listener {
             as.setArms(false);
             as.setCanPickupItems(false);
             as.setCustomNameVisible(true);
+            as.setPersistent(false);
+
+            as.getPersistentDataContainer().set(petIdKey, org.bukkit.persistence.PersistentDataType.STRING, petId);
             
             // Disable ticking if possible for performance
             try {
@@ -664,6 +679,29 @@ public final class PetManager implements Listener {
         String equipped = equippedPet(event.getPlayer());
         if (equipped != null) {
             spawnVisualPet(event.getPlayer(), equipped);
+        }
+    }
+
+    @EventHandler
+    public void onChunkLoad(org.bukkit.event.world.ChunkLoadEvent event) {
+        for (org.bukkit.entity.Entity entity : event.getChunk().getEntities()) {
+            if (entity instanceof ArmorStand as) {
+                if (as.getPersistentDataContainer().has(petIdKey, org.bukkit.persistence.PersistentDataType.STRING)) {
+                    if (!activeVisualPets.containsValue(as)) {
+                        as.remove();
+                    }
+                } else if (!as.isVisible() && as.isSmall() && as.isInvulnerable() && !as.hasGravity()) {
+                    net.kyori.adventure.text.Component name = as.customName();
+                    if (name != null) {
+                        String legacyName = LegacyComponentSerializer.legacyAmpersand().serialize(name);
+                        if (legacyName.contains("[Lvl ") && legacyName.contains("'s ")) {
+                            if (!activeVisualPets.containsValue(as)) {
+                                as.remove();
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1519,30 +1557,57 @@ public final class PetManager implements Listener {
     }
 
     private PlayerProfile buildHeadProfile(String texture) {
+        if (texture == null || texture.isBlank()) return null;
         try {
-            // Using a consistent UUID based on the texture string for better caching
+            // Using a consistent UUID based on the texture string for 100% accurate caching
             UUID uuid = UUID.nameUUIDFromBytes(texture.getBytes(StandardCharsets.UTF_8));
             PlayerProfile profile = Bukkit.createPlayerProfile(uuid, "GriviencePet");
+            PlayerTextures textures = profile.getTextures();
+            
+            String skinUrl = null;
 
             if (texture.startsWith("http")) {
-                PlayerTextures textures = profile.getTextures();
-                textures.setSkin(new URL(texture));
-                profile.setTextures(textures);
+                skinUrl = texture;
+            } else if (isBase64Json(texture)) {
+                // Robust extraction from Base64 JSON
+                String decoded = new String(Base64.getDecoder().decode(texture), StandardCharsets.UTF_8);
+                // Simple pattern matching for "url":"..."
+                int urlIdx = decoded.indexOf("\"url\":\"");
+                if (urlIdx != -1) {
+                    int start = urlIdx + 7;
+                    int end = decoded.indexOf("\"", start);
+                    if (end != -1) skinUrl = decoded.substring(start, end);
+                }
+                
+                // Fallback for different casing
+                if (skinUrl == null) {
+                    urlIdx = decoded.indexOf("\"URL\":\"");
+                    if (urlIdx != -1) {
+                        int start = urlIdx + 7;
+                        int end = decoded.indexOf("\"", start);
+                        if (end != -1) skinUrl = decoded.substring(start, end);
+                    }
+                }
             } else if (texture.length() > 64) {
-                // Assume it might be a direct URL or hash
-                String url = texture.contains("/") ? texture : "http://textures.minecraft.net/texture/" + texture;
-                if (!url.startsWith("http")) url = "http://textures.minecraft.net/texture/" + url;
-                PlayerTextures textures = profile.getTextures();
-                textures.setSkin(new URL(url));
-                profile.setTextures(textures);
+                // Could be a raw Base64 string that isn't JSON, or a long hash
+                // If it doesn't contain a dot (like a domain), assume it's a hash or Base64
+                if (!texture.contains(".")) {
+                    skinUrl = "http://textures.minecraft.net/texture/" + texture;
+                } else {
+                    skinUrl = texture.startsWith("http") ? texture : "http://" + texture;
+                }
             } else {
-                // Assume it's just the hash portion of the URL
-                String url = "http://textures.minecraft.net/texture/" + texture;
-                PlayerTextures textures = profile.getTextures();
-                textures.setSkin(new URL(url));
-                profile.setTextures(textures);
+                // Short string is definitely a hash
+                skinUrl = "http://textures.minecraft.net/texture/" + texture;
             }
-            return profile;
+
+            if (skinUrl != null) {
+                if (!skinUrl.startsWith("http")) skinUrl = "http://" + skinUrl;
+                textures.setSkin(new URL(skinUrl));
+                profile.setTextures(textures);
+                return profile;
+            }
+            return null;
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to build head profile for pet texture: " + e.getMessage());
             return null;
@@ -1551,27 +1616,15 @@ public final class PetManager implements Listener {
 
     private boolean isBase64Json(String text) {
         if (text == null || text.length() < 20) return false;
-        // Check if it looks like Base64 encoded JSON (starts with eyJ0ZXh0...)
         try {
-            String decoded = new String(Base64.getDecoder().decode(text), StandardCharsets.UTF_8);
-            return decoded.contains("\"textures\"") || decoded.contains("\"SKIN\"");
+            byte[] decodedBytes = Base64.getDecoder().decode(text);
+            String decoded = new String(decodedBytes, StandardCharsets.UTF_8);
+            return (decoded.contains("{") && decoded.contains("}")) && 
+                   (decoded.toLowerCase(Locale.ROOT).contains("url") || decoded.toLowerCase(Locale.ROOT).contains("textures"));
         } catch (Exception e) {
             return false;
         }
     }
-
-    private String createBase64Json(UUID uuid, String textureUrl) {
-        try {
-            // Create simplified but compatible Minecraft texture JSON
-            // Some versions are picky about the SKIN object casing
-            String json = "{\"textures\":{\"SKIN\":{\"url\":\"" + textureUrl + "\"}}}";
-            return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private final Map<String, String> textureUrlCache = new HashMap<>();
 
     private void applyTexture(ItemStack item, String texture) {
         if (item == null || texture == null || texture.isBlank()) return;

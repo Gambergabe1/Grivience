@@ -135,8 +135,8 @@ public final class SkyblockScoreboardManager implements Listener {
         defaultBits = Math.max(0L, plugin.getConfig().getLong("scoreboard.custom.bits-default", 0L));
         showTimeLine = plugin.getConfig().getBoolean("scoreboard.custom.show-time-line", false);
         useSkyblockCalendar = plugin.getConfig().getBoolean("scoreboard.custom.use-skyblock-calendar", true);
-        title = plugin.getConfig().getString("scoreboard.custom.title", "&e&lSkyblock");
-        footer = plugin.getConfig().getString("scoreboard.custom.footer", "&eSkyblock");
+        title = plugin.getConfig().getString("scoreboard.custom.title", "&b&lSkyblock");
+        footer = plugin.getConfig().getString("scoreboard.custom.footer", "&bSkyblock");
         defaultObjective = plugin.getConfig().getString("scoreboard.custom.default-objective", "Reach Skyblock Level 5");
         profileLabel = plugin.getConfig().getString("scoreboard.custom.profile-label", "Profile");
 
@@ -529,8 +529,8 @@ public final class SkyblockScoreboardManager implements Listener {
         String endMinesWorld = plugin.getConfig().getString("end-mines.world-name", "skyblock_end_mines");
         String endWorld = plugin.getConfig().getString("skyblock.portal-routing.end.world-name", "world_the_end");
 
-        // Recognize "Hub 2" as "Hub" explicitly if not already covered by hubWorld config
-        if (worldName.equalsIgnoreCase(hubWorld) || worldName.equalsIgnoreCase("Hub 2")) {
+        // Recognize "hub2" as "Hub" explicitly if not already covered by hubWorld config
+        if (worldName.equalsIgnoreCase(hubWorld) || worldName.equalsIgnoreCase("hub2")) {
             return "Hub";
         }
         if (worldName.equalsIgnoreCase(minehubWorld)) {
@@ -614,17 +614,39 @@ public final class SkyblockScoreboardManager implements Listener {
         }
 
         if (plugin.getQuestManager() != null) {
-            var activeQuests = plugin.getQuestManager().activeQuests(player);
+            var questManager = plugin.getQuestManager();
+            var activeQuests = questManager.activeQuests(player);
             if (!activeQuests.isEmpty()) {
                 var quest = activeQuests.get(0);
-                if (!quest.objectives().isEmpty()) {
-                    // Try to find first incomplete objective
-                    var questManager = plugin.getQuestManager();
-                    var progressMap = questManager.activeQuests(player); // This is inefficient but works for now
-                    // For now just show the first one
-                    return ChatColor.YELLOW + "Quest: " + ChatColor.WHITE + quest.objectives().get(0).description();
+                var progress = questManager.getProgress(player, quest.id());
+                
+                if (progress != null && !quest.objectives().isEmpty()) {
+                    // Find first incomplete objective
+                    for (int i = 0; i < quest.objectives().size(); i++) {
+                        var obj = quest.objectives().get(i);
+                        int current = progress.getObjectiveProgress(i);
+                        if (!obj.isComplete(current)) {
+                            return ChatColor.YELLOW + "Quest: " + ChatColor.WHITE + obj.progressLabel(current);
+                        }
+                    }
                 }
-                return ChatColor.YELLOW + "Quest: " + ChatColor.WHITE + stripColor(plugin.getQuestManager().color(quest.displayName()));
+                
+                // Fallback: If no objectives or all complete (but quest not finished yet), show NPC target
+                if (quest.hasTargetNpc()) {
+                    String npcName = quest.targetNpcId().replace('_', ' ');
+                    if (!npcName.isEmpty()) {
+                        StringBuilder sb = new StringBuilder();
+                        for (String word : npcName.split(" ")) {
+                            if (!word.isEmpty()) {
+                                sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)).append(" ");
+                            }
+                        }
+                        npcName = sb.toString().trim();
+                    }
+                    return ChatColor.YELLOW + "Quest: " + ChatColor.WHITE + "Talk to " + npcName;
+                }
+                
+                return ChatColor.YELLOW + "Quest: " + ChatColor.WHITE + stripColor(questManager.color(quest.displayName()));
             }
         }
 

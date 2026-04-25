@@ -79,6 +79,7 @@ public final class CustomItemService {
     private final NamespacedKey drillTankKey;
     private final NamespacedKey dungeonStarsKey;
     private final NamespacedKey dungeonizedKey;
+    private final NamespacedKey cropCounterKey;
 
     private io.papermc.Grivience.item.GrapplingHookManager grapplingHookManager;
 
@@ -99,6 +100,8 @@ public final class CustomItemService {
     private static final String SB_STRENGTH = ChatColor.GRAY + "Strength: " + ChatColor.RED + "+";
     private static final String SB_CRIT_CHANCE = ChatColor.GRAY + "Crit Chance: " + ChatColor.BLUE + "+";
     private static final String SB_CRIT_DAMAGE = ChatColor.GRAY + "Crit Damage: " + ChatColor.BLUE + "+";
+    private static final String SB_MINING_SPEED = ChatColor.GRAY + "Mining Speed: " + ChatColor.GOLD + "+";
+    private static final String SB_BREAKING_POWER = ChatColor.GRAY + "Breaking Power: " + ChatColor.DARK_GREEN + "+";
     private static final String SB_HEALTH = ChatColor.GRAY + "Health: " + ChatColor.RED + "+";
     private static final String SB_DEFENSE = ChatColor.GRAY + "Defense: " + ChatColor.GREEN + "+";
     private static final String SB_MANA = ChatColor.GRAY + "Intelligence: " + ChatColor.AQUA + "+";
@@ -148,11 +151,12 @@ public final class CustomItemService {
         this.drillTankKey = new NamespacedKey(plugin, "drill-tank");
         this.dungeonStarsKey = new NamespacedKey(plugin, "dungeon-stars");
         this.dungeonizedKey = new NamespacedKey(plugin, "dungeonized");
+        this.cropCounterKey = new NamespacedKey(plugin, "crop-counter");
         resetDropDefaults();
     }
 
     public void reloadFromConfig() {
-        itemStyle = ItemStyle.parse(plugin.getConfig().getString("custom-items.style", "JAPANESE"));
+        itemStyle = ItemStyle.parse(plugin.getConfig().getString("custom-items.style", "SKYBLOCK"));
         resetDropDefaults();
 
         ConfigurationSection dropSection = plugin.getConfig().getConfigurationSection("custom-items.drops");
@@ -407,6 +411,18 @@ public final class CustomItemService {
 
     public ItemStyle itemStyle() {
         return itemStyle;
+    }
+
+    String styleItemName(String original, ItemRarity rarity, boolean weapon) {
+        return styledName(original, rarity, weapon);
+    }
+
+    List<String> styleItemLore(List<String> lore, boolean weapon) {
+        return styledLore(lore, weapon);
+    }
+
+    List<String> enchantLore(Map<Enchantment, Integer> enchants) {
+        return enchantLoreLines(enchants);
     }
 
     public ItemStack createWeapon(CustomWeaponType type) {
@@ -2068,14 +2084,14 @@ public final class CustomItemService {
                     ChatColor.BLUE + "" + ChatColor.BOLD + "RARE DRILL FUEL"
             );
             case SAPPHIRE -> material(
-                    Material.BLUE_DYE,
+                    Material.PLAYER_HEAD,
                     ChatColor.AQUA + "Sapphire",
                     "SAPPHIRE",
                     ChatColor.GRAY + "A beautiful blue gemstone found deep underground.",
                     ChatColor.BLUE + "" + ChatColor.BOLD + "RARE GEMSTONE"
             );
             case ENCHANTED_SAPPHIRE -> material(
-                    Material.BLUE_DYE,
+                    Material.PLAYER_HEAD,
                     ChatColor.DARK_PURPLE + "Enchanted Sapphire",
                     "ENCHANTED_SAPPHIRE",
                     ChatColor.GRAY + "A highly compressed, magical sapphire.",
@@ -2453,82 +2469,124 @@ public final class CustomItemService {
     }
 
     public ItemStack createTool(CustomToolType type) {
-        return switch (type) {
-            // --- PICKAXES ---
-            case IRONCREST_PICKAXE -> weapon(
-                    Material.IRON_PICKAXE,
-                    ChatColor.GOLD + "Ironcrest Pickaxe",
-                    "IRONCREST_PICKAXE",
-                    List.of(SB_ATTACK_SPEED + "10%", ChatColor.GRAY + "Mining Speed: " + ChatColor.GREEN + "+250"),
-                    "Ore Seeker",
-                    "Grants +20 Mining Fortune for 10s after breaking an ore.",
-                    0, 30.0,
-                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE",
-                    "PICKAXE",
-                    Map.of(Enchantment.EFFICIENCY, 5, Enchantment.FORTUNE, 2)
-            );
-            case VOID_STEEL_PICKAXE -> weapon(
-                    Material.NETHERITE_PICKAXE,
-                    ChatColor.DARK_PURPLE + "Void-Steel Pickaxe",
-                    "VOID_STEEL_PICKAXE",
-                    List.of(SB_STRENGTH + "20", ChatColor.GRAY + "Mining Speed: " + ChatColor.GREEN + "+400"),
-                    "Dimension Break",
-                    "Deals double damage to End-based mining blocks.",
-                    0, 0,
-                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC",
-                    "PICKAXE",
-                    Map.of(Enchantment.EFFICIENCY, 6, Enchantment.FORTUNE, 3)
-            );
-            case TITAN_BREAKER -> weapon(
-                    Material.NETHERITE_PICKAXE,
-                    ChatColor.RED + "Titan Breaker",
-                    "TITAN_BREAKER",
-                    List.of(SB_STRENGTH + "50", ChatColor.GRAY + "Mining Speed: " + ChatColor.GREEN + "+600"),
-                    "Shatter",
-                    "Instantly breaks any block with Breaking Power 7 or less.",
-                    100, 10.0,
-                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY",
-                    "PICKAXE",
-                    Map.of(Enchantment.EFFICIENCY, 7, Enchantment.FORTUNE, 4)
-            );
+        return createTool(type, null);
+    }
 
-            // --- FARMING TOOLS ---
-            case GILDED_HOE -> weapon(
-                    Material.GOLDEN_HOE,
-                    ChatColor.GOLD + "Gilded Hoe",
-                    "GILDED_HOE",
-                    List.of(ChatColor.GRAY + "Farming Fortune: " + ChatColor.GOLD + "+40"),
-                    "Midas Touch",
-                    "Small chance to find Gold Nuggets while harvesting crops.",
-                    0, 0,
-                    ChatColor.BLUE + "" + ChatColor.BOLD + "RARE",
-                    "HOE",
-                    Map.of(Enchantment.UNBREAKING, 3)
-            );
-            case NEWTONIAN_HOE -> weapon(
-                    Material.DIAMOND_HOE,
-                    ChatColor.AQUA + "Newtonian Hoe",
-                    "NEWTONIAN_HOE",
-                    List.of(ChatColor.GRAY + "Farming Fortune: " + ChatColor.GOLD + "+80"),
-                    "Gravity Harvest",
-                    "Harvests crops in a 3x3 area around the broken block.",
-                    20, 0,
-                    ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EPIC",
-                    "HOE",
-                    Map.of(Enchantment.UNBREAKING, 5)
-            );
-            case GAIA_SCYTHE -> weapon(
-                    Material.NETHERITE_HOE,
-                    ChatColor.GREEN + "Gaia Scythe",
-                    "GAIA_SCYTHE",
-                    List.of(ChatColor.GRAY + "Farming Fortune: " + ChatColor.GOLD + "+150", SB_HEALTH + "100"),
-                    "Earth's Blessing",
-                    "Regenerates 1% of your max HP per crop harvested.",
-                    0, 0,
-                    ChatColor.GOLD + "" + ChatColor.BOLD + "LEGENDARY",
-                    "HOE",
-                    Map.of(Enchantment.UNBREAKING, 10)
-            );
+    public ItemStack createTool(CustomToolType type, Player viewer) {
+        Material material = switch (type) {
+            case TITAN_BREAKER, VOID_STEEL_PICKAXE -> Material.NETHERITE_PICKAXE;
+            case GILDED_HOE -> Material.GOLDEN_HOE;
+            case NEWTONIAN_HOE -> Material.DIAMOND_HOE;
+            case GAIA_SCYTHE -> Material.NETHERITE_HOE;
+            default -> Material.IRON_PICKAXE;
+        };
+
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, type.name());
+        meta.setDisplayName(type.name().replace("_", " ")); // Will be styled in update
+
+        if (isPickaxe(type)) {
+            updatePickaxeLore(meta, viewer);
+        }
+
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_UNBREAKABLE);
+        meta.setUnbreakable(true);
+        item.setItemMeta(meta);
+        return updateItemLore(item);
+    }
+
+    private boolean isPickaxe(CustomToolType type) {
+        return type == CustomToolType.IRONCREST_PICKAXE || type == CustomToolType.VOID_STEEL_PICKAXE || type == CustomToolType.TITAN_BREAKER;
+    }
+
+    private boolean isFarmingTool(CustomToolType type) {
+        return type == CustomToolType.MATHEMATICAL_HOE_BLUEPRINT ||
+               type == CustomToolType.EUCLIDS_WHEAT_HOE ||
+               type == CustomToolType.GAUSS_CARROT_HOE ||
+               type == CustomToolType.PYTHAGOREAN_POTATO_HOE ||
+               type == CustomToolType.TURING_SUGAR_CANE_HOE ||
+               type == CustomToolType.NEWTON_NETHER_WARTS_HOE ||
+               type == CustomToolType.MELON_DICER ||
+               type == CustomToolType.PUMPKIN_DICER;
+    }
+
+    public void updateFarmingToolLore(ItemMeta meta) {
+        if (meta == null) return;
+        String id = meta.getPersistentDataContainer().get(itemIdKey, PersistentDataType.STRING);
+        CustomToolType toolType = CustomToolType.parse(id);
+        if (toolType == null) return;
+
+        List<String> lore = new ArrayList<>();
+        
+        if (toolType == CustomToolType.MATHEMATICAL_HOE_BLUEPRINT) {
+            lore.add(ChatColor.GRAY + "Used to craft advanced farming tools.");
+            lore.add("");
+            lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "UNCOMMON ITEM");
+            meta.setLore(styledLore(lore, false));
+            return;
+        }
+
+        int counter = meta.getPersistentDataContainer().getOrDefault(cropCounterKey, PersistentDataType.INTEGER, 0);
+
+        ItemRarity rarity = ItemRarity.COMMON;
+        int fortune = 0;
+        
+        if (counter >= 10000000) {
+            rarity = ItemRarity.MYTHIC;
+            fortune = 100;
+        } else if (counter >= 1000000) {
+            rarity = ItemRarity.LEGENDARY;
+            fortune = 80;
+        } else if (counter >= 100000) {
+            rarity = ItemRarity.EPIC;
+            fortune = 60;
+        } else if (counter >= 10000) {
+            rarity = ItemRarity.RARE;
+            fortune = 40;
+        } else if (counter > 0) {
+            rarity = ItemRarity.UNCOMMON;
+            fortune = 20;
+        }
+
+        if (toolType == CustomToolType.MELON_DICER || toolType == CustomToolType.PUMPKIN_DICER) {
+            fortune += 10; // extra base
+        }
+
+        lore.add(ChatColor.GRAY + "Farming Fortune: " + ChatColor.GOLD + "+" + fortune);
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Counter: " + ChatColor.YELLOW + formatInt(counter));
+        
+        if (toolType == CustomToolType.MELON_DICER) {
+            lore.add("");
+            lore.add(ChatColor.GOLD + "Ability: Roll the Dice");
+            lore.add(ChatColor.GRAY + "Has a chance to drop up to 64x melons!");
+        } else if (toolType == CustomToolType.PUMPKIN_DICER) {
+            lore.add("");
+            lore.add(ChatColor.GOLD + "Ability: Roll the Dice");
+            lore.add(ChatColor.GRAY + "Has a chance to drop up to 64x pumpkins!");
+        }
+        
+        lore.add("");
+        lore.add(rarity.color() + "" + ChatColor.BOLD + rarity.name() + " TOOL");
+
+        meta.setLore(styledLore(lore, false));
+    }
+
+    private String formatPartName(String id) {
+        if (id == null) return "None";
+        return switch (id) {
+            case "BASIC_ENGINE" -> "Basic Engine";
+            case "MITHRIL_ENGINE" -> "Mithril Engine";
+            case "TITANIUM_ENGINE" -> "Titanium Engine";
+            case "GEMSTONE_ENGINE" -> "Gemstone Engine";
+            case "DIVAN_ENGINE" -> "Divan Engine";
+            case "SMALL_TANK" -> "Small Tank";
+            case "MEDIUM_FUEL_TANK" -> "Medium Fuel Tank";
+            case "LARGE_FUEL_TANK" -> "Large Fuel Tank";
+            default -> id.replace("_", " ");
         };
     }
 
@@ -2739,10 +2797,10 @@ public final class CustomItemService {
                 }
             }
             if (manaCost > 0) {
-                lore.add(ChatColor.DARK_GRAY + "Mana Cost: " + ChatColor.AQUA + manaCost);
+                lore.add(manaCostLine(manaCost));
             }
             if (cooldown > 0) {
-                lore.add(ChatColor.DARK_GRAY + "Cooldown: " + ChatColor.GREEN + cooldown + "s");
+                lore.add(cooldownLine(cooldown));
             }
         }
 
@@ -2797,10 +2855,10 @@ public final class CustomItemService {
                 }
             }
             if (manaCost > 0) {
-                lore.add(ChatColor.DARK_GRAY + "Mana Cost: " + ChatColor.AQUA + manaCost);
+                lore.add(manaCostLine(manaCost));
             }
             if (cooldown > 0) {
-                lore.add(ChatColor.DARK_GRAY + "Cooldown: " + ChatColor.GREEN + cooldown + "s");
+                lore.add(cooldownLine(cooldown));
             }
         }
 
@@ -2856,9 +2914,11 @@ public final class CustomItemService {
         // 2. Ability
         if (abilityName != null && !abilityName.isEmpty()) {
             lore.add("");
-            lore.add(ChatColor.GOLD + "Ability: " + abilityName + " " + ChatColor.YELLOW + ChatColor.BOLD + "FULL SET");
+            lore.add(ChatColor.GOLD + "Full Set Bonus: " + ChatColor.WHITE + abilityName);
             if (abilityDesc != null && !abilityDesc.isEmpty()) {
-                lore.add(ChatColor.GRAY + abilityDesc);
+                for (String line : abilityDesc.split("\n")) {
+                    lore.add(ChatColor.GRAY + line);
+                }
             }
         }
         
@@ -2938,7 +2998,7 @@ public final class CustomItemService {
         List<String> lore = new ArrayList<>();
         lore.addAll(stats);
         lore.add("");
-        lore.add(ChatColor.GOLD + "Ability: " + abilityName);
+        lore.add(ChatColor.GOLD + "Full Set Bonus: " + ChatColor.WHITE + abilityName);
         lore.addAll(abilityDescription);
         lore.add("");
         lore.addAll(flavorLines);
@@ -3035,6 +3095,10 @@ public final class CustomItemService {
                 applyTexture(skullMeta, "324d23f0-bb3e-750a-e4fe-10a2a8490e8a", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzI0ZDIzZjBiYjNlNzUwYWU0ZmUxMGEyYTg0OTBlOGEwMjg4MDZiOGE5NTRjNDU3YmUzNzlkMDJiN2Q0NjUwMiJ9fX0=", null);
             } else if (effectiveId.equals("ENCHANTED_TITANIUM")) {
                 applyTexture(skullMeta, "704baabf-7ef8-5482-5aae-1992e4a75ff7", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNzA0YmFhYmY3ZWY4NTQ4MjVhYWUxOTkyZTRhNzVmZjcyODZlZDE2NTRkOGYxYTA4OTUyZTdiODY2OWNmNjkyZCJ9fX0=", null);
+            } else if (effectiveId.equals("SAPPHIRE")) {
+                applyTexture(skullMeta, "cfcebe54-dbc3-45ea-7e22-206f703e6b33", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2ZjZWJlNTRkYmMzNDVlYTdlMjIyMDZmNzAzZTZiMzNiZWZiZTk1YjZhOTE4YmQxNzU0Yjc2MTg4YmM2NWJiNSJ9fX0=", null);
+            } else if (effectiveId.equals("ENCHANTED_SAPPHIRE")) {
+                applyTexture(skullMeta, "8a0af99e-8d87-4319-a847-a55268cf5ef4", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOGEwYWY5OWU4ZDg3MDMxOTRhODQ3YTU1MjY4Y2Y1ZWY0YWM0ZWIzYjI0YzBlZDg2NTUxMzM5ZDEwYjY0NjUyOSJ9fX0=", null);
             }
         }
 
@@ -3200,6 +3264,21 @@ public final class CustomItemService {
 
     private boolean isStarSymbol(char c) {
         return c == '✪' || c == '★' || c == '☆';
+    }
+
+    private String manaCostLine(int mana) {
+        return ChatColor.GRAY + "Mana Cost: " + ChatColor.AQUA + mana;
+    }
+
+    private String cooldownLine(double cooldownSeconds) {
+        return ChatColor.GRAY + "Cooldown: " + ChatColor.GREEN + formatSeconds(cooldownSeconds) + "s";
+    }
+
+    private String formatSeconds(double cooldownSeconds) {
+        if (Math.rint(cooldownSeconds) == cooldownSeconds) {
+            return Integer.toString((int) cooldownSeconds);
+        }
+        return Double.toString(cooldownSeconds);
     }
 
     private List<String> styledLore(List<String> lore, boolean weapon) {
@@ -3501,10 +3580,10 @@ public final class CustomItemService {
             lines.add(ChatColor.GRAY + descLine);
         }
         if (mana > 0) {
-            lines.add(ChatColor.DARK_GRAY + "Mana Cost: " + ChatColor.AQUA + mana);
+            lines.add(manaCostLine(mana));
         }
         if (cooldown > 0) {
-            lines.add(ChatColor.DARK_GRAY + "Cooldown: " + ChatColor.GREEN + cooldown + "s");
+            lines.add(cooldownLine(cooldown));
         }
         return lines;
     }
@@ -3573,6 +3652,10 @@ public final class CustomItemService {
     }
 
     public void updateDrillLore(ItemMeta meta) {
+        updateDrillLore(meta, null);
+    }
+
+    public void updateDrillLore(ItemMeta meta, Player viewer) {
         if (meta == null) return;
         var pdc = meta.getPersistentDataContainer();
 
@@ -3591,6 +3674,16 @@ public final class CustomItemService {
 
         DrillStatProfile.Profile profile = DrillStatProfile.resolve(drillId, engine, tank);
         int maxFuel = profile.maxFuel();
+        
+        int totalSpeed = profile.miningSpeed();
+        int totalPower = profile.breakingPower();
+        
+        if (viewer != null && plugin instanceof io.papermc.Grivience.GriviencePlugin gPlugin) {
+            if (gPlugin.getCustomArmorManager() != null) {
+                totalSpeed += gPlugin.getCustomArmorManager().totalMiningSpeedBonus(viewer);
+                totalPower += gPlugin.getCustomArmorManager().totalBreakingPowerBonus(viewer);
+            }
+        }
 
         // Ensure max fuel is updated in PDC if tank changed
         pdc.set(drillFuelMaxKey, PersistentDataType.INTEGER, maxFuel);
@@ -3603,8 +3696,8 @@ public final class CustomItemService {
         }
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Mining Speed: " + ChatColor.GREEN + "+" + profile.miningSpeed());
-        lore.add(ChatColor.GRAY + "Breaking Power: " + ChatColor.AQUA + profile.breakingPower());
+        lore.add(ChatColor.GRAY + "Mining Speed: " + ChatColor.GOLD + "+" + totalSpeed + (viewer != null ? "" : " (Base)"));
+        lore.add(ChatColor.GRAY + "Breaking Power: " + ChatColor.DARK_GREEN + totalPower + (viewer != null ? "" : " (Base)"));
         lore.add(ChatColor.GRAY + "Fuel Burn: " + ChatColor.YELLOW + profile.fuelCostPerBlock() + ChatColor.GRAY + "/block");
         lore.add(ChatColor.GRAY + "Drill Burst: " + ChatColor.AQUA + "Haste " + roman(profile.abilityAmplifier() + 1)
                 + ChatColor.GRAY + " for " + ChatColor.AQUA + (profile.abilityDurationTicks() / 20) + "s");
@@ -3649,19 +3742,67 @@ public final class CustomItemService {
         return "Fuel Capacity " + formatInt(tuning.maxFuel()) + "\nLonger runs before refueling.";
     }
 
-    private String formatPartName(String id) {
-        if (id == null) return "None";
-        return switch (id) {
-            case "BASIC_ENGINE" -> "Basic Engine";
-            case "MITHRIL_ENGINE" -> "Mithril Engine";
-            case "TITANIUM_ENGINE" -> "Titanium Engine";
-            case "GEMSTONE_ENGINE" -> "Gemstone Engine";
-            case "DIVAN_ENGINE" -> "Divan Engine";
-            case "SMALL_TANK" -> "Small Tank";
-            case "MEDIUM_FUEL_TANK" -> "Medium Fuel Tank";
-            case "LARGE_FUEL_TANK" -> "Large Fuel Tank";
-            default -> id.replace("_", " ");
+    public void updatePickaxeLore(ItemMeta meta) {
+        updatePickaxeLore(meta, null);
+    }
+
+    public void updatePickaxeLore(ItemMeta meta, Player viewer) {
+        if (meta == null) return;
+        String id = meta.getPersistentDataContainer().get(itemIdKey, PersistentDataType.STRING);
+        CustomToolType toolType = CustomToolType.parse(id);
+        if (toolType == null) return;
+
+        int baseSpeed = switch (toolType) {
+            case TITAN_BREAKER -> 600;
+            case VOID_STEEL_PICKAXE -> 400;
+            case IRONCREST_PICKAXE -> 250;
+            default -> 0;
         };
+        int basePower = DrillStatProfile.breakingPowerFor(id);
+
+        int totalSpeed = baseSpeed;
+        int totalPower = basePower;
+
+        if (viewer != null && plugin instanceof io.papermc.Grivience.GriviencePlugin gPlugin) {
+            if (gPlugin.getCustomArmorManager() != null) {
+                totalSpeed += gPlugin.getCustomArmorManager().totalMiningSpeedBonus(viewer);
+                totalPower += gPlugin.getCustomArmorManager().totalBreakingPowerBonus(viewer);
+            }
+        }
+
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Mining Speed: " + ChatColor.GOLD + "+" + totalSpeed + (viewer != null ? "" : " (Base)"));
+        lore.add(ChatColor.GRAY + "Breaking Power: " + ChatColor.DARK_GREEN + totalPower + (viewer != null ? "" : " (Base)"));
+        
+        // Add ability info based on tool type
+        switch (toolType) {
+            case IRONCREST_PICKAXE -> {
+                lore.add("");
+                lore.add(ChatColor.GOLD + "Ability: Ore Seeker");
+                lore.add(ChatColor.GRAY + "Grants +20 Mining Fortune for 10s after breaking an ore.");
+            }
+            case VOID_STEEL_PICKAXE -> {
+                lore.add("");
+                lore.add(ChatColor.GOLD + "Ability: Dimension Break");
+                lore.add(ChatColor.GRAY + "Deals double damage to End-based mining blocks.");
+            }
+            case TITAN_BREAKER -> {
+                lore.add("");
+                lore.add(ChatColor.GOLD + "Ability: Shatter " + ChatColor.YELLOW + ChatColor.BOLD + "RIGHT CLICK");
+                lore.add(ChatColor.GRAY + "Instantly breaks any block with Breaking Power 7 or less.");
+                lore.add(cooldownLine(10.0D));
+            }
+        }
+
+        lore.add("");
+        ItemRarity rarity = switch (toolType) {
+            case TITAN_BREAKER -> ItemRarity.LEGENDARY;
+            case VOID_STEEL_PICKAXE -> ItemRarity.EPIC;
+            default -> ItemRarity.RARE;
+        };
+        lore.add(rarity.color() + "" + ChatColor.BOLD + rarity.name() + " PICKAXE");
+
+        meta.setLore(styledLore(lore, false));
     }
 
     public NamespacedKey getDrillEngineKey() { return drillEngineKey; }

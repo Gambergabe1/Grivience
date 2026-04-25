@@ -569,12 +569,13 @@ public final class Island implements ConfigurationSerializable {
         if (!center.getWorld().getName().equalsIgnoreCase(location.getWorld().getName())) return false;
 
         // Island boundaries should be based on block coordinates to be consistent
-        int halfSize = size / 2;
-        int centerX = center.getBlockX();
-        int centerZ = center.getBlockZ();
+        // We use a 0.5 buffer to avoid edge-of-block precision issues.
+        double halfSize = (size / 2.0) + 0.5;
+        double centerX = center.getX();
+        double centerZ = center.getZ();
         
-        int dx = Math.abs(location.getBlockX() - centerX);
-        int dz = Math.abs(location.getBlockZ() - centerZ);
+        double dx = Math.abs(location.getX() - centerX);
+        double dz = Math.abs(location.getZ() - centerZ);
 
         return dx <= halfSize && dz <= halfSize;
     }

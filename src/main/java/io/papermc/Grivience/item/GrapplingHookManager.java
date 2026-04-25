@@ -331,6 +331,14 @@ public final class GrapplingHookManager {
      * Create a Ascent Skyblock-accurate grappling hook item.
      */
     public ItemStack createHookItem(GrapplingHookType hookType) {
+        CustomItemService itemService = plugin.getCustomItemService();
+        if (itemService != null) {
+            ItemStack canonical = itemService.createGrapplingHook(hookType);
+            if (canonical != null) {
+                return canonical;
+            }
+        }
+
         ItemStack item = new ItemStack(Material.FISHING_ROD);
         ItemMeta meta = item.getItemMeta();
         

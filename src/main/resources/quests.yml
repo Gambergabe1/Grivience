@@ -9,16 +9,18 @@ quests:
   village_greeting:
     display-name: "&aVillage Greeting"
     description: "Talk to the village elder to begin your journey."
+    world: Hub
     starter-npc: "elder_start"
     target-npc: "elder_finish"
     rewards:
-      - "eco give {player} 1000"
+      - "coinsadmin purse give {player} 1000"
     repeatable: false
     enabled: true
 
   mining_apprentice:
     display-name: "&bMining Apprentice"
     description: "Prove your worth by collecting some basic ores."
+    world: Hub
     prerequisites:
       - village_greeting
     objectives:
@@ -33,7 +35,7 @@ quests:
         amount: 16
         description: "Collect 16 Iron Ingots"
     rewards:
-      - "eco give {player} 5000"
+      - "coinsadmin purse give {player} 5000"
       - "give {player} stone_pickaxe 1 efficiency:1"
     repeatable: false
     enabled: true
@@ -41,6 +43,7 @@ quests:
   combat_training:
     display-name: "&cCombat Training"
     description: "The local guards need help thinning the zombie population."
+    world: Hub
     prerequisites:
       - village_greeting
     objectives:
@@ -50,26 +53,29 @@ quests:
         amount: 10
         description: "Kill 10 Zombies"
     rewards:
-      - "eco give {player} 2000"
+      - "coinsadmin purse give {player} 2000"
       - "xp add {player} 500 levels"
     repeatable: true
     enabled: true
 
   ironcrest_part1_arrival:
     display-name: "&fIroncrest: Arrival"
-    description: "Welcome to the Minehub! Speak with the Mine Inspector to learn about advanced drilling."
-    starter-npc: "inspector"
-    target-npc: "inspector"
+    description: "Welcome to the Minehub! Speak with the City Inspector to learn about advanced drilling."
+    world: Minehub
+    starter-npc: "7"
+    target-npc: "7"
     rewards:
-      - "eco give {player} 500"
+      - "coinsadmin purse give {player} 500"
     repeatable: false
     enabled: true
 
   ironcrest_part2_coal:
     display-name: "&fIroncrest: Powering Up"
-    description: "The drill needs a steady fuel source. Collect Coal to help power the local forge."
+    description: "The drill needs a steady fuel source. Collect Coal and bring it to the City Inspector."
+    world: Minehub
     prerequisites:
       - ironcrest_part1_arrival
+    target-npc: city_inspector
     objectives:
       obj0:
         type: COLLECT_ITEMS
@@ -77,15 +83,17 @@ quests:
         amount: 64
         description: "Collect 64 Coal"
     rewards:
-      - "eco give {player} 1000"
+      - "coinsadmin purse give {player} 1000"
     repeatable: false
     enabled: true
 
   ironcrest_part3_iron:
     display-name: "&fIroncrest: Metal Scraps"
-    description: "We need raw iron to cast the drill's main chassis. Gather Iron Ingots from the veins."
+    description: "We need raw iron to cast the drill's main chassis. Gather Iron Ingots and return to the City Inspector."
+    world: Minehub
     prerequisites:
       - ironcrest_part2_coal
+    target-npc: city_inspector
     objectives:
       obj0:
         type: COLLECT_ITEMS
@@ -93,29 +101,32 @@ quests:
         amount: 64
         description: "Collect 64 Iron Ingots"
     rewards:
-      - "eco give {player} 1500"
+      - "coinsadmin purse give {player} 1500"
     repeatable: false
     enabled: true
 
   ironcrest_part4_fragments:
     display-name: "&fIroncrest: Reinforcement"
-    description: "Basic iron isn't enough. Hunt rare ores to find fragments for the drill bit."
+    description: "Basic iron isn't enough. Emeralds are known for their structural stability. Bring 32 to the City Inspector."
+    world: Minehub
     prerequisites:
       - ironcrest_part3_iron
+    target-npc: city_inspector
     objectives:
       obj0:
         type: COLLECT_ITEMS
-        target: ORE_FRAGMENT
-        amount: 16
-        description: "Collect 16 Ore Fragments"
+        target: EMERALD
+        amount: 32
+        description: "Collect 32 Emeralds"
     rewards:
-      - "eco give {player} 2000"
+      - "coinsadmin purse give {player} 2000"
     repeatable: false
     enabled: true
 
   ironcrest_part5_assembly:
     display-name: "&fIroncrest: The Masterpiece"
     description: "The materials are ready! Bring them to the Blacksmith to receive your Ironcrest Drill."
+    world: Minehub
     prerequisites:
       - ironcrest_part4_fragments
     starter-npc: "blacksmith"

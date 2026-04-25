@@ -2,6 +2,7 @@ package io.papermc.Grivience.auction.gui;
 
 import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.auction.AuctionBid;
+import io.papermc.Grivience.auction.AuctionCategory;
 import io.papermc.Grivience.auction.AuctionItem;
 import io.papermc.Grivience.auction.AuctionManager;
 import io.papermc.Grivience.skyblock.profile.SkyBlockProfile;
@@ -28,8 +29,19 @@ public class AuctionGuiManager implements Listener {
         this.auctionManager = auctionManager;
     }
 
+    public void openMainMenu(Player player) {
+        AuctionMainMenuGui gui = new AuctionMainMenuGui(player);
+        player.openInventory(gui.getInventory());
+    }
+
     public void openBrowser(Player player) {
         AuctionBrowserGui gui = new AuctionBrowserGui(player, auctionManager);
+        player.openInventory(gui.getInventory());
+    }
+
+    public void openBrowser(Player player, AuctionCategory category) {
+        AuctionBrowserGui gui = new AuctionBrowserGui(player, auctionManager);
+        gui.setCategoryFilter(category);
         player.openInventory(gui.getInventory());
     }
 
@@ -54,22 +66,42 @@ public class AuctionGuiManager implements Listener {
 
         InventoryHolder holder = event.getInventory().getHolder();
         
-        if (holder instanceof AuctionBrowserGui gui) {
+        if (holder instanceof AuctionMainMenuGui) {
             event.setCancelled(true);
-            if (event.getRawSlot() == 48) {
+            int slot = event.getRawSlot();
+            if (slot == 11) openBrowser(player, AuctionCategory.WEAPONS);
+            else if (slot == 12) openBrowser(player, AuctionCategory.ARMOR);
+            else if (slot == 13) openBrowser(player, AuctionCategory.ACCESSORIES);
+            else if (slot == 14) openBrowser(player, AuctionCategory.CONSUMABLES);
+            else if (slot == 15) openBrowser(player, AuctionCategory.BLOCKS);
+            else if (slot == 16) openBrowser(player, AuctionCategory.TOOLS_MISC);
+            else if (slot == 31) openBrowser(player);
+            else if (slot == 50) openManage(player);
+            else if (slot == 49) player.closeInventory();
+        }
+        else if (holder instanceof AuctionBrowserGui gui) {
+            event.setCancelled(true);
+            int slot = event.getRawSlot();
+            
+            if (slot == 1) gui.cycleSort();
+            else if (slot == 3) gui.cycleType();
+            else if (slot == 7) gui.cycleCategory();
+            else if (slot == 48) {
                 if (gui.getPage() > 0) {
                     gui.setPage(gui.getPage() - 1);
                 }
-            } else if (event.getRawSlot() == 50) {
-                gui.setPage(gui.getPage() + 1);
-            } else if (event.getRawSlot() == 49) {
-                openManage(player);
-            } else if (event.getRawSlot() >= 10 && event.getRawSlot() < 44) {
+            } else if (slot == 50) {
+                if ((gui.getPage() + 1) * 28 < gui.getFilteredAuctions().size()) {
+                    gui.setPage(gui.getPage() + 1);
+                }
+            } else if (slot == 49) {
+                openMainMenu(player);
+            } else if (slot >= 10 && slot < 44 && slot % 9 != 0 && slot % 9 != 8) {
                 // Clicked an auction
                 ItemStack clicked = event.getCurrentItem();
-                if (clicked != null && clicked.getType() != Material.AIR) {
-                    int listIndex = gui.getPage() * 28 + getIndexFromSlot(event.getRawSlot());
-                    List<AuctionItem> auctions = gui.getAuctions();
+                if (clicked != null && clicked.getType() != Material.AIR && clicked.getType() != Material.GRAY_STAINED_GLASS_PANE) {
+                    int listIndex = gui.getPage() * 28 + getIndexFromSlot(slot);
+                    List<AuctionItem> auctions = gui.getFilteredAuctions();
                     if (listIndex >= 0 && listIndex < auctions.size()) {
                         openInspect(player, auctions.get(listIndex));
                     }
@@ -138,14 +170,22 @@ public class AuctionGuiManager implements Listener {
         }
         else if (holder instanceof AuctionManageGui gui) {
             event.setCancelled(true);
-            if (event.getRawSlot() == 49) {
-                openBrowser(player);
-            } else if (event.getRawSlot() == 48) {
+            int slot = event.getRawSlot();
+            if (slot == 49) {
+                openMainMenu(player);
+            } else if (slot == 48) {
                 openCreate(player);
-            } else if (event.getRawSlot() >= 10 && event.getRawSlot() < 44) {
-                ItemStack clicked = event.getCurrentItem();
-                if (clicked != null && clicked.getType() != Material.AIR) {
-                    int listIndex = getIndexFromSlot(event.getRawSlot());
+            } else {
+                int[] slots = {20, 21, 22, 23, 24, 29, 30, 31, 32, 33};
+                int listIndex = -1;
+                for (int i = 0; i < slots.length; i++) {
+                    if (slots[i] == slot) {
+                        listIndex = i;
+                        break;
+                    }
+                }
+                
+                if (listIndex != -1) {
                     List<AuctionItem> myAuctions = gui.getMyAuctions();
                     if (listIndex >= 0 && listIndex < myAuctions.size()) {
                         AuctionItem item = myAuctions.get(listIndex);
@@ -175,17 +215,20 @@ public class AuctionGuiManager implements Listener {
         else if (holder instanceof AuctionCreateGui gui) {
             if (event.getRawSlot() < event.getInventory().getSize()) {
                 event.setCancelled(true);
+                int slot = event.getRawSlot();
                 
-                if (event.getRawSlot() == 13 && gui.getItemToAuction() != null) {
+                if (slot == 13 && gui.getItemToAuction() != null) {
                     player.getInventory().addItem(gui.getItemToAuction());
                     gui.setItemToAuction(null);
-                } else if (event.getRawSlot() == 29) {
-                    gui.changePrice(event.getClick() == ClickType.RIGHT ? -100 : 100);
-                } else if (event.getRawSlot() == 31) {
+                } else if (slot == 29) {
+                    long delta = event.isShiftClick() ? 10000 : 500;
+                    gui.changePrice(event.getClick().isRightClick() ? -delta : delta);
+                } else if (slot == 31) {
+                    long delta = event.isShiftClick() ? 24 : 1;
+                    gui.changeDuration(event.getClick().isRightClick() ? -delta : delta);
+                } else if (slot == 33) {
                     gui.toggleType();
-                } else if (event.getRawSlot() == 33) {
-                    gui.changeDuration(event.getClick() == ClickType.RIGHT ? -1 : 1);
-                } else if (event.getRawSlot() == 49) {
+                } else if (slot == 48) {
                     if (gui.getItemToAuction() == null) {
                         player.sendMessage(ChatColor.RED + "You must place an item to auction!");
                         return;
@@ -195,7 +238,9 @@ public class AuctionGuiManager implements Listener {
                     auctionManager.addAuction(newAuction);
                     gui.setItemToAuction(null);
                     player.sendMessage(ChatColor.GREEN + "Auction created successfully!");
-                    openBrowser(player);
+                    openMainMenu(player);
+                } else if (slot == 49) {
+                    openMainMenu(player);
                 }
             } else {
                 // Clicked bottom inventory, put item into slot 13

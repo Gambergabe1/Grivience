@@ -140,7 +140,39 @@ public final class MiningItemListener implements Listener {
     public void onBlockBreak(org.bukkit.event.block.BlockBreakEvent event) {
         Player player = event.getPlayer();
         if (player == null) return;
+        
+        org.bukkit.block.Block block = event.getBlock();
+        String worldName = block.getWorld().getName();
+        
+        // --- WORLD SCOPING ---
+        // Breaking Power and Drill Fuel should only apply in Mining Hub and End Mines.
+        String minehubWorld = plugin.getConfig().getString("skyblock.minehub-world", "Minehub");
+        String endMinesWorld = plugin.getConfig().getString("end-mines.world-name", "skyblock_end_mines");
+        
+        boolean inMiningArea = worldName.equalsIgnoreCase(minehubWorld) || worldName.equalsIgnoreCase("Minehub") ||
+                               worldName.equalsIgnoreCase(endMinesWorld) || 
+                               (plugin.getEndMinesManager() != null && worldName.equalsIgnoreCase(plugin.getEndMinesManager().getWorldName()));
+        
+        if (!inMiningArea) {
+            return; // Normal vanilla behavior outside mining areas
+        }
+
+        int requiredPower = getRequiredBreakingPower(block);
+        
         ItemStack hand = player.getInventory().getItemInMainHand();
+        int playerPower = getBreakingPower(player, hand);
+        
+        if (playerPower < requiredPower) {
+            event.setCancelled(true);
+            player.sendActionBar(ChatColor.RED + "Breaking Power " + requiredPower + " Required!");
+            if (shouldSendDrillWarning(player, 1_500L)) {
+                player.sendMessage(ChatColor.RED + "This material requires a stronger tool! " + 
+                        ChatColor.GRAY + "(Required: " + requiredPower + ", You: " + playerPower + ")");
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.5f);
+            }
+            return;
+        }
+
         if (hand == null || !hand.hasItemMeta()) return;
         var meta = hand.getItemMeta();
         if (meta == null) return;
@@ -173,6 +205,96 @@ public final class MiningItemListener implements Listener {
         itemService.updateDrillLore(meta);
         hand.setItemMeta(meta);
         sendDrillTelemetry(player, hand, newFuel, max, fuelCost);
+    }
+
+    private int getBreakingPower(Player player, ItemStack item) {
+        int base = 0;
+        if (item != null && !item.getType().isAir()) {
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                String customId = meta.getPersistentDataContainer().get(customItemIdKey, PersistentDataType.STRING);
+                if (customId != null) {
+                    base = DrillStatProfile.breakingPowerFor(customId);
+                } else {
+                    base = getVanillaBreakingPower(item.getType());
+                }
+            } else {
+                base = getVanillaBreakingPower(item.getType());
+            }
+        }
+        
+        // Add armor bonuses
+        if (plugin.getCustomArmorManager() != null) {
+            base += plugin.getCustomArmorManager().totalBreakingPowerBonus(player);
+        }
+        
+        return base;
+    }
+
+    private int getVanillaBreakingPower(Material mat) {
+        return switch (mat) {
+            case NETHERITE_PICKAXE -> 4;
+            case DIAMOND_PICKAXE -> 3;
+            case IRON_PICKAXE -> 2;
+            case GOLDEN_PICKAXE -> 2;
+            case STONE_PICKAXE -> 1;
+            case WOODEN_PICKAXE -> 0;
+            default -> 0;
+        };
+    }
+
+    private int getRequiredBreakingPower(org.bukkit.block.Block block) {
+        Material type = block.getType();
+        
+        // Only apply Breaking Power to identified Mining Materials
+        if (!isMiningMaterial(type)) {
+            return 0;
+        }
+
+        // --- End Mines Materials ---
+        if (type == Material.AMETHYST_CLUSTER) return 7; // Kunzite (Titanium Drill+)
+        if (type == Material.REINFORCED_DEEPSLATE) return 8; // Obsidian Core (Gemstone Drill+)
+        if (type == Material.END_STONE) return 4; // Endstone Shards (Netherite Pickaxe+)
+        
+        // --- Mining Hub Custom Ores (Represented by repurposed blocks) ---
+        
+        // Titanium (Requires Starter Drill - Ironcrest)
+        if (type == Material.LIGHT_GRAY_STAINED_GLASS || type == Material.LIGHT_GRAY_WOOL || type == Material.GRAY_CONCRETE) {
+            return 5;
+        }
+        
+        // Sapphire
+        if (type == Material.BLUE_STAINED_GLASS || type == Material.BLUE_STAINED_GLASS_PANE || type == Material.BLUE_CONCRETE_POWDER) {
+            return 6;
+        }
+
+        // --- Mining Hub "Block" Nodes ---
+        if (type == Material.LAPIS_BLOCK) return 3;
+        if (type == Material.GOLD_BLOCK) return 4;
+        if (type == Material.REDSTONE_BLOCK) return 4;
+        if (type == Material.EMERALD_BLOCK) return 6;
+        if (type == Material.DIAMOND_BLOCK) return 7;
+        if (type == Material.OBSIDIAN) return 7;
+        
+        return 0; 
+    }
+
+    private boolean isMiningMaterial(Material mat) {
+        String name = mat.name();
+        // Vanilla Ores are EXEMPT (Breaking Power 0)
+        if (name.contains("_ORE")) {
+            return false;
+        }
+
+        // Custom "Ores" and Mining System Materials
+        return name.contains("_BLOCK") || 
+               mat == Material.OBSIDIAN || 
+               mat == Material.AMETHYST_CLUSTER ||
+               mat == Material.REINFORCED_DEEPSLATE ||
+               mat == Material.END_STONE ||
+               name.contains("STAINED_GLASS") || 
+               name.contains("CONCRETE") ||
+               name.contains("WOOL"); // For special Mining Hub fillers
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

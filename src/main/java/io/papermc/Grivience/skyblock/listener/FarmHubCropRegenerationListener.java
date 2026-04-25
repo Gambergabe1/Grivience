@@ -52,7 +52,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -95,24 +98,41 @@ import org.bukkit.scheduler.BukkitTask;
 public final class FarmHubCropRegenerationListener
 implements Listener {
     private static final long PROTECTION_MESSAGE_THROTTLE_MS = 1200L;
-    private static final List<ManagedAreaProfile> MANAGED_AREAS = List.of(new ManagedAreaProfile("farmhub", "Farm Hub", "skyblock.farmhub-crop-area.", "skyblock.farmhub-world", "skyblock.farmhub-crop-regen.", "skyblock.farmhub-crop-growth.", "skyblock.farmhub-farmland.", "skyblock.farmhub-maintenance.", "skyblock.farmhub-tree-regen.", "grivience.farmhub.build"), new ManagedAreaProfile("hub", "Hub", "skyblock.hub-crop-area.", "skyblock.hub-world", "skyblock.hub-crop-regen.", "skyblock.hub-crop-growth.", "skyblock.hub-farmland.", "skyblock.hub-maintenance.", "skyblock.hub-tree-regen.", "grivience.hub.build"), new ManagedAreaProfile("oaklys", "Oaklys Wood Depo", "skyblock.oaklys-wood-depo.", "skyblock.hub-world", "skyblock.oaklys-wood-regen.", "skyblock.oaklys-wood-growth.", "skyblock.oaklys-wood-farmland.", "skyblock.oaklys-wood-maintenance.", "skyblock.oaklys-wood-regen.", "grivience.oaklys.build"));
+    private static final List<ManagedAreaProfile> MANAGED_AREAS = List.of(
+        new ManagedAreaProfile("farmhub", "Farm Hub", "skyblock.farmhub-crop-area.", "skyblock.farmhub-world", "skyblock.farmhub-crop-regen.", "skyblock.farmhub-crop-growth.", "skyblock.farmhub-farmland.", "skyblock.farmhub-maintenance.", "skyblock.farmhub-tree-regen.", "grivience.farmhub.build"),
+        new ManagedAreaProfile("hub", "Hub", "skyblock.hub-crop-area.", "skyblock.hub-world", "skyblock.hub-crop-regen.", "skyblock.hub-crop-growth.", "skyblock.hub-farmland.", "skyblock.hub-maintenance.", "skyblock.hub-tree-regen.", "grivience.hub.build"),
+        new ManagedAreaProfile("oaklys", "Oaklys Wood Depo", "skyblock.oaklys-wood-depo.", "skyblock.farmhub-world", "skyblock.oaklys-wood-regen.", "skyblock.oaklys-wood-growth.", "skyblock.oaklys-wood-farmland.", "skyblock.oaklys-wood-maintenance.", "skyblock.oaklys-wood-regen.", "grivience.oaklys.build")
+    );
     private static final Set<Material> REGENERATING_CROPS = EnumSet.of(Material.WHEAT, new Material[]{Material.CARROTS, Material.POTATOES, Material.BEETROOTS, Material.NETHER_WART, Material.COCOA, Material.SUGAR_CANE, Material.CACTUS, Material.BAMBOO, Material.KELP, Material.KELP_PLANT, Material.SWEET_BERRY_BUSH, Material.MELON, Material.PUMPKIN, Material.MELON_STEM, Material.ATTACHED_MELON_STEM, Material.PUMPKIN_STEM, Material.ATTACHED_PUMPKIN_STEM, Material.TORCHFLOWER_CROP, Material.PITCHER_CROP, Material.PITCHER_PLANT, Material.CHORUS_FLOWER, Material.CHORUS_PLANT});
     private static final Set<Material> EXTRA_FARMABLE_BREAK = EnumSet.of(Material.RED_MUSHROOM, new Material[]{Material.BROWN_MUSHROOM, Material.RED_MUSHROOM_BLOCK, Material.BROWN_MUSHROOM_BLOCK, Material.MUSHROOM_STEM, Material.MANGROVE_PROPAGULE, Material.MANGROVE_ROOTS, Material.MUDDY_MANGROVE_ROOTS, Material.CRIMSON_FUNGUS, Material.WARPED_FUNGUS, Material.NETHER_WART_BLOCK, Material.WARPED_WART_BLOCK});
     private static final Set<Material> EXTRA_FARMABLE_PLACE = EnumSet.of(Material.RED_MUSHROOM, Material.BROWN_MUSHROOM, Material.MANGROVE_PROPAGULE, Material.CRIMSON_FUNGUS, Material.WARPED_FUNGUS);
     private final GriviencePlugin plugin;
     private final BukkitTask areaMaintenanceTask;
+    private final Map<String, AreaBounds> boundsCache = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastProtectionWarnAtMs = new ConcurrentHashMap<UUID, Long>();
     private final Map<String, Long> hydrationTickBudgetByArea = new ConcurrentHashMap<String, Long>();
     private final Map<String, Long> forcedGrowthTickBudgetByArea = new ConcurrentHashMap<String, Long>();
     private final Map<String, Long> maintenanceScanIndexByArea = new ConcurrentHashMap<String, Long>();
-    private final Set<String> pendingTreeBlocks = ConcurrentHashMap.newKeySet();
-    private final Set<String> instantReplantBreaks = ConcurrentHashMap.newKeySet();
+    private final Set<Long> pendingTreeBlocks = ConcurrentHashMap.newKeySet();
+    private final Set<Long> instantReplantBreaks = ConcurrentHashMap.newKeySet();
     private final SkyblockEnchantStorage enchantStorage;
 
     public FarmHubCropRegenerationListener(GriviencePlugin plugin) {
         this.plugin = plugin;
         this.enchantStorage = new SkyblockEnchantStorage((Plugin)plugin);
         this.areaMaintenanceTask = Bukkit.getScheduler().runTaskTimer((Plugin)plugin, () -> this.tickAreaMaintenance(), 40L, 20L);
+    }
+
+    /**
+     * Clears cached area bounds. Call when config reloads.
+     */
+    public void clearCache() {
+        boundsCache.clear();
+    }
+
+    private AreaBounds getCachedBounds(ManagedAreaProfile area) {
+        if (area == null) return null;
+        return boundsCache.computeIfAbsent(area.id(), k -> getAreaBounds(area));
     }
 
     @EventHandler(priority=EventPriority.HIGH, ignoreCancelled=true)
@@ -372,20 +392,33 @@ implements Listener {
         if (event == null || event.getBlock() == null) {
             return;
         }
-        ManagedAreaProfile area = this.resolveManagedArea(event.getBlock().getLocation());
+        Location loc = event.getBlock().getLocation();
+        ManagedAreaProfile area = this.resolveManagedArea(loc);
+        Material type = event.getBlock().getType();
+
+        // Allow standard crops to be broken anywhere in the Hub/Farmhub worlds to avoid "protected" errors
+        if (this.isHubOrFarmHubWorld(loc.getWorld().getName())) {
+            if (REGENERATING_CROPS.contains(type) || EXTRA_FARMABLE_BREAK.contains(type)) {
+                return;
+            }
+        }
+        
         if (area == null) {
-            if (this.isHubOrFarmHubWorld(event.getBlock().getWorld().getName()) && !this.canBypassFarmHubProtection(event.getPlayer(), null)) {
+            if (this.isHubOrFarmHubWorld(loc.getWorld().getName()) && !this.canBypassFarmHubProtection(event.getPlayer(), null)) {
                 event.setCancelled(true);
                 this.warnFarmHubProtection(event.getPlayer(), "The Hub is protected. You can only break blocks in designated resource areas.");
             }
             return;
         }
+        
         if (this.canBypassFarmHubProtection(event.getPlayer(), area)) {
             return;
         }
+        
         if (this.isFarmableBreakType(event.getBlock().getType(), area)) {
             return;
         }
+        
         event.setCancelled(true);
         this.warnFarmHubProtection(event.getPlayer(), this.areaDisplayName(area) + " is protected. Only configured resources can be broken.");
     }
@@ -468,7 +501,9 @@ implements Listener {
     }
 
     private boolean canBypassFarmHubProtection(Player player, ManagedAreaProfile area) {
-        return player != null && (player.hasPermission("grivience.admin") || player.hasPermission(area.bypassPermission()));
+        if (player == null) return false;
+        if (player.hasPermission("grivience.admin")) return true;
+        return area != null && player.hasPermission(area.bypassPermission());
     }
 
     private boolean shouldInstantReplant(Player player, Block block) {
@@ -527,17 +562,24 @@ implements Listener {
     }
 
     private boolean isFarmableBreakType(Material type, ManagedAreaProfile area) {
-        if (type == null || type.isAir()) {
+        if (type == null || type == Material.AIR) {
             return false;
         }
         boolean isCrop = REGENERATING_CROPS.contains(type) || EXTRA_FARMABLE_BREAK.contains(type);
-        boolean isTree = Tag.LOGS.isTagged(type) || Tag.LEAVES.isTagged(type) || Tag.SAPLINGS.isTagged(type);
+        boolean isTree = isTreeBlock(type);
         
-        if (area != null && "oaklys".equalsIgnoreCase(area.id())) {
-            return isTree;
-        }
-        if (area != null && ("farmhub".equalsIgnoreCase(area.id()) || "hub".equalsIgnoreCase(area.id()))) {
-            return isCrop;
+        if (area != null) {
+            String id = area.id().toLowerCase(Locale.ROOT);
+            if ("oaklys".equals(id)) {
+                return isTree;
+            }
+            if ("farmhub".equals(id) || "hub".equals(id)) {
+                // If tree regen is enabled for this area, allow breaking trees too
+                if (isTreeRegenEnabled(area)) {
+                    return isCrop || isTree;
+                }
+                return isCrop;
+            }
         }
         return isCrop || isTree;
     }
@@ -581,47 +623,32 @@ implements Listener {
     }
 
     private ManagedAreaProfile resolveManagedArea(Location location) {
+        if (location == null || location.getWorld() == null) return null;
+        String worldName = location.getWorld().getName();
+        
         for (ManagedAreaProfile area : MANAGED_AREAS) {
-            if (!this.isInManagedArea(location, area)) continue;
-            return area;
+            AreaBounds bounds = getCachedBounds(area);
+            if (bounds == null || bounds.world() == null) continue;
+            
+            if (worldName.equalsIgnoreCase(bounds.world().getName()) &&
+                location.getBlockX() >= bounds.minX() && location.getBlockX() <= bounds.maxX() &&
+                location.getBlockY() >= bounds.minY() && location.getBlockY() <= bounds.maxY() &&
+                location.getBlockZ() >= bounds.minZ() && location.getBlockZ() <= bounds.maxZ()) {
+                return area;
+            }
         }
         return null;
     }
 
     private boolean isInManagedArea(Location location, ManagedAreaProfile area) {
-        if (location == null || location.getWorld() == null) {
-            return false;
-        }
-        if (area == null) {
-            return false;
-        }
-        String areaBase = area.areaBase();
-        if (!this.plugin.getConfig().getBoolean(areaBase + "enabled", false)) {
-            return false;
-        }
-        String worldName = this.plugin.getConfig().getString(areaBase + "world");
-        if (worldName == null || worldName.isBlank()) {
-            worldName = this.plugin.getConfig().getString(area.worldKey(), "world");
-        }
-        if (!location.getWorld().getName().equalsIgnoreCase(worldName)) {
-            return false;
-        }
-        int x1 = this.plugin.getConfig().getInt(areaBase + "pos1.x");
-        int y1 = this.plugin.getConfig().getInt(areaBase + "pos1.y");
-        int z1 = this.plugin.getConfig().getInt(areaBase + "pos1.z");
-        int x2 = this.plugin.getConfig().getInt(areaBase + "pos2.x");
-        int y2 = this.plugin.getConfig().getInt(areaBase + "pos2.y");
-        int z2 = this.plugin.getConfig().getInt(areaBase + "pos2.z");
-        int minX = Math.min(x1, x2);
-        int maxX = Math.max(x1, x2);
-        int minY = Math.min(y1, y2);
-        int maxY = Math.max(y1, y2);
-        int minZ = Math.min(z1, z2);
-        int maxZ = Math.max(z1, z2);
-        int x = location.getBlockX();
-        int y = location.getBlockY();
-        int z = location.getBlockZ();
-        return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
+        if (location == null || area == null || location.getWorld() == null) return false;
+        AreaBounds bounds = getCachedBounds(area);
+        if (bounds == null || bounds.world() == null) return false;
+
+        return location.getWorld().getName().equalsIgnoreCase(bounds.world().getName()) &&
+               location.getBlockX() >= bounds.minX() && location.getBlockX() <= bounds.maxX() &&
+               location.getBlockY() >= bounds.minY() && location.getBlockY() <= bounds.maxY() &&
+               location.getBlockZ() >= bounds.minZ() && location.getBlockZ() <= bounds.maxZ();
     }
 
     private void tickAreaMaintenance() {
@@ -634,18 +661,16 @@ implements Listener {
     }
 
     private void tickAreaMaintenance(ManagedAreaProfile area) {
-        int forcedSteps;
-        long interval;
-        AreaBounds bounds = this.getAreaBounds(area);
-        if (bounds == null) {
-            return;
-        }
+        AreaBounds bounds = getCachedBounds(area);
+        if (bounds == null) return;
+
         long hydrationBudget = this.hydrationTickBudgetByArea.getOrDefault(area.id(), 0L) + 20L;
         long forcedGrowthBudget = this.forcedGrowthTickBudgetByArea.getOrDefault(area.id(), 0L) + 20L;
         boolean runHydration = false;
         boolean runForcedGrowth = false;
+
         if (this.isFarmlandForcedHydrationEnabled(area)) {
-            interval = Math.max(20L, this.plugin.getConfig().getLong(area.farmlandBase() + "hydrate-interval-ticks", 40L));
+            long interval = Math.max(20L, this.plugin.getConfig().getLong(area.farmlandBase() + "hydrate-interval-ticks", 40L));
             if (hydrationBudget >= interval) {
                 runHydration = true;
                 hydrationBudget = 0L;
@@ -653,8 +678,9 @@ implements Listener {
         } else {
             hydrationBudget = 0L;
         }
+
         if (this.isForcedGrowthEnabled(area)) {
-            interval = Math.max(20L, this.plugin.getConfig().getLong(area.growthBase() + "force-interval-ticks", 20L));
+            long interval = Math.max(20L, this.plugin.getConfig().getLong(area.growthBase() + "force-interval-ticks", 20L));
             if (forcedGrowthBudget >= interval) {
                 runForcedGrowth = true;
                 forcedGrowthBudget = 0L;
@@ -662,21 +688,15 @@ implements Listener {
         } else {
             forcedGrowthBudget = 0L;
         }
+
         this.hydrationTickBudgetByArea.put(area.id(), hydrationBudget);
         this.forcedGrowthTickBudgetByArea.put(area.id(), forcedGrowthBudget);
+
         if (!runHydration && !runForcedGrowth) {
             return;
         }
-        long maxHydrationScan = Math.max(1L, this.plugin.getConfig().getLong(area.farmlandBase() + "max-scan-blocks", 350000L));
-        long maxGrowthScan = Math.max(1L, this.plugin.getConfig().getLong(area.growthBase() + "max-scan-blocks", 300000L));
-        long maxAllowedScan = Math.max(maxHydrationScan, maxGrowthScan);
-        if (bounds.volume() > maxAllowedScan) {
-            // empty if block
-        }
-        int n = forcedSteps = runForcedGrowth ? Math.max(1, this.bonusGrowthSteps(area) + 1) : 0;
-        if (runForcedGrowth && forcedSteps <= 0) {
-            forcedSteps = 1;
-        }
+
+        int forcedSteps = runForcedGrowth ? Math.max(1, this.bonusGrowthSteps(area) + 1) : 0;
         this.scanAreaSlice(bounds, area, runHydration, runForcedGrowth, forcedSteps);
     }
 
@@ -684,23 +704,39 @@ implements Listener {
         if (bounds == null || bounds.world() == null || bounds.volume() <= 0L) {
             return;
         }
+        
         long scanBudget = Math.max(500L, this.plugin.getConfig().getLong(area.maintenanceBase() + "scan-blocks-per-run", 50000L));
-        long toProcess = Math.min(bounds.volume(), scanBudget);
-        long maintenanceScanIndex = this.maintenanceScanIndexByArea.getOrDefault(area.id(), 0L);
-        if (maintenanceScanIndex >= bounds.volume()) {
-            maintenanceScanIndex = 0L;
-        }
-        for (long i = 0L; i < toProcess; ++i) {
-            long index = (maintenanceScanIndex + i) % bounds.volume();
-            Block block = this.blockAtIndex(bounds, index);
-            if (block == null) continue;
+        long volume = bounds.volume();
+        long toProcess = Math.min(volume, scanBudget);
+        long currentIndex = this.maintenanceScanIndexByArea.getOrDefault(area.id(), 0L);
+
+        World world = bounds.world();
+        int minX = bounds.minX();
+        int minY = bounds.minY();
+        int minZ = bounds.minZ();
+        long width = bounds.width();
+        long depth = bounds.depth();
+        long layerSize = width * depth;
+
+        for (long i = 0L; i < toProcess; i++) {
+            long index = (currentIndex + i) % volume;
+            
+            // Inline blockAtIndex for speed
+            long yOffset = index / layerSize;
+            long rem = index % layerSize;
+            long zOffset = rem / width;
+            long xOffset = rem % width;
+            
+            Block block = world.getBlockAt(minX + (int)xOffset, minY + (int)yOffset, minZ + (int)zOffset);
+            
             if (runHydration && block.getType() == Material.FARMLAND) {
                 this.forceHydrated(block);
             }
-            if (!runForcedGrowth) continue;
-            this.forceGrowth(block, forcedSteps, area);
+            if (runForcedGrowth) {
+                this.forceGrowth(block, forcedSteps, area);
+            }
         }
-        this.maintenanceScanIndexByArea.put(area.id(), (maintenanceScanIndex + toProcess) % bounds.volume());
+        this.maintenanceScanIndexByArea.put(area.id(), (currentIndex + toProcess) % volume);
     }
 
     private Block blockAtIndex(AreaBounds bounds, long index) {
@@ -911,7 +947,12 @@ implements Listener {
         if (type == null || type.isAir()) {
             return false;
         }
-        return Tag.LOGS.isTagged(type) || Tag.LEAVES.isTagged(type) || Tag.SAPLINGS.isTagged(type);
+        String name = type.name();
+        return Tag.LOGS.isTagged(type) || Tag.LEAVES.isTagged(type) || Tag.SAPLINGS.isTagged(type) ||
+               name.endsWith("_STEM") || name.endsWith("_HYPHAE") ||
+               type == Material.MUSHROOM_STEM || type == Material.RED_MUSHROOM_BLOCK || type == Material.BROWN_MUSHROOM_BLOCK ||
+               type == Material.NETHER_WART_BLOCK || type == Material.WARPED_WART_BLOCK ||
+               type == Material.CRIMSON_FUNGUS || type == Material.WARPED_FUNGUS;
     }
 
     private boolean isPendingTreeBlock(Location location) {
@@ -924,7 +965,7 @@ implements Listener {
         }
         for (BlockSnapshot snapshot : snapshots) {
             if (snapshot == null || snapshot.location() == null) continue;
-            String key = this.blockKey(snapshot.location());
+            long key = this.blockKey(snapshot.location());
             if (pending) {
                 this.pendingTreeBlocks.add(key);
                 continue;
@@ -933,48 +974,87 @@ implements Listener {
         }
     }
 
-    private String blockKey(Location location) {
-        if (location == null || location.getWorld() == null) {
-            return "unknown";
-        }
-        return String.valueOf(location.getWorld().getUID()) + ":" + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ();
+    private long blockKey(Location location) {
+        if (location == null) return 0L;
+        // x(26 bits) | z(26 bits) | y(12 bits)
+        return ((long) location.getBlockX() & 0x3FFFFFFL) << 38 |
+               ((long) location.getBlockZ() & 0x3FFFFFFL) << 12 |
+               ((long) location.getBlockY() & 0xFFFL);
     }
 
     private List<BlockSnapshot> treeSnapshotsFor(Block origin, ManagedAreaProfile area) {
-        ArrayList<BlockSnapshot> snapshots = new ArrayList<BlockSnapshot>();
+        List<BlockSnapshot> snapshots = new ArrayList<>();
         if (origin == null || area == null) {
             return snapshots;
         }
+
+        AreaBounds bounds = getCachedBounds(area);
+        if (bounds == null) return snapshots;
+
         int maxTreeBlocks = Math.max(16, this.plugin.getConfig().getInt(area.treeRegenBase() + "max-tree-blocks", 256));
-        ConcurrentHashMap.KeySetView visited = ConcurrentHashMap.newKeySet();
-        ArrayList<Block> queue = new ArrayList<Block>();
+        Set<Long> visited = new HashSet<>();
+        List<Block> queue = new ArrayList<>();
+        
         queue.add(origin);
         boolean foundLog = false;
         boolean foundLeafOrSapling = false;
-        for (int index = 0; index < queue.size() && snapshots.size() < maxTreeBlocks; ++index) {
-            String key;
-            Block current = (Block)queue.get(index);
-            if (current == null || !this.isInManagedArea(current.getLocation(), area) || !this.isTreeBlock(current.getType()) || !visited.add(key = this.blockKey(current.getLocation()))) continue;
+
+        for (int index = 0; index < queue.size() && snapshots.size() < maxTreeBlocks; index++) {
+            Block current = queue.get(index);
+            long key = blockKey(current.getLocation());
+            
+            if (visited.contains(key)) continue;
+            visited.add(key);
+
+            // Bounds check using cached bounds
+            if (current.getX() < bounds.minX() || current.getX() > bounds.maxX() ||
+                current.getY() < bounds.minY() || current.getY() > bounds.maxY() ||
+                current.getZ() < bounds.minZ() || current.getZ() > bounds.maxZ()) {
+                continue;
+            }
+
+            Material type = current.getType();
+            if (!isTreeBlock(type)) continue;
+
             snapshots.add(new BlockSnapshot(current.getLocation().clone(), current.getBlockData().clone()));
-            if (Tag.LOGS.isTagged(current.getType())) {
+            
+            String name = type.name();
+            if (Tag.LOGS.isTagged(type) || name.endsWith("_STEM") || name.endsWith("_HYPHAE") || type == Material.MUSHROOM_STEM) {
                 foundLog = true;
             }
-            if (Tag.LEAVES.isTagged(current.getType()) || Tag.SAPLINGS.isTagged(current.getType())) {
+            if (Tag.LEAVES.isTagged(type) || Tag.SAPLINGS.isTagged(type) || 
+                type == Material.RED_MUSHROOM_BLOCK || type == Material.BROWN_MUSHROOM_BLOCK || 
+                type == Material.NETHER_WART_BLOCK || type == Material.WARPED_WART_BLOCK ||
+                type == Material.CRIMSON_FUNGUS || type == Material.WARPED_FUNGUS) {
                 foundLeafOrSapling = true;
             }
-            for (int dx = -1; dx <= 1; ++dx) {
-                for (int dy = -1; dy <= 1; ++dy) {
-                    for (int dz = -1; dz <= 1; ++dz) {
-                        Block next;
-                        if (dx == 0 && dy == 0 && dz == 0 || (next = current.getRelative(dx, dy, dz)) == null || !this.isTreeBlock(next.getType()) || !this.isInManagedArea(next.getLocation(), area)) continue;
-                        queue.add(next);
+
+            // Neighbor search
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        if (dx == 0 && dy == 0 && dz == 0) continue;
+                        
+                        Block next = current.getRelative(dx, dy, dz);
+                        if (next.getType().isAir()) continue; // Quick skip
+                        
+                        long nextKey = blockKey(next.getLocation());
+                        if (!visited.contains(nextKey)) {
+                            queue.add(next);
+                        }
                     }
                 }
             }
         }
-        if (!foundLog || !foundLeafOrSapling) {
+        
+        // Validation: Must find at least one log AND some leaves/saplings to be considered a "tree" for regeneration.
+        // SPECIAL CASE: Oakly's Wood Depo always regenerates anything considered a tree block (logs/leaves/saplings).
+        if ("oaklys".equalsIgnoreCase(area.id())) {
+            if (snapshots.isEmpty()) return List.of();
+        } else if (!foundLog || !foundLeafOrSapling) {
             return List.of();
         }
+        
         snapshots.sort(Comparator.comparingInt(s -> s.location().getBlockY()));
         return snapshots;
     }
@@ -1017,6 +1097,11 @@ implements Listener {
                 snapshots.add(this.clearSnapshotOf(top));
             }
             snapshots.sort(Comparator.comparingInt(s -> s.location().getBlockY()));
+            return snapshots;
+        }
+        if (brokenType == Material.MELON || brokenType == Material.PUMPKIN) {
+            snapshots.add(this.clearSnapshotOf(broken));
+            snapshots.add(this.seedlingSnapshotOf(broken, brokenType));
             return snapshots;
         }
         snapshots.add(this.seedlingSnapshotOf(broken, brokenType));

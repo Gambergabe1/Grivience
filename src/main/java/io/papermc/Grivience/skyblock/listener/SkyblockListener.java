@@ -53,8 +53,8 @@ public final class SkyblockListener implements Listener {
         }
 
         if (!islandManager.hasIsland(player)) {
-            // Only auto-generate on a player's first-ever join.
-            if (firstJoin && profileManager != null) {
+            // Auto-generate if they have a profile but no island.
+            if (profileManager != null) {
                 var selectedProfile = profileManager.getSelectedProfile(player);
                 if (selectedProfile != null) {
                     player.sendMessage(ChatColor.YELLOW + "Generating your Skyblock island...");
@@ -72,8 +72,10 @@ public final class SkyblockListener implements Listener {
             player.sendMessage("");
         } else {
             Island island = islandManager.getIsland(player);
-            if (firstJoin) {
-                // VERY first join: always force to island.
+            boolean forceIslandSpawn = plugin.getConfig().getBoolean("skyblock.force-spawn-on-island-on-join", false);
+
+            if (firstJoin || forceIslandSpawn) {
+                // Force to island if first join OR config enabled.
                 Location spawn = islandManager.getSafeSpawnLocation(island);
                 if (spawn != null) {
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -83,31 +85,9 @@ public final class SkyblockListener implements Listener {
                         }
                     }, 2L);
                 }
-            } else {
-                // Returning player: spawn them at the "Map Part" spawn they were in.
-                Location currentLoc = player.getLocation();
-                String worldName = currentLoc.getWorld().getName();
-                
-                Location targetSpawn = null;
-                if (worldName.equals(islandManager.getIslandWorldName())) {
-                    targetSpawn = islandManager.getSafeSpawnLocation(island);
-                } else if (worldName.equalsIgnoreCase("Minehub")) {
-                    targetSpawn = getMinehubSpawn();
-                } else if (worldName.equalsIgnoreCase("skyblock_end_mines")) {
-                    targetSpawn = getEndMinesSpawn();
-                } else if (worldName.equalsIgnoreCase(plugin.getConfig().getString("skyblock.hub-world", "world"))) {
-                    targetSpawn = getHubSpawn();
-                }
-
-                if (targetSpawn != null) {
-                    Location finalTarget = targetSpawn;
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        if (player.isOnline()) {
-                            player.teleport(finalTarget);
-                        }
-                    }, 2L);
-                }
             }
+            // Returning players (firstJoin=false and forceIslandSpawn=false) 
+            // will naturally spawn at their logout location by vanilla logic.
         }
 
         if (firstJoin) {
@@ -236,7 +216,7 @@ public final class SkyblockListener implements Listener {
                 player.sendMessage(ChatColor.GRAY + "Tasks and milestones are listed in the guide menu.");
             }
 
-            plugin.getSkyblockLevelGui().openGuideMenu(player);
+            plugin.getSkyblockLevelGui().openMenu(player, io.papermc.Grivience.gui.SkyblockLevelGui.LevelTab.GUIDE, null);
         }, Math.max(1L, delayTicks));
     }
 

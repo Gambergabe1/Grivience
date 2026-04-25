@@ -51,6 +51,12 @@ public final class MiningDiscoveryListener implements Listener {
             profile.addDiscoveredLayer(layerName);
             player.sendMessage(ChatColor.GOLD + " \u272a " + ChatColor.YELLOW + "New Area Discovered: " + ChatColor.AQUA + ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', layerName)));
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
+
+            // AUTO-START QUEST: Ironcrest Drill
+            // Triggered on first visit to ANY Minehub area.
+            if (worldName.equalsIgnoreCase(minehubWorld) && plugin.getQuestManager() != null) {
+                plugin.getQuestManager().startQuest(player, "ironcrest_part1_arrival", io.papermc.Grivience.quest.QuestTriggerSource.SYSTEM, true);
+            }
         }
     }
 }

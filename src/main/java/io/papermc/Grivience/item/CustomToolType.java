@@ -11,7 +11,15 @@ public enum CustomToolType {
     // Farming Tools
     GILDED_HOE,
     NEWTONIAN_HOE,
-    GAIA_SCYTHE;
+    GAIA_SCYTHE,
+    MATHEMATICAL_HOE_BLUEPRINT,
+    EUCLIDS_WHEAT_HOE,
+    GAUSS_CARROT_HOE,
+    PYTHAGOREAN_POTATO_HOE,
+    TURING_SUGAR_CANE_HOE,
+    NEWTON_NETHER_WARTS_HOE,
+    MELON_DICER,
+    PUMPKIN_DICER;
 
     public static CustomToolType parse(String input) {
         if (input == null || input.isBlank()) {

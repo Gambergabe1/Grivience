@@ -80,6 +80,22 @@ public final class SkyblockSkillManager {
         if (plugin.getPetManager() != null) {
             multiplier *= plugin.getPetManager().getSkillXpMultiplier(player, skill);
         }
+
+        // Apply XP boosts from welcome event
+        if (plugin.getWelcomeManager() != null && plugin.getWelcomeManager().getXPBoostManager() != null) {
+            io.papermc.Grivience.welcome.XPBoostManager.BoostType boostType = switch (skill) {
+                case MINING -> io.papermc.Grivience.welcome.XPBoostManager.BoostType.MINING;
+                case FARMING -> io.papermc.Grivience.welcome.XPBoostManager.BoostType.FARMING;
+                case COMBAT -> io.papermc.Grivience.welcome.XPBoostManager.BoostType.COMBAT;
+                case FORAGING -> io.papermc.Grivience.welcome.XPBoostManager.BoostType.FORAGING;
+                case FISHING -> io.papermc.Grivience.welcome.XPBoostManager.BoostType.FISHING;
+                default -> null;
+            };
+            if (boostType != null) {
+                multiplier = plugin.getWelcomeManager().getXPBoostManager().applyBoost(multiplier, player, boostType);
+            }
+        }
+
         long finalAmount = Math.round(amount * multiplier);
 
         String skillKey = skill.name();
@@ -261,8 +277,13 @@ public final class SkyblockSkillManager {
     }
 
     private SkyBlockProfile getProfile(UUID profileId) {
-        // Fallback for offline lookups or direct ID access
-        if (plugin.getProfileManager() == null) return null;
+        if (plugin.getProfileManager() == null || profileId == null) return null;
+        
+        // Try looking up by Profile ID directly first (most common for skill sync)
+        SkyBlockProfile profile = plugin.getProfileManager().findProfileById(profileId);
+        if (profile != null) return profile;
+        
+        // Fallback: If not a profile ID, maybe it's an owner ID (offline lookup)
         return plugin.getProfileManager().getSelectedProfile(profileId);
     }
 

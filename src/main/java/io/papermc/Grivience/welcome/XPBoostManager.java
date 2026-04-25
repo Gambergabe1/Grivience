@@ -294,6 +294,7 @@ public class XPBoostManager {
      * Apply XP boost with multiplier.
      */
     public double applyBoost(double baseXP, Player player, BoostType type) {
+        if (type == null) return baseXP;
         return switch (type) {
             case MINING -> baseXP * getMiningBoostMultiplier(player);
             case FARMING -> baseXP * getFarmingBoostMultiplier(player);

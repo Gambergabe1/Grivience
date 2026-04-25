@@ -2,6 +2,7 @@ package io.papermc.Grivience.auction.gui;
 
 import io.papermc.Grivience.auction.AuctionItem;
 import io.papermc.Grivience.auction.AuctionManager;
+import io.papermc.Grivience.gui.SkyblockGui;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -38,9 +39,21 @@ public class AuctionManageGui implements InventoryHolder {
     public void update() {
         inventory.clear();
 
-        int slot = 10;
+        // Fill background
+        ItemStack filler = SkyblockGui.filler(Material.GRAY_STAINED_GLASS_PANE);
+        for (int i = 0; i < 54; i++) {
+            inventory.setItem(i, filler);
+        }
+
+        // Info item
+        inventory.setItem(13, SkyblockGui.button(Material.BOOK, ChatColor.GREEN + "Your Auctions", 
+                List.of(ChatColor.GRAY + "View and manage your current", ChatColor.GRAY + "auctions and bids.", "", ChatColor.GRAY + "Auctions: " + ChatColor.YELLOW + myAuctions.size())));
+
+        // Display auctions in the middle
+        int[] slots = {20, 21, 22, 23, 24, 29, 30, 31, 32, 33};
+        int index = 0;
         for (AuctionItem auction : myAuctions) {
-            if (slot > 43) break; // Limit to one page for simplicity
+            if (index >= slots.length) break;
 
             ItemStack displayItem = auction.getItem().clone();
             ItemMeta meta = displayItem.getItemMeta();
@@ -48,7 +61,14 @@ public class AuctionManageGui implements InventoryHolder {
                 List<String> lore = meta.getLore();
                 if (lore == null) lore = new ArrayList<>();
                 lore.add("");
-                lore.add(ChatColor.GRAY + "Status: " + ChatColor.YELLOW + auction.getStatus());
+                
+                String statusColor = switch (auction.getStatus()) {
+                    case ACTIVE -> ChatColor.GREEN.toString();
+                    case SOLD -> ChatColor.GOLD.toString();
+                    case EXPIRED -> ChatColor.RED.toString();
+                };
+                
+                lore.add(ChatColor.GRAY + "Status: " + statusColor + auction.getStatus().name());
                 
                 if (auction.isBin()) {
                     lore.add(ChatColor.GRAY + "Buy it now: " + ChatColor.GOLD + auction.getStartingBid() + " coins");
@@ -59,36 +79,35 @@ public class AuctionManageGui implements InventoryHolder {
                 
                 if (auction.getStatus() == AuctionItem.AuctionStatus.SOLD || auction.getStatus() == AuctionItem.AuctionStatus.EXPIRED) {
                     if (auction.getSeller().equals(player.getUniqueId()) && !auction.isSellerClaimed()) {
-                        lore.add(ChatColor.GREEN + "Click to claim!");
-                    } else if (auction.getHighestBid() != null && auction.getHighestBid().bidder().equals(player.getUniqueId()) && auction.getStatus() == AuctionItem.AuctionStatus.EXPIRED) {
-                        // In real skyblock, you claim items/coins from bids here too, but to keep it simple we assume item is delivered on buy/bid win.
-                        lore.add(ChatColor.YELLOW + "Auction ended.");
+                        lore.add("");
+                        lore.add(ChatColor.YELLOW + "Click to claim!");
                     }
+                } else {
+                    long timeLeft = auction.getEndTime() - System.currentTimeMillis();
+                    lore.add(ChatColor.GRAY + "Ends in: " + ChatColor.YELLOW + formatTime(timeLeft));
                 }
 
                 meta.setLore(lore);
                 displayItem.setItemMeta(meta);
             }
-            inventory.setItem(slot, displayItem);
-
-            if ((slot + 1) % 9 == 8) {
-                slot += 3;
-            } else {
-                slot++;
-            }
+            inventory.setItem(slots[index++], displayItem);
         }
 
-        ItemStack create = new ItemStack(Material.GOLDEN_HORSE_ARMOR); // Horse armor as create
-        ItemMeta createMeta = create.getItemMeta();
-        createMeta.setDisplayName(ChatColor.GREEN + "Create Auction");
-        create.setItemMeta(createMeta);
-        inventory.setItem(48, create);
+        // Create button
+        inventory.setItem(48, SkyblockGui.button(Material.GOLDEN_HORSE_ARMOR, ChatColor.GREEN + "Create Auction", 
+                List.of(ChatColor.GRAY + "Put an item up for auction", ChatColor.GRAY + "to earn some coins.", "", ChatColor.YELLOW + "Click to create!")));
 
-        ItemStack back = new ItemStack(Material.ARROW);
-        ItemMeta backMeta = back.getItemMeta();
-        backMeta.setDisplayName(ChatColor.GREEN + "Back to Browser");
-        back.setItemMeta(backMeta);
-        inventory.setItem(49, back);
+        inventory.setItem(49, SkyblockGui.backButton("Auction House"));
+    }
+
+    private String formatTime(long ms) {
+        if (ms <= 0) return "Ended";
+        long seconds = ms / 1000;
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        if (hours > 0) return hours + "h " + (minutes % 60) + "m";
+        if (minutes > 0) return minutes + "m " + (seconds % 60) + "s";
+        return seconds + "s";
     }
 
     public List<AuctionItem> getMyAuctions() {

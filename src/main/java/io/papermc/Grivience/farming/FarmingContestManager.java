@@ -246,7 +246,7 @@ public final class FarmingContestManager implements Listener {
             UUID profileId = resolveContestProfileId(viewer);
             if (profileId != null) {
                 ProfileContestData data = profileDataById.computeIfAbsent(profileId, ignored -> new ProfileContestData());
-                sender.sendMessage(ChatColor.GRAY + "Tickets: " + ChatColor.AQUA + formatWhole(data.tickets));
+                sender.sendMessage(ChatColor.GRAY + "Cletus Tickets: " + ChatColor.AQUA + formatWhole(data.tickets));
                 sender.sendMessage(ChatColor.GRAY + "Medals: "
                         + ChatColor.GOLD + formatWhole(data.bronzeMedals) + ChatColor.GRAY + " / "
                         + ChatColor.WHITE + formatWhole(data.silverMedals) + ChatColor.GRAY + " / "
@@ -283,7 +283,7 @@ public final class FarmingContestManager implements Listener {
         }
         ProfileContestData data = profileDataById.computeIfAbsent(profileId, ignored -> new ProfileContestData());
         sender.sendMessage(ChatColor.GOLD + "=== Farming Contest Wallet: " + ChatColor.AQUA + targetLabel + ChatColor.GOLD + " ===");
-        sender.sendMessage(ChatColor.GRAY + "Tickets: " + ChatColor.AQUA + formatWhole(data.tickets));
+        sender.sendMessage(ChatColor.GRAY + "Cletus Tickets: " + ChatColor.AQUA + formatWhole(data.tickets));
         sender.sendMessage(ChatColor.GRAY + "Bronze Medals: " + ChatColor.GOLD + formatWhole(data.bronzeMedals));
         sender.sendMessage(ChatColor.GRAY + "Silver Medals: " + ChatColor.WHITE + formatWhole(data.silverMedals));
         sender.sendMessage(ChatColor.GRAY + "Gold Medals: " + ChatColor.YELLOW + formatWhole(data.goldMedals));
@@ -354,6 +354,12 @@ public final class FarmingContestManager implements Listener {
 
     public UUID getResolveContestProfileId(Player player) {
         return resolveContestProfileId(player);
+    }
+
+    public long getCurrency(UUID profileId, ContestCurrency currency) {
+        if (profileId == null || currency == null) return 0L;
+        ProfileContestData data = profileDataById.get(profileId);
+        return data == null ? 0L : currency.get(data);
     }
 
     public boolean setCurrency(UUID profileId, ContestCurrency currency, long amount) {
@@ -456,6 +462,7 @@ public final class FarmingContestManager implements Listener {
         inventory.setItem(30, buildWalletItem(viewerData));
         inventory.setItem(31, buildRulesItem(player));
         inventory.setItem(32, buildScheduleItem(now));
+        inventory.setItem(33, createButton(Material.GOLD_BLOCK, ChatColor.GOLD + "Anita's Shop", List.of(ChatColor.GRAY + "Exchange your Medals and", ChatColor.GRAY + "Tickets for unique tools!"), "shop"));
         inventory.setItem(34, buildPersonalBestItem(viewerData));
         inventory.setItem(48, createButton(Material.ARROW, ChatColor.YELLOW + "Back", List.of(ChatColor.GRAY + "Return to Calendar and Events."), "back"));
         inventory.setItem(49, createButton(Material.BARRIER, ChatColor.RED + "Close", List.of(ChatColor.GRAY + "Close this menu."), "close"));
@@ -520,6 +527,13 @@ public final class FarmingContestManager implements Listener {
         switch (action) {
             case "close" -> player.closeInventory();
             case "refresh" -> openMenu(player);
+            case "shop" -> {
+                if (plugin.getAnitaShopGui() != null) {
+                    plugin.getAnitaShopGui().openMenu(player);
+                } else {
+                    player.sendMessage(ChatColor.RED + "Anita's Shop is currently unavailable.");
+                }
+            }
             case "back" -> {
                 if (plugin.getSkyblockMenuManager() != null) {
                     plugin.getSkyblockMenuManager().openContestsMenu(player);

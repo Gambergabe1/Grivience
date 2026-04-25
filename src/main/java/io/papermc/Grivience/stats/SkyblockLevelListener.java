@@ -175,6 +175,22 @@ public final class SkyblockLevelListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFarmingInteract(org.bukkit.event.player.PlayerInteractEvent event) {
+        if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
+        if (event.getClickedBlock() == null) return;
+
+        Player player = event.getPlayer();
+        if (isBypassedGameMode(player)) return;
+
+        Material type = event.getClickedBlock().getType();
+        if (type == Material.SWEET_BERRY_BUSH || type == Material.COCOA) {
+            if (event.getClickedBlock().getBlockData() instanceof Ageable ageable && ageable.getAge() >= ageable.getMaximumAge()) {
+                levelManager.recordFarmingHarvest(player, type);
+            }
+        }
+    }
+
     private int deliverBonusDrops(Player player, Block block) {
         if (player == null || block == null) {
             return 0;

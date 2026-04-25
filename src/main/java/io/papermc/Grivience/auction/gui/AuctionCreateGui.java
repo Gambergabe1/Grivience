@@ -1,5 +1,6 @@
 package io.papermc.Grivience.auction.gui;
 
+import io.papermc.Grivience.gui.SkyblockGui;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -29,49 +30,44 @@ public class AuctionCreateGui implements InventoryHolder {
 
     public void update() {
         inventory.clear();
+
+        // Fill background
+        ItemStack filler = SkyblockGui.filler(Material.GRAY_STAINED_GLASS_PANE);
+        for (int i = 0; i < 54; i++) {
+            inventory.setItem(i, filler);
+        }
         
         if (itemToAuction != null) {
             inventory.setItem(13, itemToAuction);
+        } else {
+            inventory.setItem(13, null); // Clear if null
         }
 
-        ItemStack priceItem = new ItemStack(Material.GOLD_INGOT);
-        ItemMeta priceMeta = priceItem.getItemMeta();
-        priceMeta.setDisplayName(ChatColor.GOLD + "Price / Starting Bid: " + price);
-        List<String> priceLore = new ArrayList<>();
-        priceLore.add(ChatColor.GRAY + "Left Click: +100");
-        priceLore.add(ChatColor.GRAY + "Right Click: -100");
-        priceMeta.setLore(priceLore);
-        priceItem.setItemMeta(priceMeta);
-        inventory.setItem(29, priceItem);
+        // Price button
+        inventory.setItem(29, SkyblockGui.button(Material.GOLD_INGOT, ChatColor.GOLD + (isBin ? "Buy It Now Price" : "Starting Bid"), 
+                List.of(ChatColor.GRAY + "Price: " + ChatColor.GOLD + price + " coins", "", 
+                        ChatColor.YELLOW + "Left Click: +500", ChatColor.YELLOW + "Right Click: -500",
+                        ChatColor.AQUA + "Shift + Left Click: +10000", ChatColor.AQUA + "Shift + Right Click: -10000")));
 
-        ItemStack typeItem = new ItemStack(isBin ? Material.NAME_TAG : Material.PAPER);
-        ItemMeta typeMeta = typeItem.getItemMeta();
-        typeMeta.setDisplayName(ChatColor.YELLOW + "Auction Type: " + (isBin ? "BIN" : "Auction"));
-        List<String> typeLore = new ArrayList<>();
-        typeLore.add(ChatColor.GRAY + "Click to toggle");
-        typeMeta.setLore(typeLore);
-        typeItem.setItemMeta(typeMeta);
-        inventory.setItem(31, typeItem);
+        // Duration button
+        inventory.setItem(31, SkyblockGui.button(Material.CLOCK, ChatColor.GOLD + "Duration", 
+                List.of(ChatColor.GRAY + "Current: " + ChatColor.YELLOW + durationHours + " hours", "", 
+                        ChatColor.YELLOW + "Left Click: +1h", ChatColor.YELLOW + "Right Click: -1h",
+                        ChatColor.AQUA + "Shift + Left Click: +24h", ChatColor.AQUA + "Shift + Right Click: -24h")));
 
-        ItemStack durationItem = new ItemStack(Material.CLOCK);
-        ItemMeta durationMeta = durationItem.getItemMeta();
-        durationMeta.setDisplayName(ChatColor.AQUA + "Duration: " + durationHours + " hours");
-        List<String> durationLore = new ArrayList<>();
-        durationLore.add(ChatColor.GRAY + "Left Click: +1h");
-        durationLore.add(ChatColor.GRAY + "Right Click: -1h");
-        durationMeta.setLore(durationLore);
-        durationItem.setItemMeta(durationMeta);
-        inventory.setItem(33, durationItem);
+        // Type button
+        inventory.setItem(33, SkyblockGui.button(isBin ? Material.GOLD_BLOCK : Material.ANVIL, ChatColor.GOLD + "Auction Type", 
+                List.of(ChatColor.GRAY + "Current: " + ChatColor.YELLOW + (isBin ? "BIN (Buy It Now)" : "Auction"), "", ChatColor.YELLOW + "Click to toggle!")));
 
-        ItemStack createItem = new ItemStack(Material.EMERALD_BLOCK);
-        ItemMeta createMeta = createItem.getItemMeta();
-        createMeta.setDisplayName(ChatColor.GREEN + "Create Auction");
-        createItem.setItemMeta(createMeta);
-        inventory.setItem(49, createItem);
+        // Create button
+        inventory.setItem(48, SkyblockGui.button(Material.EMERALD, ChatColor.GREEN + "Create Auction", 
+                List.of(ChatColor.GRAY + "Submit your auction to the house.", "", ChatColor.YELLOW + "Click to create!")));
+
+        inventory.setItem(49, SkyblockGui.backButton("Auction House"));
     }
 
     public void changePrice(long delta) {
-        this.price = Math.max(1, this.price + delta);
+        this.price = Math.max(10, this.price + delta);
         update();
     }
 

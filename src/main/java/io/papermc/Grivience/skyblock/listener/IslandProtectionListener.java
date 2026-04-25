@@ -1,5 +1,6 @@
 package io.papermc.Grivience.skyblock.listener;
 
+import io.papermc.Grivience.GriviencePlugin;
 import io.papermc.Grivience.skyblock.command.IslandBypassCommand;
 import io.papermc.Grivience.skyblock.island.Island;
 import io.papermc.Grivience.skyblock.island.IslandManager;
@@ -8,6 +9,8 @@ import io.papermc.Grivience.trade.TradeGui;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.WorldBorder;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -16,9 +19,9 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
@@ -34,15 +37,14 @@ import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.vehicle.VehicleDamageEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
-
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.WorldBorder;
+import org.bukkit.Sound;
 
 import java.util.EnumSet;
 import java.util.Map;
@@ -53,10 +55,12 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Comprehensive island protection listener.
  * Prevents visitors from harming blocks, entities, or players on other players' islands.
+ * Ensures owners and members have full vanilla freedom.
  */
 public final class IslandProtectionListener implements Listener {
     private static final long MESSAGE_THROTTLE_MS = 1200L;
 
+    private final GriviencePlugin plugin;
     private final IslandManager islandManager;
     private IslandBypassCommand bypassCommand;
     private final Set<Material> protectedInteract;
@@ -64,7 +68,8 @@ public final class IslandProtectionListener implements Listener {
     private final Map<UUID, Long> lastWarnAtMs = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> lastIslandByPlayer = new ConcurrentHashMap<>();
 
-    public IslandProtectionListener(IslandManager islandManager) {
+    public IslandProtectionListener(GriviencePlugin plugin, IslandManager islandManager) {
+        this.plugin = plugin;
         this.islandManager = islandManager;
         this.protectedInteract = buildProtectedInteract();
         this.protectedEntities = buildProtectedEntities();
@@ -77,6 +82,7 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
         if (event.getFrom().getBlockX() == event.getTo().getBlockX() &&
+            event.getFrom().getBlockY() == event.getTo().getBlockY() &&
             event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
             return;
         }
@@ -95,6 +101,16 @@ public final class IslandProtectionListener implements Listener {
 
     private void updateWorldBorder(Player player, Location loc) {
         if (islandManager == null) return;
+        
+        // ADMIN BYPASS: Admins don't get restricted by world borders
+        if (hasBypass(player)) {
+            if (lastIslandByPlayer.containsKey(player.getUniqueId())) {
+                player.setWorldBorder(null);
+                lastIslandByPlayer.remove(player.getUniqueId());
+            }
+            return;
+        }
+
         String islandWorld = islandManager.getIslandWorldName();
         if (!loc.getWorld().getName().equalsIgnoreCase(islandWorld)) {
             if (lastIslandByPlayer.containsKey(player.getUniqueId())) {
@@ -122,10 +138,16 @@ public final class IslandProtectionListener implements Listener {
     public void refreshWorldBorder(Player player, Island island) {
         if (island == null || player == null) return;
         
+        // Final safety check for admins
+        if (hasBypass(player)) {
+            player.setWorldBorder(null);
+            return;
+        }
+
         WorldBorder border = org.bukkit.Bukkit.createWorldBorder();
         border.setCenter(island.getCenter());
         border.setSize(island.getSize());
-        border.setWarningDistance(5);
+        border.setWarningDistance(1000); // Always visible (red tint)
         border.setDamageAmount(0.2);
         
         player.setWorldBorder(border);
@@ -163,6 +185,12 @@ public final class IslandProtectionListener implements Listener {
         if (island.isMember(uuid)) {
             return true;
         }
+
+        // DEBUG: Only log if this is likely a bug (player is in the island world but rejected)
+        if (player.getWorld().getName().equalsIgnoreCase(islandManager.getIslandWorldName())) {
+            plugin.getLogger().info("[IslandDebug] Rejecting " + player.getName() + " (" + uuid + ") on island " + island.getId() + 
+                ". Owner: " + island.getOwner() + ", Members: " + island.getMembers());
+        }
         
         return false;
     }
@@ -193,8 +221,10 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getBlock().getWorld())) return;
+
         Island island = islandAt(event.getBlock().getLocation());
-        
         if (island == null || isAllowed(player, island)) return;
         
         event.setCancelled(true);
@@ -204,8 +234,10 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getBlock().getWorld())) return;
+
         Island island = islandAt(event.getBlock().getLocation());
-        
         if (island == null || isAllowed(player, island)) return;
         
         event.setCancelled(true);
@@ -215,8 +247,10 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockDamage(BlockDamageEvent event) {
         Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getBlock().getWorld())) return;
+
         Island island = islandAt(event.getBlock().getLocation());
-        
         if (island == null || isAllowed(player, island)) return;
         
         event.setCancelled(true);
@@ -225,8 +259,10 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBucketEmpty(PlayerBucketEmptyEvent event) {
         Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getBlockClicked().getWorld())) return;
+
         Island island = islandAt(event.getBlockClicked().getLocation());
-        
         if (island == null || isAllowed(player, island)) return;
         
         event.setCancelled(true);
@@ -236,8 +272,10 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBucketFill(PlayerBucketFillEvent event) {
         Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getBlockClicked().getWorld())) return;
+
         Island island = islandAt(event.getBlockClicked().getLocation());
-        
         if (island == null || isAllowed(player, island)) return;
         
         event.setCancelled(true);
@@ -246,35 +284,60 @@ public final class IslandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent event) {
+        if (!isIslandWorld(event.getBlock().getWorld())) return;
+
         Island island = islandAt(event.getBlock().getLocation());
         if (island == null) return;
         
-        // Prevent explosions from damaging blocks on islands
-        event.blockList().clear();
+        boolean visitorNearby = event.getBlock().getWorld().getNearbyEntities(event.getBlock().getLocation(), 10, 10, 10).stream()
+                .filter(e -> e instanceof Player)
+                .map(e -> (Player) e)
+                .anyMatch(p -> !isAllowed(p, island));
+
+        if (visitorNearby) {
+            event.blockList().clear();
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
+        if (!isIslandWorld(event.getLocation().getWorld())) return;
+
         Island island = islandAt(event.getLocation());
         if (island == null) return;
-        
-        // Prevent explosions from damaging blocks on islands
-        event.blockList().clear();
+
+        Entity source = event.getEntity();
+        if (source instanceof org.bukkit.entity.TNTPrimed tnt) {
+            if (tnt.getSource() instanceof Player player) {
+                if (isAllowed(player, island)) return;
+            }
+        }
+
+        boolean visitorNearby = event.getLocation().getWorld().getNearbyEntities(event.getLocation(), 10, 10, 10).stream()
+                .filter(e -> e instanceof Player)
+                .map(e -> (Player) e)
+                .anyMatch(p -> !isAllowed(p, island));
+
+        if (visitorNearby) {
+            event.blockList().clear();
+        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(player.getWorld())) return;
+
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.PHYSICAL) {
             return;
         }
         
-        Player player = event.getPlayer();
         Location loc = event.getClickedBlock() != null ? event.getClickedBlock().getLocation() : player.getLocation();
         Island island = islandAt(loc);
         
         if (island == null || isAllowed(player, island)) return;
 
-        // Prevent placing non-block entities (armor stands, boats, minecarts, spawn eggs, etc.) while visiting.
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             ItemStack item = event.getItem();
             if (item != null && isVisitorPlaceItem(item.getType())) {
@@ -298,10 +361,11 @@ public final class IslandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageByEntityEvent event) {
+        if (!isIslandWorld(event.getEntity().getWorld())) return;
+
         Entity damager = event.getDamager();
         Entity victim = event.getEntity();
         
-        // Get the player responsible (direct or via projectile)
         Player player = null;
         if (damager instanceof Player) {
             player = (Player) damager;
@@ -312,31 +376,27 @@ public final class IslandProtectionListener implements Listener {
         }
         
         if (player == null) return;
+        if (hasBypass(player)) return;
         
         Island island = islandAt(victim.getLocation());
-        if (island == null) return;
-        if (hasBypass(player)) return;
-
-        // PVP is disabled on islands by default (Hypixel-style).
-        if (victim instanceof Player) {
-            event.setCancelled(true);
-            if (!isAllowed(player, island)) {
-                sendVisitorMessage(player, "Cannot attack players here");
-            }
+        if (island == null || isAllowed(player, island)) {
             return;
         }
 
-        if (isAllowed(player, island)) return;
-        
-        // Prevent damaging entities on other islands
         event.setCancelled(true);
-        
-        sendVisitorMessage(player, "Cannot attack " + formatEntityName(victim.getType()) + " here");
+        if (victim instanceof Player) {
+            sendVisitorMessage(player, "Cannot attack players here");
+        } else {
+            sendVisitorMessage(player, "Cannot attack " + formatEntityName(victim.getType()) + " here");
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInteractEntity(PlayerInteractEntityEvent event) {
         Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getRightClicked().getWorld())) return;
+
         Entity entity = event.getRightClicked();
         Island island = islandAt(entity.getLocation());
         
@@ -349,6 +409,9 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInteractAtEntity(PlayerInteractAtEntityEvent event) {
         Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getRightClicked().getWorld())) return;
+
         Entity entity = event.getRightClicked();
         Island island = islandAt(entity.getLocation());
         
@@ -362,25 +425,28 @@ public final class IslandProtectionListener implements Listener {
         Entity projectile = event.getEntity();
         if (!(projectile instanceof org.bukkit.entity.Projectile proj)) return;
         if (!(proj.getShooter() instanceof Player shooter)) return;
+        if (hasBypass(shooter)) return;
         
         Location hitLoc = event.getHitEntity() != null ? 
             event.getHitEntity().getLocation() : 
             (event.getHitBlock() != null ? event.getHitBlock().getLocation() : null);
         
         if (hitLoc == null) return;
+        if (!isIslandWorld(hitLoc.getWorld())) return;
         
         Island island = islandAt(hitLoc);
         if (island == null || isAllowed(shooter, island)) return;
         
-        // Prevent projectiles from hitting things on other islands
         projectile.remove();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHangingPlace(HangingPlaceEvent event) {
         Player player = event.getPlayer();
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getBlock().getWorld())) return;
+
         Island island = islandAt(event.getBlock().getLocation());
-        
         if (island == null || isAllowed(player, island)) return;
         
         event.setCancelled(true);
@@ -389,25 +455,17 @@ public final class IslandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHangingBreak(HangingBreakEvent event) {
-        Island island = islandAt(event.getEntity().getLocation());
-        if (island == null) return;
-
-        // If broken by anything else (explosions, etc. on an island), we protect the island.
-        // If broken by an entity (usually a player), onHangingBreakByEntity handles the specific permission check.
-        if (event.getCause() != HangingBreakEvent.RemoveCause.ENTITY) {
-            event.setCancelled(true);
-        }
+        // No global protection for hanging entities; allowed for environmental damage.
     }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHangingBreakByEntity(HangingBreakByEntityEvent event) {
         Entity remover = event.getRemover();
-        Player player = null;
-        
-        if (remover instanceof Player) {
-            player = (Player) remover;
-        }
+        Player player = (remover instanceof Player) ? (Player) remover : null;
         
         if (player == null) return;
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getEntity().getWorld())) return;
         
         Island island = islandAt(event.getEntity().getLocation());
         if (island == null || isAllowed(player, island)) return;
@@ -419,6 +477,8 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onVehicleDamage(VehicleDamageEvent event) {
         if (!(event.getAttacker() instanceof Player player)) return;
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(event.getVehicle().getWorld())) return;
         
         Island island = islandAt(event.getVehicle().getLocation());
         if (island == null || isAllowed(player, island)) return;
@@ -431,45 +491,34 @@ public final class IslandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onInventoryOpen(InventoryOpenEvent event) {
-        if (!(event.getPlayer() instanceof Player player)) {
-            return;
-        }
-        // Always allow normal inventory management.
+        if (!(event.getPlayer() instanceof Player player)) return;
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(player.getWorld())) return;
+
         if (event.getInventory().getType() == InventoryType.CRAFTING || event.getInventory().getType() == InventoryType.CREATIVE) {
             return;
         }
 
         Island island = islandAt(player.getLocation());
-        if (island == null || isAllowed(player, island)) {
-            return;
-        }
-        if (isVisitorAllowedGui(event.getInventory())) {
-            return;
-        }
+        if (island == null || isAllowed(player, island)) return;
+        if (isVisitorAllowedGui(event.getInventory())) return;
 
-        // Visiting another player's island: no GUI/menu access (Hypixel-style).
         event.setCancelled(true);
         sendVisitorMessage(player, "Cannot open menus here");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryClickWhileVisiting(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) {
-            return;
-        }
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(player.getWorld())) return;
 
         InventoryType topType = event.getView().getTopInventory().getType();
-        if (topType == InventoryType.CRAFTING || topType == InventoryType.CREATIVE) {
-            return; // allow normal inventory management
-        }
+        if (topType == InventoryType.CRAFTING || topType == InventoryType.CREATIVE) return;
 
         Island island = islandAt(player.getLocation());
-        if (island == null || isAllowed(player, island)) {
-            return;
-        }
-        if (isVisitorAllowedGui(event.getView().getTopInventory())) {
-            return;
-        }
+        if (island == null || isAllowed(player, island)) return;
+        if (isVisitorAllowedGui(event.getView().getTopInventory())) return;
 
         event.setCancelled(true);
         player.closeInventory();
@@ -478,22 +527,16 @@ public final class IslandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryDragWhileVisiting(InventoryDragEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) {
-            return;
-        }
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (hasBypass(player)) return;
+        if (!isIslandWorld(player.getWorld())) return;
 
         InventoryType topType = event.getView().getTopInventory().getType();
-        if (topType == InventoryType.CRAFTING || topType == InventoryType.CREATIVE) {
-            return;
-        }
+        if (topType == InventoryType.CRAFTING || topType == InventoryType.CREATIVE) return;
 
         Island island = islandAt(player.getLocation());
-        if (island == null || isAllowed(player, island)) {
-            return;
-        }
-        if (isVisitorAllowedGui(event.getView().getTopInventory())) {
-            return;
-        }
+        if (island == null || isAllowed(player, island)) return;
+        if (isVisitorAllowedGui(event.getView().getTopInventory())) return;
 
         event.setCancelled(true);
         player.closeInventory();
@@ -503,78 +546,44 @@ public final class IslandProtectionListener implements Listener {
     // ==================== UTILITIES ====================
 
     private Island islandAt(Location loc) {
+        if (loc == null || loc.getWorld() == null) return null;
+        if (!isIslandWorld(loc.getWorld())) return null;
         return islandManager != null ? islandManager.getIslandAt(loc) : null;
     }
 
+    private boolean isIslandWorld(World world) {
+        return world != null && world.getName().equalsIgnoreCase(islandManager.getIslandWorldName());
+    }
+
     private boolean isVisitorAllowedGui(Inventory inventory) {
-        // Visitors should still be able to use their personal menus (Skyblock Menu and its sub-menus) and trade.
-        // We key off InventoryHolder because most plugin GUIs use private holder classes.
-        if (inventory == null) {
-            return false;
-        }
-
-        // Skyblock Menu opens a virtual crafting grid via openWorkbench(..., true).
-        if (inventory.getType() == InventoryType.WORKBENCH) {
-            return true;
-        }
-
-        if (SkyblockMenuManager.isSkyblockMenuInventory(inventory) || TradeGui.isTradeInventory(inventory)) {
-            return true;
-        }
+        if (inventory == null) return false;
+        if (inventory.getType() == InventoryType.WORKBENCH) return true;
+        if (SkyblockMenuManager.isSkyblockMenuInventory(inventory) || TradeGui.isTradeInventory(inventory)) return true;
 
         InventoryHolder holder = inventory.getHolder();
-        if (holder == null) {
-            return false;
-        }
-
-        // Allow all Grivience GUI inventories while visiting (Pets, Wardrobe, Storage, Profile, etc.).
+        if (holder == null) return false;
         return holder.getClass().getName().startsWith("io.papermc.Grivience.");
     }
 
     private boolean isVisitorPlaceItem(Material material) {
-        if (material == null) {
-            return false;
-        }
+        if (material == null) return false;
         String name = material.name();
-        // Spawning/placing entities should be blocked for visitors (Hypixel-style island protection).
-        if (name.endsWith("_SPAWN_EGG")) {
-            return true;
-        }
-        if (material == Material.ARMOR_STAND || material == Material.END_CRYSTAL) {
-            return true;
-        }
-        if (material == Material.MINECART || name.endsWith("_MINECART")) {
-            return true;
-        }
-        // Includes both normal and chest boats; also includes bamboo rafts.
-        if (name.endsWith("_BOAT") || name.endsWith("_RAFT")) {
-            return true;
-        }
-        return false;
+        if (name.endsWith("_SPAWN_EGG")) return true;
+        if (material == Material.ARMOR_STAND || material == Material.END_CRYSTAL) return true;
+        if (material == Material.MINECART || name.endsWith("_MINECART")) return true;
+        return name.endsWith("_BOAT") || name.endsWith("_RAFT");
     }
 
     private boolean isInteractableForVisitors(Material material) {
-        if (material == null) {
-            return false;
-        }
-        if (!material.isInteractable()) {
-            return false;
-        }
+        if (material == null) return false;
+        if (!material.isInteractable()) return false;
         String name = material.name();
-        // These report as interactable in Bukkit, but don't actually open GUIs or toggle states.
-        if (name.contains("STAIRS") || name.contains("WALL")) {
-            return false;
-        }
-        // Fence gates are real interactables; plain fences are not.
-        if (name.contains("FENCE") && !name.contains("FENCE_GATE")) {
-            return false;
-        }
-        return true;
+        if (name.contains("STAIRS") || name.contains("WALL")) return false;
+        return !name.contains("FENCE") || name.contains("FENCE_GATE");
     }
 
     private Set<Material> buildProtectedInteract() {
-        Set<Material> set = EnumSet.of(
-                // Containers
+        return EnumSet.of(
                 Material.CHEST, Material.TRAPPED_CHEST, Material.BARREL,
                 Material.ENDER_CHEST, Material.SHULKER_BOX,
                 Material.WHITE_SHULKER_BOX, Material.ORANGE_SHULKER_BOX,
@@ -585,74 +594,27 @@ public final class IslandProtectionListener implements Listener {
                 Material.PURPLE_SHULKER_BOX, Material.BLUE_SHULKER_BOX,
                 Material.BROWN_SHULKER_BOX, Material.GREEN_SHULKER_BOX,
                 Material.RED_SHULKER_BOX, Material.BLACK_SHULKER_BOX,
-                
-                // Redstone components
-                Material.LEVER,
-                Material.STONE_BUTTON, Material.OAK_BUTTON, Material.SPRUCE_BUTTON,
-                Material.BIRCH_BUTTON, Material.JUNGLE_BUTTON, Material.ACACIA_BUTTON,
-                Material.DARK_OAK_BUTTON, Material.CRIMSON_BUTTON, Material.WARPED_BUTTON,
-                Material.MANGROVE_BUTTON, Material.BAMBOO_BUTTON, Material.CHERRY_BUTTON,
-                Material.POLISHED_BLACKSTONE_BUTTON,
-                Material.STONE_PRESSURE_PLATE, Material.HEAVY_WEIGHTED_PRESSURE_PLATE,
-                Material.LIGHT_WEIGHTED_PRESSURE_PLATE, Material.OAK_PRESSURE_PLATE,
-                Material.SPRUCE_PRESSURE_PLATE, Material.BIRCH_PRESSURE_PLATE,
-                Material.JUNGLE_PRESSURE_PLATE, Material.ACACIA_PRESSURE_PLATE,
-                Material.DARK_OAK_PRESSURE_PLATE, Material.CRIMSON_PRESSURE_PLATE,
-                Material.WARPED_PRESSURE_PLATE, Material.MANGROVE_PRESSURE_PLATE,
-                Material.BAMBOO_PRESSURE_PLATE, Material.CHERRY_PRESSURE_PLATE,
-                Material.POLISHED_BLACKSTONE_PRESSURE_PLATE,
+                Material.LEVER, Material.STONE_BUTTON, Material.OAK_BUTTON,
                 Material.REPEATER, Material.COMPARATOR, Material.REDSTONE_WIRE,
                 Material.REDSTONE_TORCH, Material.REDSTONE_WALL_TORCH,
-                
-                // Utilities
                 Material.OBSERVER, Material.DISPENSER, Material.DROPPER,
-                Material.PISTON, Material.STICKY_PISTON,
-                Material.FURNACE, Material.BLAST_FURNACE, Material.SMOKER,
+                Material.PISTON, Material.STICKY_PISTON, Material.FURNACE,
                 Material.CRAFTING_TABLE, Material.SMITHING_TABLE,
-                Material.ENCHANTING_TABLE, Material.ANVIL,
-                Material.BREWING_STAND, Material.CAULDRON,
-                
-                // Doors and gates
-                Material.OAK_DOOR, Material.SPRUCE_DOOR, Material.BIRCH_DOOR,
-                Material.JUNGLE_DOOR, Material.ACACIA_DOOR, Material.DARK_OAK_DOOR,
-                Material.IRON_DOOR, Material.OAK_TRAPDOOR, Material.SPRUCE_TRAPDOOR,
-                Material.BIRCH_TRAPDOOR, Material.JUNGLE_TRAPDOOR, Material.ACACIA_TRAPDOOR,
-                Material.DARK_OAK_TRAPDOOR, Material.IRON_TRAPDOOR,
-                Material.OAK_FENCE_GATE, Material.SPRUCE_FENCE_GATE,
-                Material.BIRCH_FENCE_GATE, Material.JUNGLE_FENCE_GATE,
-                Material.ACACIA_FENCE_GATE, Material.DARK_OAK_FENCE_GATE,
-                
-                // Crops and plants
+                Material.ENCHANTING_TABLE, Material.ANVIL, Material.BREWING_STAND,
+                Material.OAK_DOOR, Material.IRON_DOOR, Material.OAK_TRAPDOOR,
+                Material.IRON_TRAPDOOR, Material.OAK_FENCE_GATE,
                 Material.WHEAT, Material.CARROTS, Material.POTATOES,
-                Material.BEETROOTS, Material.MELON_STEM, Material.PUMPKIN_STEM,
-                Material.COCOA, Material.NETHER_WART,
-                
-                // Other interactables
-                Material.RED_BED, Material.BLUE_BED, Material.GREEN_BED,
-                Material.BROWN_BED, Material.BLACK_BED, Material.GRAY_BED,
-                Material.LIGHT_GRAY_BED, Material.WHITE_BED, Material.ORANGE_BED,
-                Material.MAGENTA_BED, Material.LIGHT_BLUE_BED, Material.YELLOW_BED,
-                Material.LIME_BED, Material.PINK_BED, Material.CYAN_BED, Material.PURPLE_BED,
-                Material.CAKE, Material.SWEET_BERRY_BUSH, Material.BAMBOO
+                Material.RED_BED, Material.CAKE, Material.BAMBOO
         );
-        return set;
     }
 
     private Set<EntityType> buildProtectedEntities() {
-        Set<EntityType> set = EnumSet.of(
-                // Animals
+        return EnumSet.of(
                 EntityType.COW, EntityType.PIG, EntityType.SHEEP, EntityType.CHICKEN,
-                EntityType.HORSE, EntityType.DONKEY, EntityType.MULE,
-                EntityType.LLAMA, EntityType.AXOLOTL, EntityType.GOAT,
-                
-                // Passive mobs
                 EntityType.VILLAGER, EntityType.WANDERING_TRADER,
-                
-                // Utility entities
                 EntityType.ARMOR_STAND, EntityType.ITEM_FRAME, EntityType.GLOW_ITEM_FRAME,
                 EntityType.PAINTING, EntityType.LEASH_KNOT
         );
-        return set;
     }
 
     private String formatMaterialName(Material material) {

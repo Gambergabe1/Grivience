@@ -65,6 +65,7 @@ public final class SkyblockMenuManager implements Listener {
     private final GriviencePlugin plugin;
     private IslandManager islandManager;
     private SkyblockLevelManager levelManager;
+    private io.papermc.Grivience.skills.SkyblockSkillManager skillManager;
     private SkyblockStatsManager statsManager;
     private SkyblockManaManager manaManager;
     private SkyblockCombatEngine combatEngine;
@@ -76,6 +77,7 @@ public final class SkyblockMenuManager implements Listener {
     private io.papermc.Grivience.quest.QuestGui questGui;
 
     private io.papermc.Grivience.event.GlobalEventManager globalEventManager;
+    private CollectionsManager collectionsManager;
 
     private final NamespacedKey actionKey;
     private final NamespacedKey valueKey;
@@ -84,10 +86,16 @@ public final class SkyblockMenuManager implements Listener {
     private final DecimalFormat wholeNumberFormat = new DecimalFormat("#,##0", DecimalFormatSymbols.getInstance(Locale.US));
     private final DecimalFormat decimalFormat = new DecimalFormat("#,##0.00");
 
+    private io.papermc.Grivience.skills.SkillsGui skillsGui;
+
     public SkyblockMenuManager(GriviencePlugin plugin) {
         this.plugin = plugin;
         this.actionKey = new NamespacedKey(plugin, "skyblock-action");
         this.valueKey = new NamespacedKey(plugin, "skyblock-value");
+    }
+
+    public void setSkillsGui(io.papermc.Grivience.skills.SkillsGui skillsGui) {
+        this.skillsGui = skillsGui;
     }
 
     public void setIslandManager(IslandManager islandManager) {
@@ -98,11 +106,13 @@ public final class SkyblockMenuManager implements Listener {
         this.craftingManager = craftingManager;
     }
 
-    public void setManagers(SkyblockLevelManager levelManager, SkyblockStatsManager statsManager, SkyblockManaManager manaManager, CustomArmorManager armorManager) {
+    public void setManagers(SkyblockLevelManager levelManager, io.papermc.Grivience.skills.SkyblockSkillManager skillManager, SkyblockStatsManager statsManager, SkyblockManaManager manaManager, CustomArmorManager armorManager, CollectionsManager collectionsManager) {
         this.levelManager = levelManager;
+        this.skillManager = skillManager;
         this.statsManager = statsManager;
         this.manaManager = manaManager;
         this.armorManager = armorManager;
+        this.collectionsManager = collectionsManager;
     }
 
     public void setCombatEngine(SkyblockCombatEngine combatEngine) {
@@ -158,7 +168,11 @@ public final class SkyblockMenuManager implements Listener {
         inventory.setItem(13, profile);
 
         // Core Systems
-        inventory.setItem(19, createMenuItem(Material.DIAMOND_SWORD, ChatColor.GREEN + "Your Skills", List.of(ChatColor.GRAY + "View your skill progression.", "", ChatColor.YELLOW + "Click to view!"), "open_skills", "", false));
+        double skillAverage = skillManager != null ? skillManager.getSkillAverage(player) : 0.0;
+        inventory.setItem(19, createMenuItem(Material.DIAMOND_SWORD, ChatColor.GREEN + "Your Skills", 
+                List.of(ChatColor.GRAY + "View your skill progression.", "", 
+                        ChatColor.GRAY + "Skill Average: " + ChatColor.GOLD + decimalFormat.format(skillAverage),
+                        "", ChatColor.YELLOW + "Click to view!"), "open_skills", "", false));
         inventory.setItem(20, createMenuItem(Material.PAINTING, ChatColor.YELLOW + "Collections", List.of(ChatColor.GRAY + "View all discovered items.", "", ChatColor.YELLOW + "Click to view!"), "open_collection", "", false));
         inventory.setItem(21, createMenuItem(Material.BOOK, ChatColor.LIGHT_PURPLE + "Recipe Book", List.of(ChatColor.GRAY + "Browse unlocked recipes.", "", ChatColor.YELLOW + "Click to view!"), "open_recipes", "", false));
         inventory.setItem(22, createMenuItem(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "Skyblock Leveling", List.of(ChatColor.GRAY + "Track your progression rewards.", "", ChatColor.YELLOW + "Click to view!"), "open_leveling", "", false));
@@ -548,7 +562,7 @@ public final class SkyblockMenuManager implements Listener {
 
     public void openLevelingMenu(Player player) {
         if (plugin.getSkyblockLevelGui() != null) {
-            plugin.getSkyblockLevelGui().openMainMenu(player);
+            plugin.getSkyblockLevelGui().openMenu(player, io.papermc.Grivience.gui.SkyblockLevelGui.LevelTab.MAIN, null);
         } else {
             player.sendMessage(ChatColor.RED + "Leveling GUI is currently unavailable.");
         }
@@ -915,7 +929,10 @@ public final class SkyblockMenuManager implements Listener {
                     player.sendMessage(ChatColor.RED + "Storage unavailable.");
                 }
             }
-            case "open_skills" -> plugin.getServer().dispatchCommand(player, "skills");
+            case "open_skills" -> {
+                if (skillsGui != null) skillsGui.openMainMenu(player);
+                else plugin.getServer().dispatchCommand(player, "skills");
+            }
             case "open_collection" -> {
                 if (plugin.getCollectionGui() != null) plugin.getCollectionGui().openMainGui(player);
                 else player.sendMessage(ChatColor.RED + "Collections unavailable.");

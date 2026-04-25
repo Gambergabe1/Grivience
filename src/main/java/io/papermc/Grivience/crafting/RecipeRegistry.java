@@ -1,9 +1,11 @@
 package io.papermc.Grivience.crafting;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
@@ -109,7 +111,7 @@ public class RecipeRegistry {
         register(SkyblockRecipe.builder()
                 .key(new NamespacedKey(plugin, "harvester_helmet"))
                 .name("Harvester's Visage")
-                .result(new ItemStack(Material.LEATHER_HELMET))
+                .result(createArmorPiece(Material.LEATHER_HELMET, ChatColor.GREEN + "Harvester's Visage"))
                 .category(RecipeCategory.FARMING)
                 .shape(RecipeShape.SHAPED_3X3)
                 .shapeLines("AAA", "A A", "   ")
@@ -121,7 +123,7 @@ public class RecipeRegistry {
         register(SkyblockRecipe.builder()
                 .key(new NamespacedKey(plugin, "harvester_chestplate"))
                 .name("Harvester's Tunic")
-                .result(new ItemStack(Material.LEATHER_CHESTPLATE))
+                .result(createArmorPiece(Material.LEATHER_CHESTPLATE, ChatColor.GREEN + "Harvester's Tunic"))
                 .category(RecipeCategory.FARMING)
                 .shape(RecipeShape.SHAPED_3X3)
                 .shapeLines("A A", "AAA", "AAA")
@@ -133,7 +135,7 @@ public class RecipeRegistry {
         register(SkyblockRecipe.builder()
                 .key(new NamespacedKey(plugin, "harvester_leggings"))
                 .name("Harvester's Breeches")
-                .result(new ItemStack(Material.LEATHER_LEGGINGS))
+                .result(createArmorPiece(Material.LEATHER_LEGGINGS, ChatColor.GREEN + "Harvester's Breeches"))
                 .category(RecipeCategory.FARMING)
                 .shape(RecipeShape.SHAPED_3X3)
                 .shapeLines("AAA", "A A", "A A")
@@ -145,7 +147,7 @@ public class RecipeRegistry {
         register(SkyblockRecipe.builder()
                 .key(new NamespacedKey(plugin, "harvester_boots"))
                 .name("Harvester's Striders")
-                .result(new ItemStack(Material.LEATHER_BOOTS))
+                .result(createArmorPiece(Material.LEATHER_BOOTS, ChatColor.GREEN + "Harvester's Striders"))
                 .category(RecipeCategory.FARMING)
                 .shape(RecipeShape.SHAPED_3X3)
                 .shapeLines("   ", "A A", "A A")
@@ -395,6 +397,502 @@ public class RecipeRegistry {
                 .collectionTierRequired(13)
                 .requiredSkyblockLevel(0)
                 .build());
+
+        .collectionId("WHEAT")
+        .collectionTierRequired(3)
+        .requiredSkyblockLevel(0)
+        .build());
+
+        register(SkyblockRecipe.builder()
+        .key(new NamespacedKey(plugin, "euclids_wheat_hoe"))
+        .name("Euclid's Wheat Hoe")
+        .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.EUCLIDS_WHEAT_HOE, null))
+        .category(RecipeCategory.FARMING)
+        .shape(RecipeShape.SHAPED_3X3)
+        .shapeLines("EE ", " B ", "   ")
+        .ingredient('E', new ItemStack(Material.HAY_BLOCK)) // Enchanted Hay Bale
+        .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+        .collectionId("WHEAT")
+        .collectionTierRequired(5)
+        .requiredSkyblockLevel(0)
+        .build());
+
+        register(SkyblockRecipe.builder()
+        .key(new NamespacedKey(plugin, "gauss_carrot_hoe"))
+        .name("Gauss Carrot Hoe")
+        .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.GAUSS_CARROT_HOE, null))
+        .category(RecipeCategory.FARMING)
+        .shape(RecipeShape.SHAPED_3X3)
+        .shapeLines("EE ", " B ", "   ")
+        .ingredient('E', new ItemStack(Material.GOLDEN_CARROT)) // Enchanted Carrot
+        .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+        .collectionId("CARROT")
+        .collectionTierRequired(5)
+        .requiredSkyblockLevel(0)
+        .build());
+
+        register(SkyblockRecipe.builder()
+        .key(new NamespacedKey(plugin, "pythagorean_potato_hoe"))
+        .name("Pythagorean Potato Hoe")
+        .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PYTHAGOREAN_POTATO_HOE, null))
+        .category(RecipeCategory.FARMING)
+        .shape(RecipeShape.SHAPED_3X3)
+        .shapeLines("EE ", " B ", "   ")
+        .ingredient('E', new ItemStack(Material.BAKED_POTATO)) // Enchanted Potato
+        .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+        .collectionId("POTATO")
+        .collectionTierRequired(5)
+        .requiredSkyblockLevel(0)
+        .build());
+
+        register(SkyblockRecipe.builder()
+        .key(new NamespacedKey(plugin, "turing_sugar_cane_hoe"))
+        .name("Turing Sugar Cane Hoe")
+        .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.TURING_SUGAR_CANE_HOE, null))
+        .category(RecipeCategory.FARMING)
+        .shape(RecipeShape.SHAPED_3X3)
+        .shapeLines("EE ", " B ", "   ")
+        .ingredient('E', new ItemStack(Material.PAPER)) // Enchanted Sugarcane
+        .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+        .collectionId("SUGAR_CANE")
+        .collectionTierRequired(5)
+        .requiredSkyblockLevel(0)
+        .build());
+
+        register(SkyblockRecipe.builder()
+        .key(new NamespacedKey(plugin, "newton_nether_warts_hoe"))
+        .name("Newton Nether Warts Hoe")
+        .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.NEWTON_NETHER_WARTS_HOE, null))
+        .category(RecipeCategory.FARMING)
+        .shape(RecipeShape.SHAPED_3X3)
+        .shapeLines("EE ", " B ", "   ")
+        .ingredient('E', new ItemStack(Material.NETHER_WART_BLOCK)) // Enchanted Nether Wart
+        .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+        .collectionId("NETHER_WART")
+        .collectionTierRequired(5)
+        .requiredSkyblockLevel(0)
+        .build());
+
+        register(SkyblockRecipe.builder()
+        .key(new NamespacedKey(plugin, "melon_dicer"))
+        .name("Melon Dicer")
+        .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MELON_DICER, null))
+        .category(RecipeCategory.FARMING)
+        .shape(RecipeShape.SHAPED_3X3)
+        .shapeLines("EE ", " B ", "   ")
+        .ingredient('E', new ItemStack(Material.MELON)) // Enchanted Melon Block
+        .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+        .collectionId("MELON")
+        .collectionTierRequired(5)
+        .requiredSkyblockLevel(0)
+        .build());
+
+        register(SkyblockRecipe.builder()
+        .key(new NamespacedKey(plugin, "pumpkin_dicer"))
+        .name("Pumpkin Dicer")
+        .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PUMPKIN_DICER, null))
+        .category(RecipeCategory.FARMING)
+        .shape(RecipeShape.SHAPED_3X3)
+        .shapeLines("EE ", " B ", "   ")
+        .ingredient('E', new ItemStack(Material.JACK_O_LANTERN)) // Enchanted Pumpkin
+        .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+        .collectionId("PUMPKIN")
+        .collectionTierRequired(5)
+        .requiredSkyblockLevel(0)
+        .build());
+
+        // --- Enchantment Recipes ---
+        register(SkyblockEnchantment.builder("smelting_touch", "Smelting Touch")
+                .type(EnchantmentType.RARE)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(3)
+                .baseXpCost(35)
+                .conflictsWith("fortune", "silk_touch")
+                .icon(Material.FURNACE)
+                .build());
+
+        // Unbreaking
+        register(SkyblockEnchantment.builder("unbreaking", "Unbreaking")
+                .type(EnchantmentType.UNIQUE)
+                .rarity(EnchantmentRarity.UNCOMMON)
+                .maxLevel(3)
+                .baseXpCost(12)
+                .icon(Material.DIAMOND_SWORD)
+                .build());
+
+        // First Strike
+        register(SkyblockEnchantment.builder("first_strike", "First Strike")
+                .type(EnchantmentType.RARE)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(5)
+                .baseXpCost(15)
+                .conflictsWith("sharpness", "smite", "bane_of_arthropods", "power")
+                .icon(Material.IRON_SWORD)
+                .build());
+        
+        // Critical
+        register(SkyblockEnchantment.builder("critical", "Critical")
+                .type(EnchantmentType.RARE)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(4)
+                .baseXpCost(25)
+                .conflictsWith("sharpness", "smite", "bane_of_arthropods")
+                .icon(Material.DIAMOND_SWORD)
+                .build());
+
+        // Aqua Affinity
+        register(SkyblockEnchantment.builder("aqua_affinity", "Aqua Affinity")
+                .type(EnchantmentType.UNCOMMON)
+                .rarity(EnchantmentRarity.UNCOMMON)
+                .maxLevel(1)
+                .baseXpCost(10)
+                .icon(Material.CONDUIT)
+                .build());
+
+        // Fortune
+        register(SkyblockEnchantment.builder("fortune", "Fortune")
+                .type(EnchantmentType.DIGGING)
+                .rarity(EnchantmentRarity.UNCOMMON)
+                .maxLevel(4)
+                .baseXpCost(15)
+                .icon(Material.DIAMOND_PICKAXE)
+                .build());
+
+        // Silk Touch
+        register(SkyblockEnchantment.builder("silk_touch", "Silk Touch")
+                .type(EnchantmentType.DIGGING)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(1)
+                .baseXpCost(30)
+                .icon(Material.DIAMOND_PICKAXE)
+                .build());
+
+        // Protection
+        register(SkyblockEnchantment.builder("protection", "Protection")
+                .type(EnchantmentType.ARMOR)
+                .rarity(EnchantmentRarity.UNCOMMON)
+                .maxLevel(4)
+                .baseXpCost(10)
+                .conflictsWith("fire_protection", "blast_protection", "projectile_protection", "thorns")
+                .icon(Material.NETHERITE_CHESTPLATE)
+                .build());
+    }
+        .type(EnchantmentType.RARE)
+        .rarity(EnchantmentRarity.RARE)
+        .maxLevel(3)
+        .baseXpCost(35)
+        .conflictsWith("fortune", "silk_touch")
+        .icon(Material.FURNACE)
+        .build());
+
+        // Unbreaking
+        register(SkyblockEnchantment.builder("unbreaking", "Unbreaking")
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "mathematical_hoe_blueprint"))
+                .name("Mathematical Hoe Blueprint")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("GGG", "G G", "GGG")
+                .ingredient('G', new ItemStack(Material.GOLD_BLOCK))
+                .collectionId("WHEAT")
+                .collectionTierRequired(3)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "euclids_wheat_hoe"))
+                .name("Euclid's Wheat Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.EUCLIDS_WHEAT_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.HAY_BLOCK)) // Enchanted Hay Bale
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("WHEAT")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "gauss_carrot_hoe"))
+                .name("Gauss Carrot Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.GAUSS_CARROT_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.GOLDEN_CARROT)) // Enchanted Carrot
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("CARROT")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "pythagorean_potato_hoe"))
+                .name("Pythagorean Potato Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PYTHAGOREAN_POTATO_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.BAKED_POTATO)) // Enchanted Potato
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("POTATO")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "turing_sugar_cane_hoe"))
+                .name("Turing Sugar Cane Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.TURING_SUGAR_CANE_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.PAPER)) // Enchanted Sugarcane
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("SUGAR_CANE")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "newton_nether_warts_hoe"))
+                .name("Newton Nether Warts Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.NEWTON_NETHER_WARTS_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.NETHER_WART_BLOCK)) // Enchanted Nether Wart
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("NETHER_WART")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "melon_dicer"))
+                .name("Melon Dicer")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MELON_DICER, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.MELON)) // Enchanted Melon Block
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("MELON")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "pumpkin_dicer"))
+                .name("Pumpkin Dicer")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PUMPKIN_DICER, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.JACK_O_LANTERN)) // Enchanted Pumpkin
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("PUMPKIN")
+                .collectionId("IRON_INGOT")
+                .collectionTierRequired(2)
+                .requiredSkyblockLevel(0) // Set to 0 to remove Skyblock Level requirement
+                .build());
+
+        // --- Custom Hoe Recipes ---
+        // Mathematical Hoe Blueprint
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "mathematical_hoe_blueprint"))
+                .name("Mathematical Hoe Blueprint")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("GGG", "G G", "GGG")
+                .ingredient('G', new ItemStack(Material.GOLD_BLOCK))
+                .collectionId("WHEAT")
+                .collectionTierRequired(3)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Euclid's Wheat Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "euclids_wheat_hoe"))
+                .name("Euclid's Wheat Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.EUCLIDS_WHEAT_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.HAY_BLOCK)) // Enchanted Hay Bale
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("WHEAT")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Gauss Carrot Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "gauss_carrot_hoe"))
+                .name("Gauss Carrot Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.GAUSS_CARROT_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.GOLDEN_CARROT)) // Enchanted Carrot
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("CARROT")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Pythagorean Potato Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "pythagorean_potato_hoe"))
+                .name("Pythagorean Potato Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PYTHAGOREAN_POTATO_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.BAKED_POTATO)) // Enchanted Potato
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("POTATO")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Turing Sugar Cane Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "turing_sugar_cane_hoe"))
+                .name("Turing Sugar Cane Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.TURING_SUGAR_CANE_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.PAPER)) // Enchanted Sugarcane
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("SUGAR_CANE")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Newton Nether Warts Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "newton_nether_warts_hoe"))
+                .name("Newton Nether Warts Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.NEWTON_NETHER_WARTS_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.NETHER_WART_BLOCK)) // Enchanted Nether Wart
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("NETHER_WART")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Melon Dicer
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "melon_dicer"))
+                .name("Melon Dicer")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MELON_DICER, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.MELON)) // Enchanted Melon Block
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("MELON")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Pumpkin Dicer
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "pumpkin_dicer"))
+                .name("Pumpkin Dicer")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PUMPKIN_DICER, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.JACK_O_LANTERN)) // Enchanted Pumpkin
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("PUMPKIN")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockEnchantment.builder("smelting_touch", "Smelting Touch")
+                .type(EnchantmentType.RARE)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(3)
+                .baseXpCost(35)
+                .conflictsWith("fortune", "silk_touch")
+                .icon(Material.FURNACE)
+                .build());
+
+        // Unbreaking
+        register(SkyblockEnchantment.builder("unbreaking", "Unbreaking")
+                .type(EnchantmentType.UNIQUE)
+                .rarity(EnchantmentRarity.UNCOMMON)
+                .maxLevel(3)
+                .baseXpCost(12)
+                .icon(Material.DIAMOND_SWORD)
+                .build());
+
+        // First Strike
+        register(SkyblockEnchantment.builder("first_strike", "First Strike")
+                .type(EnchantmentType.RARE)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(5)
+                .baseXpCost(15)
+                .conflictsWith("sharpness", "smite", "bane_of_arthropods", "power")
+                .icon(Material.IRON_SWORD)
+                .build());
+        
+        // Critical
+        register(SkyblockEnchantment.builder("critical", "Critical")
+                .type(EnchantmentType.RARE)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(4)
+                .baseXpCost(25)
+                .conflictsWith("sharpness", "smite", "bane_of_arthropods")
+                .icon(Material.DIAMOND_SWORD)
+                .build());
+
+        // Aqua Affinity
+        register(SkyblockEnchantment.builder("aqua_affinity", "Aqua Affinity")
+                .type(EnchantmentType.UNCOMMON)
+                .rarity(EnchantmentRarity.UNCOMMON)
+                .maxLevel(1)
+                .baseXpCost(10)
+                .icon(Material.CONDUIT)
+                .build());
+
+        // Fortune
+        register(SkyblockEnchantment.builder("fortune", "Fortune")
+                .type(EnchantmentType.DIGGING)
+                .rarity(EnchantmentRarity.UNCOMMON)
+                .maxLevel(4)
+                .baseXpCost(15)
+                .icon(Material.DIAMOND_PICKAXE)
+                .build());
+
+        // Silk Touch
+        register(SkyblockEnchantment.builder("silk_touch", "Silk Touch")
+                .type(EnchantmentType.DIGGING)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(1)
+                .baseXpCost(30)
+                .icon(Material.DIAMOND_PICKAXE)
+                .build());
+
+        // Protection
+        register(SkyblockEnchantment.builder("protection", "Protection")
+                .type(EnchantmentType.ARMOR)
+                .rarity(EnchantmentRarity.UNCOMMON)
+                .maxLevel(4)
+                .baseXpCost(10)
+                .conflictsWith("fire_protection", "blast_protection", "projectile_protection", "thorns")
+                .icon(Material.NETHERITE_CHESTPLATE)
+                .build());
     }
 
     /**
@@ -423,6 +921,17 @@ public class RecipeRegistry {
         } else {
             plugin.getLogger().warning("Failed to convert SkyblockRecipe to Bukkit Recipe for: " + skyblockRecipe.getName());
         }
+    }
+
+    /**
+     * Registers a custom enchantment with its builder.
+     *
+     * @param id The enchantment ID (e.g., "smelting_touch").
+     * @param name The enchantment name (e.g., "Smelting Touch").
+     * @return A builder for configuring the enchantment.
+     */
+    public static Enchantment.Builder builder(String id, String name) {
+        return SkyblockEnchantment.builder(id, name);
     }
 
     /**
@@ -548,4 +1057,259 @@ public class RecipeRegistry {
                 .filter(recipe -> recipe.getCategory() == category)
                 .collect(Collectors.toList());
     }
+
+    private static ItemStack createArmorPiece(Material material, String name) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(name);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
 }
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "mathematical_hoe_blueprint"))
+                .name("Mathematical Hoe Blueprint")
+                .result(((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("GGG", "G G", "GGG")
+                .ingredient('G', new ItemStack(Material.GOLD_BLOCK))
+                .collectionId("WHEAT")
+                .collectionTierRequired(3)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "euclids_wheat_hoe"))
+                .name("Euclid's Wheat Hoe")
+                .result(((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.EUCLIDS_WHEAT_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.HAY_BLOCK)) // Enchanted Hay Bale
+                .ingredient('B', ((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("WHEAT")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "gauss_carrot_hoe"))
+                .name("Gauss Carrot Hoe")
+                .result(((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.GAUSS_CARROT_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.GOLDEN_CARROT)) // Enchanted Carrot
+                .ingredient('B', ((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("CARROT")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "pythagorean_potato_hoe"))
+                .name("Pythagorean Potato Hoe")
+                .result(((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PYTHAGOREAN_POTATO_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.BAKED_POTATO)) // Enchanted Potato
+                .ingredient('B', ((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("POTATO")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "turing_sugar_cane_hoe"))
+                .name("Turing Sugar Cane Hoe")
+                .result(((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.TURING_SUGAR_CANE_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.PAPER)) // Enchanted Sugar Cane
+                .ingredient('B', ((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("SUGAR_CANE")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "newton_nether_warts_hoe"))
+                .name("Newton Nether Warts Hoe")
+                .result(((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.NEWTON_NETHER_WARTS_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.NETHER_WART_BLOCK)) // Enchanted Nether Wart
+                .ingredient('B', ((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("NETHER_WART")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "melon_dicer"))
+                .name("Melon Dicer")
+                .result(((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MELON_DICER, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.MELON)) // Enchanted Melon Block
+                .ingredient('B', ((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("MELON")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "pumpkin_dicer"))
+                .name("Pumpkin Dicer")
+                .result(((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PUMPKIN_DICER, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.JACK_O_LANTERN)) // Enchanted Pumpkin
+                .ingredient('B', ((io.papermc.Grivience.GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("PUMPKIN")
+        .collectionId("IRON_INGOT")
+                .collectionTierRequired(2)
+                .requiredSkyblockLevel(0) // Set to 0 to remove Skyblock Level requirement
+                .build());
+
+        // --- Custom Hoe Recipes ---
+        // Mathematical Hoe Blueprint
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "mathematical_hoe_blueprint"))
+                .name("Mathematical Hoe Blueprint")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("GGG", "G G", "GGG")
+                .ingredient('G', new ItemStack(Material.GOLD_BLOCK))
+                .collectionId("WHEAT")
+                .collectionTierRequired(3)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Euclid's Wheat Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "euclids_wheat_hoe"))
+                .name("Euclid's Wheat Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.EUCLIDS_WHEAT_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.HAY_BLOCK)) // Enchanted Hay Bale
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("WHEAT")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Gauss Carrot Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "gauss_carrot_hoe"))
+                .name("Gauss Carrot Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.GAUSS_CARROT_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.GOLDEN_CARROT)) // Enchanted Carrot
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("CARROT")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Pythagorean Potato Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "pythagorean_potato_hoe"))
+                .name("Pythagorean Potato Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PYTHAGOREAN_POTATO_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.BAKED_POTATO)) // Enchanted Potato
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("POTATO")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Turing Sugarcane Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "turing_sugar_cane_hoe"))
+                .name("Turing Sugarcane Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.TURING_SUGAR_CANE_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.PAPER)) // Enchanted Sugarcane
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("SUGAR_CANE")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Newton Nether Warts Hoe
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "newton_nether_warts_hoe"))
+                .name("Newton Nether Warts Hoe")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.NEWTON_NETHER_WARTS_HOE, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.NETHER_WART_BLOCK)) // Enchanted Nether Wart
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("NETHER_WART")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Melon Dicer
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "melon_dicer"))
+                .name("Melon Dicer")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MELON_DICER, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.MELON)) // Enchanted Melon Block
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("MELON")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // Pumpkin Dicer
+        register(SkyblockRecipe.builder()
+                .key(new NamespacedKey(plugin, "pumpkin_dicer"))
+                .name("Pumpkin Dicer")
+                .result(((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.PUMPKIN_DICER, null))
+                .category(RecipeCategory.FARMING)
+                .shape(RecipeShape.SHAPED_3X3)
+                .shapeLines("EE ", " B ", "   ")
+                .ingredient('E', new ItemStack(Material.JACK_O_LANTERN)) // Enchanted Pumpkin
+                .ingredient('B', ((GriviencePlugin) plugin).getCustomItemService().createTool(io.papermc.Grivience.item.CustomToolType.MATHEMATICAL_HOE_BLUEPRINT, null))
+                .collectionId("PUMPKIN")
+                .collectionTierRequired(5)
+                .requiredSkyblockLevel(0)
+                .build());
+
+        // --- Enchantment Recipes ---
+        register(SkyblockEnchantment.builder("smelting_touch", "Smelting Touch")
+                .type(EnchantmentType.RARE)
+                .rarity(EnchantmentRarity.RARE)
+                .maxLevel(3)
+                .baseXpCost(35)
+                .conflictsWith("fortune", "silk_touch")
+                .icon(Material.FURNACE)
+                .build());
+
+        // Unbreaking
+        register(SkyblockEnchantment.builder("unbreaking", "Unbreaking")

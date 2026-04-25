@@ -94,11 +94,33 @@ public final class DrillStatProfile {
     }
 
     public static int breakingPowerFor(String drillId) {
-        return switch (normalizeDrillId(drillId)) {
-            case "TITANIUM_DRILL" -> 7;
-            case "GEMSTONE_DRILL" -> 8;
-            default -> 5;
+        if (drillId == null) return 0;
+        String normalized = drillId.trim().toUpperCase(Locale.ROOT);
+        
+        // Drills
+        if (normalized.endsWith("_DRILL")) {
+            return switch (normalized) {
+                case "TITANIUM_DRILL" -> 7;
+                case "GEMSTONE_DRILL" -> 8;
+                default -> 5;
+            };
+        }
+        
+        // Custom Pickaxes
+        return switch (normalized) {
+            case "TITAN_BREAKER" -> 7;
+            case "VOID_STEEL_PICKAXE" -> 6;
+            case "IRONCREST_PICKAXE" -> 4;
+            default -> 0;
         };
+    }
+
+    public static int totalBreakingPower(org.bukkit.entity.Player player, String drillId, String engineId, String tankId, io.papermc.Grivience.item.CustomArmorManager armorManager) {
+        int base = breakingPowerFor(drillId);
+        if (armorManager != null) {
+            base += armorManager.totalBreakingPowerBonus(player);
+        }
+        return base;
     }
 
     public static int crystalNodeHitReduction(int miningSpeed) {

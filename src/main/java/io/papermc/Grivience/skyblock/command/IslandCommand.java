@@ -107,6 +107,7 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
         String subCommand = args[0].toLowerCase(Locale.ROOT);
         switch (subCommand) {
             case "go", "home", "visit" -> handleGo(player, args);
+            case "diagnose" -> handleDiagnose(player);
             case "create" -> handleCreate(player, args);
             case "expand", "upgrade" -> handleExpand(player, args);
             case "info" -> handleInfo(player);
@@ -1405,5 +1406,39 @@ public final class IslandCommand implements CommandExecutor, TabCompleter {
             }
         }
         return filtered;
+    }
+
+    private void handleDiagnose(Player player) {
+        player.sendMessage(ChatColor.GOLD + "--- Island Diagnostics ---");
+        Location loc = player.getLocation();
+        player.sendMessage(ChatColor.GRAY + "World: " + ChatColor.WHITE + loc.getWorld().getName());
+        player.sendMessage(ChatColor.GRAY + "Coords: " + ChatColor.WHITE + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ());
+        
+        boolean inIslandWorld = loc.getWorld().getName().equalsIgnoreCase(islandManager.getIslandWorldName());
+        player.sendMessage(ChatColor.GRAY + "In Island World: " + (inIslandWorld ? ChatColor.GREEN + "YES" : ChatColor.RED + "NO"));
+        
+        Island island = islandManager.getIslandAt(loc);
+        if (island == null) {
+            player.sendMessage(ChatColor.YELLOW + "No island detected at your current location.");
+        } else {
+            player.sendMessage(ChatColor.GRAY + "Island ID: " + ChatColor.AQUA + island.getId());
+            player.sendMessage(ChatColor.GRAY + "Owner: " + ChatColor.WHITE + island.getOwner());
+            player.sendMessage(ChatColor.GRAY + "Size: " + ChatColor.WHITE + island.getSize());
+            
+            boolean isOwner = player.getUniqueId().equals(island.getOwner());
+            boolean isMember = island.isMember(player.getUniqueId());
+            boolean hasBypass = player.hasPermission("grivience.admin");
+            
+            player.sendMessage(ChatColor.GRAY + "Your Status: " + 
+                (isOwner ? ChatColor.GREEN + "OWNER" : (isMember ? ChatColor.GREEN + "MEMBER" : ChatColor.RED + "VISITOR")));
+            player.sendMessage(ChatColor.GRAY + "Admin Bypass: " + (hasBypass ? ChatColor.GREEN + "YES" : ChatColor.RED + "NO"));
+            
+            if (isOwner || isMember || hasBypass) {
+                player.sendMessage(ChatColor.GREEN + "Status: FULL ACCESS (Protections Disabled)");
+            } else {
+                player.sendMessage(ChatColor.RED + "Status: RESTRICTED (Visitor Protections Active)");
+            }
+        }
+        player.sendMessage(ChatColor.GOLD + "--------------------------");
     }
 }

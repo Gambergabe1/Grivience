@@ -8,6 +8,7 @@ public final class ConversationQuest {
     private final String id;
     private String displayName;
     private String description;
+    private String world;
     private String starterNpcId;
     private String targetNpcId;
     private final List<String> rewardCommands;
@@ -26,13 +27,14 @@ public final class ConversationQuest {
             boolean repeatable,
             boolean enabled
     ) {
-        this(id, displayName, description, starterNpcId, targetNpcId, rewardCommands, List.of(), List.of(), repeatable, enabled);
+        this(id, displayName, description, "Hub", starterNpcId, targetNpcId, rewardCommands, List.of(), List.of(), repeatable, enabled);
     }
 
     public ConversationQuest(
             String id,
             String displayName,
             String description,
+            String world,
             String starterNpcId,
             String targetNpcId,
             List<String> rewardCommands,
@@ -44,6 +46,7 @@ public final class ConversationQuest {
         this.id = normalizeId(id);
         this.displayName = sanitizeText(displayName, this.id);
         this.description = sanitizeText(description, "Talk to an NPC.");
+        this.world = sanitizeText(world, "Hub");
         this.starterNpcId = normalizeNpcId(starterNpcId);
         this.targetNpcId = normalizeNpcId(targetNpcId);
         this.rewardCommands = new ArrayList<>();
@@ -89,6 +92,14 @@ public final class ConversationQuest {
 
     public void setDescription(String description) {
         this.description = sanitizeText(description, "Talk to an NPC.");
+    }
+
+    public String world() {
+        return world;
+    }
+
+    public void setWorld(String world) {
+        this.world = sanitizeText(world, "Hub");
     }
 
     public String starterNpcId() {

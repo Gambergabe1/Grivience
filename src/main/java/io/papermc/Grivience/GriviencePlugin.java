@@ -286,7 +286,8 @@ public final class GriviencePlugin extends JavaPlugin {
     private GlobalEventManager globalEventManager;
     private io.papermc.Grivience.nick.NickManager nickManager;
     private io.papermc.Grivience.nick.NickGuiManager nickGuiManager;
-    private FarmingContestManager farmingContestManager;
+    private io.papermc.Grivience.farming.FarmingContestManager farmingContestManager;
+    private io.papermc.Grivience.farming.AnitaShopGui anitaShopGui;
     private GriviencePlaceholderExpansion griviencePlaceholderExpansion;
     private org.bukkit.NamespacedKey grapplingHookKey;
 
@@ -319,8 +320,10 @@ public final class GriviencePlugin extends JavaPlugin {
         skyblockSkillManager = new SkyblockSkillManager(this, skyblockLevelManager);
         skyblockLevelManager.setSkillManager(skyblockSkillManager);
 
+        skyblockMenuManager = new SkyblockMenuManager(this);
         skillsGui = new io.papermc.Grivience.skills.SkillsGui(this, skyblockSkillManager);
         getServer().getPluginManager().registerEvents(skillsGui, this);
+        skyblockMenuManager.setSkillsGui(skillsGui);
         registerCommand("skills", new io.papermc.Grivience.skills.SkillsCommand(skillsGui));
         registerCommand("skillxp", new SkillXpAdminCommand(skyblockSkillManager));
 
@@ -419,7 +422,6 @@ public final class GriviencePlugin extends JavaPlugin {
             getLogger().info("Custom armor system enabled with " + customArmorManager.getArmorSets().size() + " armor sets.");
         }
         // Custom armor manager is created above; wire it into the menus after initialization.
-        skyblockMenuManager.setManagers(skyblockLevelManager, skyblockStatsManager, skyblockManaManager, customArmorManager);
         skyblockManaManager.setArmorManager(customArmorManager);
         skyblockManaManager.start();
 
@@ -483,7 +485,9 @@ public final class GriviencePlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ProjectileGroundCleanupListener(), this);
         getServer().getPluginManager().registerEvents(new DrillUpgradeCraftListener(this, customItemService), this);
         getServer().getPluginManager().registerEvents(new FarmingFortuneListener(this), this);
+        getServer().getPluginManager().registerEvents(new io.papermc.Grivience.listener.ForagingFortuneListener(this), this);
         getServer().getPluginManager().registerEvents(new ReplenishListener(this), this);
+        getServer().getPluginManager().registerEvents(new io.papermc.Grivience.listener.SmeltingTouchListener(this), this);
         getServer().getPluginManager().registerEvents(new AutoPickupDropListener(this), this);
         attackSpeedListener = new AttackSpeedListener(this);
         getServer().getPluginManager().registerEvents(attackSpeedListener, this);
@@ -659,7 +663,7 @@ public final class GriviencePlugin extends JavaPlugin {
         IslandBypassCommand islandBypassCommand = new IslandBypassCommand(islandManager);
         registerCommand("islandbypass", islandBypassCommand);
 
-        IslandProtectionListener islandProtectionListener = new IslandProtectionListener(islandManager);
+        IslandProtectionListener islandProtectionListener = new IslandProtectionListener(this, islandManager);
         islandProtectionListener.setBypassCommand(islandBypassCommand);
         islandManager.setProtectionListener(islandProtectionListener);
         getServer().getPluginManager().registerEvents(islandProtectionListener, this);
@@ -713,6 +717,7 @@ public final class GriviencePlugin extends JavaPlugin {
         
         minehubOreListener = new MinehubOreGenerationListener(this);
         getServer().getPluginManager().registerEvents(minehubOreListener, this);
+        getServer().getPluginManager().registerEvents(new io.papermc.Grivience.mines.NewbieMinesListener(this), this);
         getServer().getPluginManager().registerEvents(new io.papermc.Grivience.mines.MiningDiscoveryListener(this), this);
 
         heartOfTheEndMinesManager = new HeartOfTheEndMinesManager(this, collectionsManager);
@@ -857,7 +862,7 @@ public final class GriviencePlugin extends JavaPlugin {
         registerCommand("ah", new io.papermc.Grivience.command.AuctionCommand(auctionGuiManager));
         registerCommand("npcshop", new NpcSellShopCommand(npcSellShopGui));
         registerCommand("shop", new io.papermc.Grivience.npcshop.NpcShopCommand(npcShopManager));
-        registerCommand("elevator", new io.papermc.Grivience.elevator.ElevatorCommand(elevatorManager, elevatorGui));
+        registerCommand("elevator", new io.papermc.Grivience.elevator.ElevatorCommand(this, elevatorManager, elevatorGui));
         registerCommand("grisanity", sanityCheckCommand);
         registerCommand("grivience", new GrivienceReloadCommand(this));
         registerCommand("discord", new io.papermc.Grivience.command.DiscordCommand(this));
@@ -916,6 +921,9 @@ public final class GriviencePlugin extends JavaPlugin {
         mayorManager.setZnpcsHook(mayorZnpcsHook);
         mayorManager.load();
         getLogger().info("Mayor system initialized.");
+
+        // Wire all managers into the menu system after they are fully initialized.
+        skyblockMenuManager.setManagers(skyblockLevelManager, skyblockSkillManager, skyblockStatsManager, skyblockManaManager, customArmorManager, collectionsManager);
     }
 
 
@@ -1299,12 +1307,20 @@ public final class GriviencePlugin extends JavaPlugin {
         return petManager;
     }
 
+    public io.papermc.Grivience.welcome.WelcomeManager getWelcomeManager() {
+        return welcomeManager;
+    }
+
     public io.papermc.Grivience.skyblock.profile.gui.ProfileGui getProfileGui() {
         return profileGui;
     }
 
     public FarmingContestManager getFarmingContestManager() {
         return farmingContestManager;
+    }
+
+    public io.papermc.Grivience.farming.AnitaShopGui getAnitaShopGui() {
+        return anitaShopGui;
     }
 
     public MinionManager getMinionManager() {
@@ -1653,39 +1669,48 @@ public final class GriviencePlugin extends JavaPlugin {
         String yLevels = oreGen + "y-levels.";
 
         String surface = yLevels + "surface.";
-        config.addDefault(surface + "min-y", 91);
+        config.addDefault(surface + "name", "&aThe Surface");
+        config.addDefault(surface + "min-y", 92);
         config.addDefault(surface + "max-y", 138);
         config.addDefault(surface + "ores.COAL_ORE", 55);
         config.addDefault(surface + "ores.IRON_ORE", 30);
         config.addDefault(surface + "ores.COPPER_ORE", 15);
 
         String mid = yLevels + "mid.";
-        config.addDefault(mid + "min-y", 70);
-        config.addDefault(mid + "max-y", 90);
+        config.addDefault(mid + "name", "&eIron & Gold Veins");
+        config.addDefault(mid + "min-y", 69);
+        config.addDefault(mid + "max-y", 91);
         config.addDefault(mid + "ores.IRON_ORE", 40);
         config.addDefault(mid + "ores.COAL_ORE", 30);
         config.addDefault(mid + "ores.GOLD_ORE", 15);
         config.addDefault(mid + "ores.COPPER_ORE", 15);
 
-        String lapis = yLevels + "lapis_exclusive.";
-        config.addDefault(lapis + "min-y", 26);
-        config.addDefault(lapis + "max-y", 69);
+        String lapis = yLevels + "lapis.";
+        config.addDefault(lapis + "name", "&9Lapis Quarry");
+        config.addDefault(lapis + "min-y", 22);
+        config.addDefault(lapis + "max-y", 68);
         config.addDefault(lapis + "ores.LAPIS_ORE", 50);
         config.addDefault(lapis + "ores.LAPIS_BLOCK", 50);
 
-        String redstone = yLevels + "redstone_exclusive.";
+        String redstone = yLevels + "redstone.";
+        config.addDefault(redstone + "name", "&cRedstone Veins");
         config.addDefault(redstone + "min-y", 1);
-        config.addDefault(redstone + "max-y", 25);
+        config.addDefault(redstone + "max-y", 21);
         config.addDefault(redstone + "ores.REDSTONE_ORE", 50);
         config.addDefault(redstone + "ores.REDSTONE_BLOCK", 50);
 
-        String emerald = yLevels + "emerald_exclusive.";
+        String emerald = yLevels + "emerald.";
+        config.addDefault(emerald + "name", "&2Emerald Depths");
         config.addDefault(emerald + "min-y", -32);
         config.addDefault(emerald + "max-y", 0);
-        config.addDefault(emerald + "ores.EMERALD_ORE", 50);
-        config.addDefault(emerald + "ores.EMERALD_BLOCK", 50);
+        config.addDefault(emerald + "ores.EMERALD_ORE", 30);
+        config.addDefault(emerald + "ores.EMERALD_BLOCK", 30);
+        config.addDefault(emerald + "ores.LIGHT_GRAY_STAINED_GLASS", 20);
+        config.addDefault(emerald + "ores.LIGHT_GRAY_WOOL", 10);
+        config.addDefault(emerald + "ores.GRAY_CONCRETE", 10);
 
-        String diamond = yLevels + "diamond_exclusive.";
+        String diamond = yLevels + "diamond.";
+        config.addDefault(diamond + "name", "&bDiamond Caverns");
         config.addDefault(diamond + "min-y", -49);
         config.addDefault(diamond + "max-y", -33);
         config.addDefault(diamond + "ores.DIAMOND_ORE", 35);
@@ -1758,7 +1783,7 @@ public final class GriviencePlugin extends JavaPlugin {
 
         String undead = "skyblock.undead-cremetory.";
         config.addDefault(undead + "enabled", true);
-        config.addDefault(undead + "world", "Hub 2");
+        config.addDefault(undead + "world", "hub2");
         config.addDefault(undead + "pos1.x", 101);
         config.addDefault(undead + "pos1.y", 90);
         config.addDefault(undead + "pos1.z", 257);
@@ -1768,7 +1793,7 @@ public final class GriviencePlugin extends JavaPlugin {
 
         String newbie = "skyblock.newbie-mines.";
         config.addDefault(newbie + "enabled", true);
-        config.addDefault(newbie + "world", "Hub 2");
+        config.addDefault(newbie + "world", "hub2");
         config.addDefault(newbie + "pos1.x", -86);
         config.addDefault(newbie + "pos1.y", 41);
         config.addDefault(newbie + "pos1.z", 193);
@@ -2079,7 +2104,8 @@ public final class GriviencePlugin extends JavaPlugin {
         String base = "custom-armor.sets.gilded_harvester.";
         config.addDefault(base + "display-name", "&6Gilded Harvester");
         config.addDefault(base + "description", "&7Superior farming gear for the elite.");
-        config.addDefault(base + "pieces-required", 2);
+        config.addDefault(base + "pieces-required", 4);
+        config.addDefault(base + "crafting-material", "custom:ENCHANTED_WHEAT");
     }
 
     private void applyRootboundGarbArmorDefaults(org.bukkit.configuration.file.FileConfiguration config) {
@@ -2368,14 +2394,14 @@ public final class GriviencePlugin extends JavaPlugin {
     private void applyScoreboardDefaults(org.bukkit.configuration.file.FileConfiguration config) {
         String base = "scoreboard.custom.";
         config.addDefault(base + "enabled", true);
-        config.addDefault(base + "title", "&e&lSkyblock");
+        config.addDefault(base + "title", "&b&lSkyblock");
         config.addDefault(base + "update-ticks", 20L);
         config.addDefault(base + "show-time-line", false);
         config.addDefault(base + "use-skyblock-calendar", true);
         config.addDefault(base + "profile-label", "Profile");
         config.addDefault(base + "bits-default", 0L);
         config.addDefault(base + "default-objective", "Reach Skyblock Level 5");
-        config.addDefault(base + "footer", "&eSkyblock");
+        config.addDefault(base + "footer", "&bSkyblock");
     }
 
     private void applyPerformanceMonitorDefaults(org.bukkit.configuration.file.FileConfiguration config) {

@@ -223,7 +223,7 @@ public final class FarmingContestCommand implements CommandExecutor, TabComplete
         sender.sendMessage(ChatColor.YELLOW + "/" + label + ChatColor.GRAY + " - Open the Farming Contest menu.");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " status" + ChatColor.GRAY + " - Show the active or next contest.");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " schedule" + ChatColor.GRAY + " - Show the next contests.");
-        sender.sendMessage(ChatColor.YELLOW + "/" + label + " check [player|profileId]" + ChatColor.GRAY + " - View contest tickets and medals.");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " check [player|profileId]" + ChatColor.GRAY + " - View contest Cletus Tickets and medals.");
         if (sender.hasPermission(ADMIN_PERMISSION)) {
             sender.sendMessage(ChatColor.YELLOW + "/" + label + " start <crop1> <crop2> <crop3> [minutes]" + ChatColor.GRAY + " - Start an admin contest.");
             sender.sendMessage(ChatColor.YELLOW + "/" + label + " stop" + ChatColor.GRAY + " - End the active contest and pay rewards.");

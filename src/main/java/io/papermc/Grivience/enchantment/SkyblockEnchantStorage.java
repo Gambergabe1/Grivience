@@ -1,6 +1,7 @@
 package io.papermc.Grivience.enchantment;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
@@ -32,7 +33,7 @@ public final class SkyblockEnchantStorage {
     }
 
     public int getLevel(ItemStack item, SkyblockEnchantment enchantment) {
-        if (item == null || item.getType().isAir() || enchantment == null) {
+        if (item == null || item.getType() == Material.AIR || enchantment == null) {
             return 0;
         }
         if (!item.hasItemMeta()) {

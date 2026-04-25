@@ -103,6 +103,16 @@ public final class SkyblockStatsManager {
         return levelReward + skillBonus;
     }
 
+    public double getMiningFortune(Player player) {
+        double skillBonus = skillManager == null ? 0.0 : skillManager.getStatBonus(player, "Mining Fortune");
+        return skillBonus; // No level bonus yet
+    }
+
+    public double getForagingFortune(Player player) {
+        double skillBonus = skillManager == null ? 0.0 : skillManager.getStatBonus(player, "Foraging Fortune");
+        return skillBonus; // No level bonus yet
+    }
+
     public int getLevel(Player player) {
         return levelManager.getLevel(player);
     }

@@ -88,9 +88,12 @@ crafting:
 
 skyblock:
   world-name: skyblock_world
-  hub-world: "Hub 2"
+  hub-world: "hub2"
+  # If true, players will always spawn on their island upon joining the server.
+  # If false, they will only be forced to their island on their very first join.
+  force-spawn-on-island-on-join: false
   minehub-world: Minehub
-  farmhub-world: "Hub 2"
+  farmhub-world: "hub2"
   island-spacing: 100
   starting-size: 32
   island-spawn-y: 80
@@ -180,8 +183,8 @@ skyblock:
       - GRAY_CONCRETE
     y-levels:
       surface:
-        name: "&aCoal & Iron Surface"
-        min-y: 91
+        name: "&aThe Surface"
+        min-y: 92
         max-y: 138
         ores:
           COAL_ORE: 55
@@ -189,28 +192,28 @@ skyblock:
           COPPER_ORE: 15
       mid:
         name: "&eIron & Gold Veins"
-        min-y: 70
-        max-y: 90
+        min-y: 69
+        max-y: 91
         ores:
           IRON_ORE: 40
           COAL_ORE: 30
           GOLD_ORE: 15
           COPPER_ORE: 15
-      lapis_exclusive:
+      lapis:
         name: "&9Lapis Quarry"
-        min-y: 26
-        max-y: 69
+        min-y: 22
+        max-y: 68
         ores:
           LAPIS_ORE: 50
           LAPIS_BLOCK: 50
-      redstone_exclusive:
+      redstone:
         name: "&cRedstone Veins"
         min-y: 1
-        max-y: 25
+        max-y: 21
         ores:
           REDSTONE_ORE: 50
           REDSTONE_BLOCK: 50
-      emerald_exclusive:
+      emerald:
         name: "&2Emerald Depths"
         min-y: -32
         max-y: 0
@@ -220,7 +223,7 @@ skyblock:
           LIGHT_GRAY_STAINED_GLASS: 20
           LIGHT_GRAY_WOOL: 10
           GRAY_CONCRETE: 10
-      diamond_exclusive:
+      diamond:
         name: "&bDiamond Caverns"
         min-y: -49
         max-y: -33
@@ -241,7 +244,7 @@ skyblock:
           DEEPSLATE_COAL_ORE: 20
     areas:
       newbie_mines:
-        world: "Hub 2"
+        world: "hub2"
         min-x: -86
         max-x: 76
         min-z: 193
@@ -278,7 +281,7 @@ skyblock:
 
   hub-crop-area:
     enabled: true
-    world: "Hub 2"
+    world: "hub2"
     pos1:
       x: -140
       y: 113
@@ -293,15 +296,15 @@ skyblock:
 
   oaklys-wood-depo:
     enabled: true
-    world: "Hub 2"
+    world: "hub2"
     pos1:
-      x: 195
-      y: 58
-      z: -96
+      x: 424
+      y: 100
+      z: -92
     pos2:
-      x: 414
-      y: 90
-      z: 70
+      x: 195
+      y: 56
+      z: 69
   oaklys-wood-regen:
     enabled: true
     delay-ticks: 100 # 5 seconds (20 ticks/sec * 5 = 100)
@@ -309,7 +312,7 @@ skyblock:
     max-tree-blocks: 1024
   hub-tree-regen:
     enabled: true
-    delay-ticks: 120
+    delay-ticks: 100
     max-tree-blocks: 256
   hub-crop-growth:
     enabled: true
@@ -335,6 +338,10 @@ skyblock:
     max-scan-blocks: 350000
   farmhub-maintenance:
     scan-blocks-per-run: 50000
+  farmhub-tree-regen:
+    enabled: true
+    delay-ticks: 60
+    max-tree-blocks: 1024
   nether-portal-to-hub:
     enabled: true
   portal-routing:
@@ -514,14 +521,14 @@ end-mines:
 scoreboard:
   custom:
     enabled: true
-    title: "&e&lSkyblock"
+    title: "&b&lSkyblock"
     update-ticks: 20
     show-time-line: false
     use-skyblock-calendar: true
     profile-label: "Profile"
     bits-default: 0
     default-objective: "Reach Skyblock Level 5"
-    footer: "&eSkyblock"
+    footer: "&bSkyblock"
 
 performance-monitor:
   enabled: true
@@ -1824,8 +1831,9 @@ custom-armor:
   enabled: true
   sets:
     crimson:
-      display-name: '&cCrimson Warrior'
+      display-name: '&6Crimson Warrior'
       description: '&7A fierce set forged in volcanic flames.'
+      rarity: LEGENDARY
       pieces-required: 2
       crafting-material: NETHERITE_INGOT
       bonuses:
@@ -1834,60 +1842,36 @@ custom-armor:
       pieces:
         helmet:
           material: NETHERITE_HELMET
-          display-name: '&cCrimson Helm'
+          display-name: '&6Crimson Helm'
           armor: 3
           toughness: 2.0
           glowing: true
           lore:
-            - '&aDefense: +3'
-            - '&aToughness: +2.0'
-            - ''
-            - '&6Full Set Bonus: Crimson Fury'
-            - '&7Wear 2 pieces: Speed I'
-            - '&7Wear 4 pieces: Strength I'
-            - ''
+            - '&7Radiates with intense heat.'
         chestplate:
           material: NETHERITE_CHESTPLATE
-          display-name: '&cCrimson Plate'
+          display-name: '&6Crimson Plate'
           armor: 8
           toughness: 2.0
           glowing: true
           lore:
-            - '&aDefense: +8'
-            - '&aToughness: +2.0'
-            - ''
-            - '&6Full Set Bonus: Crimson Fury'
-            - '&7Wear 2 pieces: Speed I'
-            - '&7Wear 4 pieces: Strength I'
-            - ''
+            - '&7Forged in the heart of a volcano.'
         leggings:
           material: NETHERITE_LEGGINGS
-          display-name: '&cCrimson Greaves'
+          display-name: '&6Crimson Greaves'
           armor: 6
           toughness: 2.0
           glowing: true
           lore:
-            - '&aDefense: +6'
-            - '&aToughness: +2.0'
-            - ''
-            - '&6Full Set Bonus: Crimson Fury'
-            - '&7Wear 2 pieces: Speed I'
-            - '&7Wear 4 pieces: Strength I'
-            - ''
+            - '&7Tempered by flowing lava.'
         boots:
           material: NETHERITE_BOOTS
-          display-name: '&cCrimson Boots'
+          display-name: '&6Crimson Boots'
           armor: 3
           toughness: 2.0
           glowing: true
           lore:
-            - '&aDefense: +3'
-            - '&aToughness: +2.0'
-            - ''
-            - '&6Full Set Bonus: Crimson Fury'
-            - '&7Wear 2 pieces: Speed I'
-            - '&7Wear 4 pieces: Strength I'
-            - ''
+            - '&7Step confidently through fire.'
 
     crimson_warden:
       display-name: '&5Crimson Warden Armor'
@@ -1907,14 +1891,7 @@ custom-armor:
           glowing: true
           color: '#9C1B1B'
           lore:
-            - '&cHealth: +50'
-            - '&aDefense: +10'
-            - '&9Crit Chance: +2%'
-            - ''
-            - '&6Full Set Bonus: Warden''s Might'
-            - '&7Full Set: +5% damage dealt'
-            - '&7Full Set: +50 Health'
-            - ''
+            - '&7A blood-red mask forged in battle.'
         chestplate:
           material: LEATHER_CHESTPLATE
           display-name: '&5Crimson Warden Chest'
@@ -1923,15 +1900,7 @@ custom-armor:
           glowing: true
           color: '#9C1B1B'
           lore:
-            - '&cHealth: +100'
-            - '&aDefense: +20'
-            - ''
-            - '&6Full Set Bonus: Warden''s Might'
-            - '&7Full Set: +5% damage dealt'
-            - '&7Full Set: +50 Health'
-            - ''
             - '&7Reduces knockback taken by 30%.'
-            - ''
         leggings:
           material: LEATHER_LEGGINGS
           display-name: '&5Crimson Warden Legs'
@@ -1940,15 +1909,7 @@ custom-armor:
           glowing: true
           color: '#9C1B1B'
           lore:
-            - '&cHealth: +75'
-            - '&aDefense: +15'
-            - ''
-            - '&6Full Set Bonus: Warden''s Might'
-            - '&7Full Set: +5% damage dealt'
-            - '&7Full Set: +50 Health'
-            - ''
             - '&7Gain a burst of speed when hit.'
-            - ''
         boots:
           material: LEATHER_BOOTS
           display-name: '&5Crimson Warden Boots'
@@ -1957,15 +1918,7 @@ custom-armor:
           glowing: true
           color: '#9C1B1B'
           lore:
-            - '&cHealth: +50'
-            - '&aDefense: +10'
-            - ''
-            - '&6Full Set Bonus: Warden''s Might'
-            - '&7Full Set: +5% damage dealt'
-            - '&7Full Set: +50 Health'
-            - ''
             - '&7Chance to create a small slowing field on hit.'
-            - ''
 
     void_miner:
       display-name: '&5Void Miner'
@@ -1976,70 +1929,51 @@ custom-armor:
         - '&72 Pieces: &fHaste I &8(End Mines)'
         - '&74 Pieces: &fRare Drops +35% &8(End Mines)'
         - '&74 Pieces: &fNight Vision &8(End Mines)'
+        - '&74 Pieces: &6+1 Breaking Power'
       pieces:
         helmet:
           material: DIAMOND_HELMET
           display-name: '&5Void Miner Helmet'
           armor: 2
           health: 10.0
+          mining-speed: 25
+          breaking-power: 0
           glowing: true
           lore:
-            - '&aDefense: +2'
-            - '&cHealth: +10'
-            - ''
-            - '&6Full Set Bonus: Void Fortune'
-            - '&7Wear 2 pieces: Haste I (End Mines)'
-            - '&7Wear 4 pieces: Rare Drops +35% (End Mines)'
-            - '&7Wear 4 pieces: Night Vision (End Mines)'
-            - ''
+            - '&7Protected by a dark, shimmering veil.'
         chestplate:
           material: DIAMOND_CHESTPLATE
           display-name: '&5Void Miner Chestplate'
           armor: 6
           health: 20.0
+          mining-speed: 25
+          breaking-power: 1
           glowing: true
           lore:
-            - '&aDefense: +6'
-            - '&cHealth: +20'
-            - ''
-            - '&6Full Set Bonus: Void Fortune'
-            - '&7Wear 2 pieces: Haste I (End Mines)'
-            - '&7Wear 4 pieces: Rare Drops +35% (End Mines)'
-            - '&7Wear 4 pieces: Night Vision (End Mines)'
-            - ''
+            - '&7Reinforced with obsidian cores.'
         leggings:
           material: DIAMOND_LEGGINGS
           display-name: '&5Void Miner Leggings'
           armor: 5
           health: 15.0
+          mining-speed: 25
+          breaking-power: 0
           glowing: true
           lore:
-            - '&aDefense: +5'
-            - '&cHealth: +15'
-            - ''
-            - '&6Full Set Bonus: Void Fortune'
-            - '&7Wear 2 pieces: Haste I (End Mines)'
-            - '&7Wear 4 pieces: Rare Drops +35% (End Mines)'
-            - '&7Wear 4 pieces: Night Vision (End Mines)'
-            - ''
+            - '&7Flexible yet hardened plates.'
         boots:
           material: DIAMOND_BOOTS
           display-name: '&5Void Miner Boots'
           armor: 2
           health: 10.0
+          mining-speed: 25
+          breaking-power: 0
           glowing: true
           lore:
-            - '&aDefense: +2'
-            - '&cHealth: +10'
-            - ''
-            - '&6Full Set Bonus: Void Fortune'
-            - '&7Wear 2 pieces: Haste I (End Mines)'
-            - '&7Wear 4 pieces: Rare Drops +35% (End Mines)'
-            - '&7Wear 4 pieces: Night Vision (End Mines)'
-            - ''
+            - '&7Silent and light as a void walk.'
 
     azure:
-      display-name: '&bAzure Guardian'
+      display-name: '&9Azure Guardian'
       description: '&7Mystical armor blessed by ocean spirits.'
       pieces-required: 2
       crafting-material: PRISMARINE_CRYSTALS
@@ -2049,63 +1983,39 @@ custom-armor:
       pieces:
         helmet:
           material: DIAMOND_HELMET
-          display-name: '&bAzure Visor'
+          display-name: '&9Azure Visor'
           armor: 3
           toughness: 1.5
           glowing: true
           lore:
-            - '&aDefense: +3'
-            - '&aToughness: +1.5'
-            - ''
-            - '&6Full Set Bonus: Tideguard'
-            - '&7Wear 2 pieces: Regeneration I'
-            - '&7Wear 4 pieces: Water Breathing'
-            - ''
+            - '&7The glass is as clear as tropical waters.'
         chestplate:
           material: DIAMOND_CHESTPLATE
-          display-name: '&bAzure Cuirass'
+          display-name: '&9Azure Cuirass'
           armor: 8
           toughness: 1.5
           glowing: true
           lore:
-            - '&aDefense: +8'
-            - '&aToughness: +1.5'
-            - ''
-            - '&6Full Set Bonus: Tideguard'
-            - '&7Wear 2 pieces: Regeneration I'
-            - '&7Wear 4 pieces: Water Breathing'
-            - ''
+            - '&7Forged from reinforced prismarine scales.'
         leggings:
           material: DIAMOND_LEGGINGS
-          display-name: '&bAzure Legguards'
+          display-name: '&9Azure Legguards'
           armor: 6
           toughness: 1.5
           glowing: true
           lore:
-            - '&aDefense: +6'
-            - '&aToughness: +1.5'
-            - ''
-            - '&6Full Set Bonus: Tideguard'
-            - '&7Wear 2 pieces: Regeneration I'
-            - '&7Wear 4 pieces: Water Breathing'
-            - ''
+            - '&7Moves with the fluidity of the tide.'
         boots:
           material: DIAMOND_BOOTS
-          display-name: '&bAzure Treads'
+          display-name: '&9Azure Treads'
           armor: 3
           toughness: 1.5
           glowing: true
           lore:
-            - '&aDefense: +3'
-            - '&aToughness: +1.5'
-            - ''
-            - '&6Full Set Bonus: Tideguard'
-            - '&7Wear 2 pieces: Regeneration I'
-            - '&7Wear 4 pieces: Water Breathing'
-            - ''
+            - '&7Soles that never slip on wet surfaces.'
 
     onyx:
-      display-name: '&8Onyx Shadow'
+      display-name: '&9Onyx Shadow'
       description: '&7Dark gear worn by master assassins.'
       pieces-required: 2
       crafting-material: COAL
@@ -2115,63 +2025,39 @@ custom-armor:
       pieces:
         helmet:
           material: NETHERITE_HELMET
-          display-name: '&8Onyx Mask'
+          display-name: '&9Onyx Mask'
           armor: 3
           toughness: 1.0
           glowing: false
           lore:
-            - '&aDefense: +3'
-            - '&aToughness: +1.0'
-            - ''
-            - '&6Full Set Bonus: Living Shadow'
-            - '&7Wear 2 pieces: 10% Reflection'
-            - '&7Wear 4 pieces: Invisibility when idle'
-            - ''
+            - '&7Absorbs all light that touches it.'
         chestplate:
           material: NETHERITE_CHESTPLATE
-          display-name: '&8Onyx Vest'
+          display-name: '&9Onyx Vest'
           armor: 8
           toughness: 1.0
           glowing: false
           lore:
-            - '&aDefense: +8'
-            - '&aToughness: +1.0'
-            - ''
-            - '&6Full Set Bonus: Living Shadow'
-            - '&7Wear 2 pieces: 10% Reflection'
-            - '&7Wear 4 pieces: Invisibility when idle'
-            - ''
+            - '&7Flexible plates for silent movement.'
         leggings:
           material: NETHERITE_LEGGINGS
-          display-name: '&8Onyx Leggings'
+          display-name: '&9Onyx Leggings'
           armor: 6
           toughness: 1.0
           glowing: false
           lore:
-            - '&aDefense: +6'
-            - '&aToughness: +1.0'
-            - ''
-            - '&6Full Set Bonus: Living Shadow'
-            - '&7Wear 2 pieces: 10% Reflection'
-            - '&7Wear 4 pieces: Invisibility when idle'
-            - ''
+            - '&7Muffled fabric that masks every step.'
         boots:
           material: NETHERITE_BOOTS
-          display-name: '&8Onyx Boots'
+          display-name: '&9Onyx Boots'
           armor: 3
           toughness: 1.0
           glowing: false
           lore:
-            - '&aDefense: +3'
-            - '&aToughness: +1.0'
-            - ''
-            - '&6Full Set Bonus: Living Shadow'
-            - '&7Wear 2 pieces: 10% Reflection'
-            - '&7Wear 4 pieces: Invisibility when idle'
-            - ''
+            - '&7Soft soles for ultimate stealth.'
 
     storm:
-      display-name: '&eStorm Caller'
+      display-name: '&9Storm Armor'
       description: '&7Armor crackling with electrical energy.'
       pieces-required: 2
       crafting-material: LIGHTNING_ROD
@@ -2181,60 +2067,36 @@ custom-armor:
       pieces:
         helmet:
           material: GOLDEN_HELMET
-          display-name: '&eStorm Crown'
+          display-name: '&9Storm Crown'
           armor: 2
           toughness: 1.5
           glowing: true
           lore:
-            - '&aDefense: +2'
-            - '&aToughness: +1.5'
-            - ''
-            - '&6Full Set Bonus: Thunderstep'
-            - '&7Wear 2 pieces: Speed II'
-            - '&7Wear 4 pieces: Jump Boost II'
-            - ''
+            - '&7A crown of solidified lightning.'
         chestplate:
           material: GOLDEN_CHESTPLATE
-          display-name: '&eStorm Guard'
+          display-name: '&9Storm Guard'
           armor: 5
           toughness: 1.5
           glowing: true
           lore:
-            - '&aDefense: +5'
-            - '&aToughness: +1.5'
-            - ''
-            - '&6Full Set Bonus: Thunderstep'
-            - '&7Wear 2 pieces: Speed II'
-            - '&7Wear 4 pieces: Jump Boost II'
-            - ''
+            - '&7Lightweight and highly conductive.'
         leggings:
           material: GOLDEN_LEGGINGS
-          display-name: '&eStorm Leggings'
+          display-name: '&9Storm Leggings'
           armor: 4
           toughness: 1.5
           glowing: true
           lore:
-            - '&aDefense: +4'
-            - '&aToughness: +1.5'
-            - ''
-            - '&6Full Set Bonus: Thunderstep'
-            - '&7Wear 2 pieces: Speed II'
-            - '&7Wear 4 pieces: Jump Boost II'
-            - ''
+            - '&7Crackle with every movement.'
         boots:
           material: GOLDEN_BOOTS
-          display-name: '&eStorm Boots'
+          display-name: '&9Storm Boots'
           armor: 2
           toughness: 1.5
           glowing: true
           lore:
-            - '&aDefense: +2'
-            - '&aToughness: +1.5'
-            - ''
-            - '&6Full Set Bonus: Thunderstep'
-            - '&7Wear 2 pieces: Speed II'
-            - '&7Wear 4 pieces: Jump Boost II'
-            - ''
+            - '&7Soles made of compressed air.'
 
     shogun:
       display-name: '&6Shogun Warlord'
@@ -2251,14 +2113,7 @@ custom-armor:
           toughness: 3.0
           glowing: true
           lore:
-            - '&aDefense: +4'
-            - '&aToughness: +3.0'
-            - ''
-            - '&6Full Set Bonus: Warlord''s Resolve'
-            - '&7Wear 4 pieces:'
-            - '&7➜ 15% Damage Reduction'
-            - '&7➜ +1.0 Toughness'
-            - ''
+            - '&7The stoic mask of a commander.'
         chestplate:
           material: NETHERITE_CHESTPLATE
           display-name: '&6Shogun O-Yoroi'
@@ -2266,14 +2121,7 @@ custom-armor:
           toughness: 3.0
           glowing: true
           lore:
-            - '&aDefense: +10'
-            - '&aToughness: +3.0'
-            - ''
-            - '&6Full Set Bonus: Warlord''s Resolve'
-            - '&7Wear 4 pieces:'
-            - '&7➜ 15% Damage Reduction'
-            - '&7➜ +1.0 Toughness'
-            - ''
+            - '&7Impenetrable plated steel.'
         leggings:
           material: NETHERITE_LEGGINGS
           display-name: '&6Shogun Haidate'
@@ -2281,14 +2129,7 @@ custom-armor:
           toughness: 3.0
           glowing: true
           lore:
-            - '&aDefense: +7'
-            - '&aToughness: +3.0'
-            - ''
-            - '&6Full Set Bonus: Warlord''s Resolve'
-            - '&7Wear 4 pieces:'
-            - '&7➜ 15% Damage Reduction'
-            - '&7➜ +1.0 Toughness'
-            - ''
+            - '&7Flexible yet heavy protection.'
         boots:
           material: NETHERITE_BOOTS
           display-name: '&6Shogun Sune-Ate'
@@ -2296,17 +2137,10 @@ custom-armor:
           toughness: 3.0
           glowing: true
           lore:
-            - '&aDefense: +4'
-            - '&aToughness: +3.0'
-            - ''
-            - '&6Full Set Bonus: Warlord''s Resolve'
-            - '&7Wear 4 pieces:'
-            - '&7➜ 15% Damage Reduction'
-            - '&7➜ +1.0 Toughness'
-            - ''
+            - '&7Weighted for ultimate stability.'
 
     stormborne:
-      display-name: '&3Stormborne Vanguard'
+      display-name: '&9Stormborne Vanguard'
       description: '&7Armor tempered in dragon storms.'
       pieces-required: 2
       crafting-material: custom:dragon_scale
@@ -2317,63 +2151,39 @@ custom-armor:
       pieces:
         helmet:
           material: NETHERITE_HELMET
-          display-name: '&3Stormborne Helm'
+          display-name: '&9Stormborne Helm'
           armor: 4
           toughness: 3.0
           glowing: true
           lore:
-            - '&aDefense: +4'
-            - '&aToughness: +3.0'
-            - ''
-            - '&6Full Set Bonus: Dragonstorm'
-            - '&7Wear 2 pieces: Speed I and Resistance I'
-            - '&7Wear 4 pieces: Lightning Ward'
-            - ''
+            - '&7Conducts the static of the air.'
         chestplate:
           material: NETHERITE_CHESTPLATE
-          display-name: '&3Stormborne Plate'
+          display-name: '&9Stormborne Plate'
           armor: 9
           toughness: 3.0
           glowing: true
           lore:
-            - '&aDefense: +9'
-            - '&aToughness: +3.0'
-            - ''
-            - '&6Full Set Bonus: Dragonstorm'
-            - '&7Wear 2 pieces: Speed I and Resistance I'
-            - '&7Wear 4 pieces: Lightning Ward'
-            - ''
+            - '&7Heavy and hums with power.'
         leggings:
           material: NETHERITE_LEGGINGS
-          display-name: '&3Stormborne Greaves'
+          display-name: '&9Stormborne Greaves'
           armor: 7
           toughness: 3.0
           glowing: true
           lore:
-            - '&aDefense: +7'
-            - '&aToughness: +3.0'
-            - ''
-            - '&6Full Set Bonus: Dragonstorm'
-            - '&7Wear 2 pieces: Speed I and Resistance I'
-            - '&7Wear 4 pieces: Lightning Ward'
-            - ''
+            - '&7Sparking with residual energy.'
         boots:
           material: NETHERITE_BOOTS
-          display-name: '&3Stormborne Boots'
+          display-name: '&9Stormborne Boots'
           armor: 4
           toughness: 3.0
           glowing: true
           lore:
-            - '&aDefense: +4'
-            - '&aToughness: +3.0'
-            - ''
-            - '&6Full Set Bonus: Dragonstorm'
-            - '&7Wear 2 pieces: Speed I and Resistance I'
-            - '&7Wear 4 pieces: Lightning Ward'
-            - ''
+            - '&7Leave burnt marks where you walk.'
 
     blossom:
-      display-name: '&dBlossom Attendant'
+      display-name: '&9Blossom Attendant'
       description: '&7Light robes woven from sacred petals.'
       pieces-required: 2
       crafting-material: custom:blossom_fiber
@@ -2383,60 +2193,36 @@ custom-armor:
       pieces:
         helmet:
           material: LEATHER_HELMET
-          display-name: '&dBlossom Hood'
+          display-name: '&9Blossom Hood'
           armor: 2
           toughness: 0.5
           glowing: true
           lore:
-            - '&aDefense: +2'
-            - '&aToughness: +0.5'
-            - ''
-            - '&6Full Set Bonus: Spring''s Grace'
-            - '&7Wear 2 pieces: Haste I'
-            - '&7Wear 4 pieces: Regeneration I'
-            - ''
+            - '&7Woven from the finest spring petals.'
         chestplate:
           material: LEATHER_CHESTPLATE
-          display-name: '&dBlossom Robe'
+          display-name: '&9Blossom Robe'
           armor: 3
           toughness: 0.5
           glowing: true
           lore:
-            - '&aDefense: +3'
-            - '&aToughness: +0.5'
-            - ''
-            - '&6Full Set Bonus: Spring''s Grace'
-            - '&7Wear 2 pieces: Haste I'
-            - '&7Wear 4 pieces: Regeneration I'
-            - ''
+            - '&7Smells of fresh dew and earth.'
         leggings:
           material: LEATHER_LEGGINGS
-          display-name: '&dBlossom Wraps'
+          display-name: '&9Blossom Wraps'
           armor: 2
           toughness: 0.5
           glowing: true
           lore:
-            - '&aDefense: +2'
-            - '&aToughness: +0.5'
-            - ''
-            - '&6Full Set Bonus: Spring''s Grace'
-            - '&7Wear 2 pieces: Haste I'
-            - '&7Wear 4 pieces: Regeneration I'
-            - ''
+            - '&7Flexible and breathable fabric.'
         boots:
           material: LEATHER_BOOTS
-          display-name: '&dBlossom Sandals'
+          display-name: '&9Blossom Sandals'
           armor: 1
           toughness: 0.5
           glowing: true
           lore:
-            - '&aDefense: +1'
-            - '&aToughness: +0.5'
-            - ''
-            - '&6Full Set Bonus: Spring''s Grace'
-            - '&7Wear 2 pieces: Haste I'
-            - '&7Wear 4 pieces: Regeneration I'
-            - ''
+            - '&7Leave only a faint floral scent behind.'
 
     arcanist:
       display-name: '&5Arcanist Raiment'
@@ -2459,16 +2245,7 @@ custom-armor:
           crit-chance: 3
           crit-damage: 6
           lore:
-            - '&bIntelligence: +50'
-            - '&cHealth: +10'
-            - '&9Crit Chance: +3%'
-            - '&9Crit Damage: +6%'
-            - '&aDefense: +2'
-            - ''
-            - '&6Full Set Bonus: Arcane Power'
-            - '&7Wear 2 pieces: +50 Mana'
-            - '&7Wear 4 pieces: +120 Mana and +10% ability damage'
-            - ''
+            - '&7Radiates with a faint violet hum.'
         chestplate:
           material: LEATHER_CHESTPLATE
           display-name: '&5Arcanist Vestments'
@@ -2480,16 +2257,7 @@ custom-armor:
           crit-chance: 4
           crit-damage: 8
           lore:
-            - '&bIntelligence: +60'
-            - '&cHealth: +14'
-            - '&9Crit Chance: +4%'
-            - '&9Crit Damage: +8%'
-            - '&aDefense: +4'
-            - ''
-            - '&6Full Set Bonus: Arcane Power'
-            - '&7Wear 2 pieces: +50 Mana'
-            - '&7Wear 4 pieces: +120 Mana and +10% ability damage'
-            - ''
+            - '&7Interwoven with threads of pure energy.'
         leggings:
           material: LEATHER_LEGGINGS
           display-name: '&5Arcanist Leggings'
@@ -2501,16 +2269,7 @@ custom-armor:
           crit-chance: 3
           crit-damage: 6
           lore:
-            - '&bIntelligence: +55'
-            - '&cHealth: +12'
-            - '&9Crit Chance: +3%'
-            - '&9Crit Damage: +6%'
-            - '&aDefense: +3'
-            - ''
-            - '&6Full Set Bonus: Arcane Power'
-            - '&7Wear 2 pieces: +50 Mana'
-            - '&7Wear 4 pieces: +120 Mana and +10% ability damage'
-            - ''
+            - '&7Moves as fluidly as liquid magic.'
         boots:
           material: LEATHER_BOOTS
           display-name: '&5Arcanist Boots'
@@ -2522,19 +2281,10 @@ custom-armor:
           crit-chance: 2
           crit-damage: 4
           lore:
-            - '&bIntelligence: +45'
-            - '&cHealth: +8'
-            - '&9Crit Chance: +2%'
-            - '&9Crit Damage: +4%'
-            - '&aDefense: +2'
-            - ''
-            - '&6Full Set Bonus: Arcane Power'
-            - '&7Wear 2 pieces: +50 Mana'
-            - '&7Wear 4 pieces: +120 Mana and +10% ability damage'
-            - ''
+            - '&7Soles that leave glowing footprints.'
 
     soulweaver:
-      display-name: '&9Soulweaver Shroud'
+      display-name: '&6Soulweaver Shroud'
       description: '&7Wraithsilk attire that feeds on lingering souls.'
       rarity: LEGENDARY
       pieces-required: 2
@@ -2545,7 +2295,7 @@ custom-armor:
       pieces:
         helmet:
           material: CHAINMAIL_HELMET
-          display-name: '&9Soulweaver Cowl'
+          display-name: '&6Soulweaver Cowl'
           armor: 3
           toughness: 1.2
           glowing: true
@@ -2554,19 +2304,10 @@ custom-armor:
           crit-chance: 4
           crit-damage: 8
           lore:
-            - '&bIntelligence: +80'
-            - '&cHealth: +14'
-            - '&9Crit Chance: +4%'
-            - '&9Crit Damage: +8%'
-            - '&aDefense: +3'
-            - ''
-            - '&6Full Set Bonus: Soul Weaver'
-            - '&7Wear 2 pieces: +80 Mana and +5% damage reduction'
-            - '&7Wear 4 pieces: +180 Mana and +15% ability damage'
-            - ''
+            - '&7Cold with the chill of the afterlife.'
         chestplate:
           material: CHAINMAIL_CHESTPLATE
-          display-name: '&9Soulweaver Wrap'
+          display-name: '&6Soulweaver Wrap'
           armor: 6
           toughness: 1.4
           glowing: true
@@ -2575,8 +2316,31 @@ custom-armor:
           crit-chance: 6
           crit-damage: 10
           lore:
-            - '&bIntelligence: +90'
-            - '&cHealth: +18'
+            - '&7Tightly bound with spectral thread.'
+        leggings:
+          material: CHAINMAIL_LEGGINGS
+          display-name: '&6Soulweaver Chaps'
+          armor: 5
+          toughness: 1.3
+          glowing: true
+          mana: 85
+          health: 16
+          crit-chance: 5
+          crit-damage: 9
+          lore:
+            - '&7Semi-transparent and ethereal.'
+        boots:
+          material: CHAINMAIL_BOOTS
+          display-name: '&6Soulweaver Treads'
+          armor: 3
+          toughness: 1.2
+          glowing: true
+          mana: 75
+          health: 12
+          crit-chance: 4
+          crit-damage: 7
+          lore:
+            - '&7Silences the sound of every step.'
             - '&9Crit Chance: +6%'
             - '&9Crit Damage: +10%'
             - '&aDefense: +6'
@@ -2719,81 +2483,58 @@ custom-armor:
             - ''
 
     gilded_harvester:
-      display-name: '&6Gilded Harvester'
-      description: '&7Finely crafted attire for the master farmer.'
+      display-name: '&5Gilded Harvester'
+      description: '&7Superior gear for the master farmer.'
       rarity: EPIC
       pieces-required: 4
+      category: farming
+      crafting-material: custom:ENCHANTED_WHEAT
+      collection-id: WHEAT
+      collection-tier-required: 7
       bonuses:
         - '&74 Pieces: &a+50 Health'
         - '&74 Pieces: &6Bountiful Harvest &8(15% chance for bonus crop drops)'
       pieces:
         helmet:
           material: GOLDEN_HELMET
-          display-name: '&6Gilded Straw Hat'
+          display-name: '&5Gilded Straw Hat'
           armor: 2
           health: 15
           farming-fortune: 25
           lore:
             - '&7Woven with golden threads.'
-            - '&6Farming Fortune: &f+25'
-            - ''
-            - '&6Set Bonus: &6Bountiful Harvest'
-            - '&7Full Set: &a+50 Health'
-            - '&7Full Set: &615% chance &7for bonus crop drops'
-            - ''
-            - '&5EPIC &8HELMET'
         chestplate:
           material: LEATHER_CHESTPLATE
-          display-name: '&6Gilded Overalls'
+          display-name: '&5Gilded Overalls'
           armor: 5
           health: 20
           farming-fortune: 30
           color: '#C79333'
           lore:
             - '&7Reinforced for long days in the field.'
-            - '&6Farming Fortune: &f+30'
-            - ''
-            - '&6Set Bonus: &6Bountiful Harvest'
-            - '&7Full Set: &a+50 Health'
-            - '&7Full Set: &615% chance &7for bonus crop drops'
-            - ''
-            - '&5EPIC &8CHESTPLATE'
         leggings:
           material: LEATHER_LEGGINGS
-          display-name: '&6Gilded Chaps'
+          display-name: '&5Gilded Chaps'
           armor: 4
           health: 15
           farming-fortune: 25
           color: '#C79333'
           lore:
             - '&7Lightweight and durable.'
-            - '&6Farming Fortune: &f+25'
-            - ''
-            - '&6Set Bonus: &6Bountiful Harvest'
-            - '&7Full Set: &a+50 Health'
-            - '&7Full Set: &615% chance &7for bonus crop drops'
-            - ''
-            - '&5EPIC &8LEGGINGS'
         boots:
           material: GOLDEN_BOOTS
-          display-name: '&6Gilded Wellies'
+          display-name: '&5Gilded Wellies'
           armor: 2
           health: 10
           farming-fortune: 20
           lore:
             - '&7Waterproof and stylish.'
-            - '&6Farming Fortune: &f+20'
-            - ''
-            - '&6Set Bonus: &6Bountiful Harvest'
-            - '&7Full Set: &a+50 Health'
-            - '&7Full Set: &615% chance &7for bonus crop drops'
-            - ''
-            - '&5EPIC &8BOOTS'
 
     rootbound_garb:
-      display-name: '&6Rootbound Garb'
+      display-name: '&9Rootbound Garb'
       description: '&7Carrot-fed gear for farmers who never leave the field.'
       pieces-required: 4
+      category: farming
       crafting-material: CARROT
       collection-id: CARROT
       collection-tier-required: 4
@@ -2802,69 +2543,46 @@ custom-armor:
       pieces:
         helmet:
           material: LEATHER_HELMET
-          display-name: '&6Rootbound Cap'
+          display-name: '&9Rootbound Cap'
           armor: 2
           health: 10
           farming-fortune: 10
           color: '#E28A1A'
           lore:
             - '&7Stained bright with fresh carrot tops.'
-            - '&6Farming Fortune: &f+10'
-            - ''
-            - '&6Set Bonus: &6Rooted Growth'
-            - '&7Full Set: &6+25 Farming Fortune'
-            - ''
-            - '&9RARE &8HELMET'
         chestplate:
           material: LEATHER_CHESTPLATE
-          display-name: '&6Rootbound Tunic'
+          display-name: '&9Rootbound Tunic'
           armor: 5
           health: 16
           farming-fortune: 15
           color: '#E28A1A'
           lore:
             - '&7Woven to withstand sunrise-to-sundown harvests.'
-            - '&6Farming Fortune: &f+15'
-            - ''
-            - '&6Set Bonus: &6Rooted Growth'
-            - '&7Full Set: &6+25 Farming Fortune'
-            - ''
-            - '&9RARE &8CHESTPLATE'
         leggings:
           material: LEATHER_LEGGINGS
-          display-name: '&6Rootbound Legwraps'
+          display-name: '&9Rootbound Legwraps'
           armor: 4
           health: 14
           farming-fortune: 12
           color: '#E28A1A'
           lore:
             - '&7Keeps your footing firm in loose soil.'
-            - '&6Farming Fortune: &f+12'
-            - ''
-            - '&6Set Bonus: &6Rooted Growth'
-            - '&7Full Set: &6+25 Farming Fortune'
-            - ''
-            - '&9RARE &8LEGGINGS'
         boots:
           material: LEATHER_BOOTS
-          display-name: '&6Rootbound Boots'
+          display-name: '&9Rootbound Boots'
           armor: 2
           health: 9
           farming-fortune: 8
           color: '#E28A1A'
           lore:
             - '&7Leave neat rows with every step.'
-            - '&6Farming Fortune: &f+8'
-            - ''
-            - '&6Set Bonus: &6Rooted Growth'
-            - '&7Full Set: &6+25 Farming Fortune'
-            - ''
-            - '&9RARE &8BOOTS'
 
     taterguard:
-      display-name: '&eTaterguard Armor'
+      display-name: '&9Taterguard Armor'
       description: '&7Bulky field gear built for endless potato harvests.'
       pieces-required: 4
+      category: farming
       crafting-material: POTATO
       collection-id: POTATO
       collection-tier-required: 4
@@ -2873,69 +2591,46 @@ custom-armor:
       pieces:
         helmet:
           material: LEATHER_HELMET
-          display-name: '&eTaterguard Helm'
+          display-name: '&9Taterguard Helm'
           armor: 2
           health: 14
           farming-fortune: 8
           color: '#8B6A3E'
           lore:
             - '&7Packed with hardy potato fibers.'
-            - '&6Farming Fortune: &f+8'
-            - ''
-            - '&6Set Bonus: &eField Fortitude'
-            - '&7Full Set: &a+60 Health'
-            - ''
-            - '&9RARE &8HELMET'
         chestplate:
           material: LEATHER_CHESTPLATE
-          display-name: '&eTaterguard Plate'
+          display-name: '&9Taterguard Plate'
           armor: 5
           health: 22
           farming-fortune: 12
           color: '#8B6A3E'
           lore:
             - '&7Padded for heavy sacks and long hauls.'
-            - '&6Farming Fortune: &f+12'
-            - ''
-            - '&6Set Bonus: &eField Fortitude'
-            - '&7Full Set: &a+60 Health'
-            - ''
-            - '&9RARE &8CHESTPLATE'
         leggings:
           material: LEATHER_LEGGINGS
-          display-name: '&eTaterguard Greaves'
+          display-name: '&9Taterguard Greaves'
           armor: 4
           health: 18
           farming-fortune: 10
           color: '#8B6A3E'
           lore:
             - '&7Reliable in mud, dust, and rain.'
-            - '&6Farming Fortune: &f+10'
-            - ''
-            - '&6Set Bonus: &eField Fortitude'
-            - '&7Full Set: &a+60 Health'
-            - ''
-            - '&9RARE &8LEGGINGS'
         boots:
           material: LEATHER_BOOTS
-          display-name: '&eTaterguard Boots'
+          display-name: '&9Taterguard Boots'
           armor: 2
           health: 12
           farming-fortune: 6
           color: '#8B6A3E'
           lore:
             - '&7Steady boots for rough rows.'
-            - '&6Farming Fortune: &f+6'
-            - ''
-            - '&6Set Bonus: &eField Fortitude'
-            - '&7Full Set: &a+60 Health'
-            - ''
-            - '&9RARE &8BOOTS'
 
     melon_monarch:
-      display-name: '&aMelon Monarch'
+      display-name: '&5Melon Monarch'
       description: '&7Emerald-dyed attire prized by melon millionaires.'
       pieces-required: 4
+      category: farming
       crafting-material: MELON_SLICE
       collection-id: MELON
       collection-tier-required: 5
@@ -2945,73 +2640,46 @@ custom-armor:
       pieces:
         helmet:
           material: LEATHER_HELMET
-          display-name: '&aMelon Monarch Crown'
+          display-name: '&5Melon Monarch Crown'
           armor: 2
           health: 12
           farming-fortune: 15
           color: '#5CCB4A'
           lore:
             - '&7Trimmed in glossy emerald rind.'
-            - '&6Farming Fortune: &f+15'
-            - ''
-            - '&6Set Bonus: &aMonarch''s Harvest'
-            - '&7Full Set: &6+35 Farming Fortune'
-            - '&7Full Set: &a+20 Health'
-            - ''
-            - '&5EPIC &8HELMET'
         chestplate:
           material: LEATHER_CHESTPLATE
-          display-name: '&aMelon Monarch Coat'
+          display-name: '&5Melon Monarch Coat'
           armor: 5
           health: 18
           farming-fortune: 20
           color: '#5CCB4A'
           lore:
             - '&7Heavy robes for prestigious melon runs.'
-            - '&6Farming Fortune: &f+20'
-            - ''
-            - '&6Set Bonus: &aMonarch''s Harvest'
-            - '&7Full Set: &6+35 Farming Fortune'
-            - '&7Full Set: &a+20 Health'
-            - ''
-            - '&5EPIC &8CHESTPLATE'
         leggings:
           material: LEATHER_LEGGINGS
-          display-name: '&aMelon Monarch Leggings'
+          display-name: '&5Melon Monarch Leggings'
           armor: 4
           health: 14
           farming-fortune: 18
           color: '#5CCB4A'
           lore:
             - '&7Cut for speed between high-yield rows.'
-            - '&6Farming Fortune: &f+18'
-            - ''
-            - '&6Set Bonus: &aMonarch''s Harvest'
-            - '&7Full Set: &6+35 Farming Fortune'
-            - '&7Full Set: &a+20 Health'
-            - ''
-            - '&5EPIC &8LEGGINGS'
         boots:
           material: LEATHER_BOOTS
-          display-name: '&aMelon Monarch Boots'
+          display-name: '&5Melon Monarch Boots'
           armor: 2
           health: 10
           farming-fortune: 12
           color: '#5CCB4A'
           lore:
             - '&7Soft soles for spotless harvesting.'
-            - '&6Farming Fortune: &f+12'
-            - ''
-            - '&6Set Bonus: &aMonarch''s Harvest'
-            - '&7Full Set: &6+35 Farming Fortune'
-            - '&7Full Set: &a+20 Health'
-            - ''
-            - '&5EPIC &8BOOTS'
 
     wartwoven_regalia:
       display-name: '&5Wartwoven Regalia'
       description: '&7Alchemy-soaked vestments cultivated in soul sand gardens.'
       pieces-required: 4
+      category: farming
       crafting-material: NETHER_WART
       collection-id: NETHER_WART
       collection-tier-required: 5
@@ -3028,13 +2696,6 @@ custom-armor:
           color: '#6E1B32'
           lore:
             - '&7Perfumed with the bitter scent of brew rooms.'
-            - '&6Farming Fortune: &f+10'
-            - '&7Mana: &b+20'
-            - ''
-            - '&6Set Bonus: &5Brewmaster''s Poise'
-            - '&7Full Set: &b+75 Intelligence'
-            - ''
-            - '&5EPIC &8HELMET'
         chestplate:
           material: LEATHER_CHESTPLATE
           display-name: '&5Wartwoven Robes'
@@ -3045,13 +2706,6 @@ custom-armor:
           color: '#6E1B32'
           lore:
             - '&7Threaded with dried wart and arcane silk.'
-            - '&6Farming Fortune: &f+15'
-            - '&7Mana: &b+30'
-            - ''
-            - '&6Set Bonus: &5Brewmaster''s Poise'
-            - '&7Full Set: &b+75 Intelligence'
-            - ''
-            - '&5EPIC &8CHESTPLATE'
         leggings:
           material: LEATHER_LEGGINGS
           display-name: '&5Wartwoven Leggings'
@@ -3062,13 +2716,6 @@ custom-armor:
           color: '#6E1B32'
           lore:
             - '&7Light enough for fast soul sand routes.'
-            - '&6Farming Fortune: &f+15'
-            - '&7Mana: &b+25'
-            - ''
-            - '&6Set Bonus: &5Brewmaster''s Poise'
-            - '&7Full Set: &b+75 Intelligence'
-            - ''
-            - '&5EPIC &8LEGGINGS'
         boots:
           material: LEATHER_BOOTS
           display-name: '&5Wartwoven Sandals'
@@ -3079,16 +2726,9 @@ custom-armor:
           color: '#6E1B32'
           lore:
             - '&7Designed for stable footing on soul sand.'
-            - '&6Farming Fortune: &f+10'
-            - '&7Mana: &b+20'
-            - ''
-            - '&6Set Bonus: &5Brewmaster''s Poise'
-            - '&7Full Set: &b+75 Intelligence'
-            - ''
-            - '&5EPIC &8BOOTS'
 
     dreadlord:
-      display-name: '&8Dreadlord Armor'
+      display-name: '&9Dreadlord Armor'
       description: '&7Armor of a fallen dungeon commander.'
       rarity: RARE
       pieces-required: 2
@@ -3098,44 +2738,36 @@ custom-armor:
       pieces:
         helmet:
           material: IRON_HELMET
-          display-name: '&8Dreadlord Helm'
+          display-name: '&9Dreadlord Helm'
           armor: 4
           health: 20
           mana: 20
           lore:
             - '&7Hollow eyes stare back.'
-            - ''
-            - '&9RARE &8HELMET'
         chestplate:
           material: IRON_CHESTPLATE
-          display-name: '&8Dreadlord Plate'
+          display-name: '&9Dreadlord Plate'
           armor: 8
           health: 35
           mana: 30
           lore:
             - '&7Cold to the touch.'
-            - ''
-            - '&9RARE &8CHESTPLATE'
         leggings:
           material: IRON_LEGGINGS
-          display-name: '&8Dreadlord Leggings'
+          display-name: '&9Dreadlord Leggings'
           armor: 6
           health: 25
           mana: 25
           lore:
             - '&7Echoes with distant screams.'
-            - ''
-            - '&9RARE &8LEGGINGS'
         boots:
           material: IRON_BOOTS
-          display-name: '&8Dreadlord Boots'
+          display-name: '&9Dreadlord Boots'
           armor: 3
           health: 15
           mana: 15
           lore:
             - '&7Step into the darkness.'
-            - ''
-            - '&9RARE &8BOOTS'
 
     necromancer:
       display-name: '&2Necromancer Lord'
@@ -3186,6 +2818,100 @@ custom-armor:
             - '&7Silent as the grave.'
             - ''
             - '&6LEGENDARY &8BOOTS'
+
+    ironcrest:
+      display-name: '&9Ironcrest Guard'
+      description: '&7Protective gear for deep-vein miners.'
+      rarity: RARE
+      pieces-required: 4
+      crafting-material: IRON_INGOT
+      collection-id: IRON_INGOT
+      collection-tier-required: 5
+      bonuses:
+        - '&74 Pieces: &bMine Defense'
+        - '&74 Pieces: &fGrants +50 Defense while in a Mining Zone.'
+      pieces:
+        helmet:
+          material: IRON_HELMET
+          display-name: '&9Ironcrest Helm'
+          armor: 4
+          health: 30
+          mining-speed: 25
+          lore:
+            - '&7A sturdy iron helm for the depths.'
+        chestplate:
+          material: IRON_CHESTPLATE
+          display-name: '&9Ironcrest Chestplate'
+          armor: 8
+          health: 80
+          mining-speed: 25
+          lore:
+            - '&7Reinforced to withstand cave-ins.'
+        leggings:
+          material: IRON_LEGGINGS
+          display-name: '&9Ironcrest Leggings'
+          armor: 6
+          health: 50
+          mining-speed: 25
+          lore:
+            - '&7Flexible yet heavy protection.'
+        boots:
+          material: IRON_BOOTS
+          display-name: '&9Ironcrest Boots'
+          armor: 4
+          health: 30
+          mining-speed: 25
+          lore:
+            - '&7Steel-toed boots for rough terrain.'
+
+    deepcore:
+      display-name: '&5Deepcore Elite'
+      description: '&7The peak of Mining Hub equipment.'
+      rarity: EPIC
+      pieces-required: 4
+      crafting-material: NETHERITE_INGOT
+      collection-id: DIAMOND
+      collection-tier-required: 6
+      bonuses:
+        - '&74 Pieces: &5Instant Break'
+        - '&74 Pieces: &fBreaks materials with Breaking Power 5 or less instantly.'
+      pieces:
+        helmet:
+          material: NETHERITE_HELMET
+          display-name: '&5Deepcore Helm'
+          armor: 8
+          health: 60
+          breaking-power: 1
+          mining-speed: 50
+          lore:
+            - '&7Infused with deepcore essence.'
+        chestplate:
+          material: NETHERITE_CHESTPLATE
+          display-name: '&5Deepcore Chestplate'
+          armor: 15
+          health: 160
+          breaking-power: 1
+          mining-speed: 50
+          lore:
+            - '&7Unbeatable protection for master miners.'
+        leggings:
+          material: NETHERITE_LEGGINGS
+          display-name: '&5Deepcore Leggings'
+          armor: 12
+          health: 110
+          breaking-power: 1
+          mining-speed: 50
+          lore:
+            - '&7Hardened against the strongest pressures.'
+        boots:
+          material: NETHERITE_BOOTS
+          display-name: '&5Deepcore Boots'
+          armor: 8
+          health: 60
+          breaking-power: 1
+          mining-speed: 50
+          lore:
+            - '&7Leave deep prints in the stone.'
 
 floors:
   F1:

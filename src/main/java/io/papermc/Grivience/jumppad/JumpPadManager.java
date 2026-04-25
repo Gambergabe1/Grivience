@@ -9,8 +9,10 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -92,13 +94,13 @@ public final class JumpPadManager {
         for (Map.Entry<String, JumpPad> entry : pads.entrySet()) {
             String id = entry.getKey();
             JumpPad pad = entry.getValue();
-            if (pad == null || !pad.isValid()) continue;
+            if (pad == null) continue;
 
             ConfigurationSection section = root.createSection(id);
-            writeLocation(section, "launch", pad.getLaunch());
-            writeLocation(section, "launch-corner", pad.getLaunchCorner());
-            writeLocation(section, "target", pad.getTarget());
-            writeLocation(section, "target-corner", pad.getTargetCorner());
+            writeLocation(section, "launch", pad.getLaunch(), pad.getLaunchWorldName());
+            writeLocation(section, "launch-corner", pad.getLaunchCorner(), pad.getLaunchCornerWorldName());
+            writeLocation(section, "target", pad.getTarget(), pad.getTargetWorldName());
+            writeLocation(section, "target-corner", pad.getTargetCorner(), pad.getTargetCornerWorldName());
 
             // Save requirements
             if (pad.getMinSkyblockLevel() > 0) section.set("min-skyblock-level", pad.getMinSkyblockLevel());
@@ -129,16 +131,11 @@ public final class JumpPadManager {
             ConfigurationSection section = root.getConfigurationSection(rawId);
             if (section == null) continue;
 
-            Location launch = readLocation(section.getConfigurationSection("launch"));
-            Location launchCorner = readLocation(section.getConfigurationSection("launch-corner"));
-            Location target = readLocation(section.getConfigurationSection("target"));
-            Location targetCorner = readLocation(section.getConfigurationSection("target-corner"));
-
             JumpPad pad = new JumpPad();
-            pad.setLaunch(launch);
-            pad.setLaunchCorner(launchCorner);
-            pad.setTarget(target);
-            pad.setTargetCorner(targetCorner);
+            pad.setLaunch(readLocation(section.getConfigurationSection("launch"), pad::setLaunchWorldName));
+            pad.setLaunchCorner(readLocation(section.getConfigurationSection("launch-corner"), pad::setLaunchCornerWorldName));
+            pad.setTarget(readLocation(section.getConfigurationSection("target"), pad::setTargetWorldName));
+            pad.setTargetCorner(readLocation(section.getConfigurationSection("target-corner"), pad::setTargetCornerWorldName));
 
             // Load requirements
             pad.setMinSkyblockLevel(section.getInt("min-skyblock-level", 0));
@@ -146,33 +143,43 @@ public final class JumpPadManager {
             pad.setMinMiningLevel(section.getInt("min-mining-level", 0));
             pad.setMinFarmingLevel(section.getInt("min-farming-level", 0));
 
-            if (pad.isValid()) {
-                pads.put(normalizeId(rawId), pad);
-            }
+            pads.put(normalizeId(rawId), pad);
         }
     }
 
-    private void writeLocation(ConfigurationSection section, String key, Location location) {
-        if (section == null || key == null || location == null || location.getWorld() == null) return;
+    private void writeLocation(ConfigurationSection section, String key, Location location, String worldName) {
+        if (section == null || key == null) return;
+        
+        String effectiveWorldName = (location != null && location.getWorld() != null) 
+            ? location.getWorld().getName() 
+            : worldName;
+            
+        if (effectiveWorldName == null || effectiveWorldName.isBlank()) return;
 
         ConfigurationSection locSection = section.createSection(key);
-        locSection.set("world", location.getWorld().getName());
-        locSection.set("x", location.getX());
-        locSection.set("y", location.getY());
-        locSection.set("z", location.getZ());
-        locSection.set("yaw", location.getYaw());
-        locSection.set("pitch", location.getPitch());
+        locSection.set("world", effectiveWorldName);
+        
+        if (location != null) {
+            locSection.set("x", location.getX());
+            locSection.set("y", location.getY());
+            locSection.set("z", location.getZ());
+            locSection.set("yaw", location.getYaw());
+            locSection.set("pitch", location.getPitch());
+        }
     }
 
-    private Location readLocation(ConfigurationSection section) {
+    private Location readLocation(ConfigurationSection section, java.util.function.Consumer<String> worldNameSetter) {
         if (section == null) return null;
 
         String worldName = section.getString("world");
         if (worldName == null || worldName.isBlank()) return null;
+        
+        if (worldNameSetter != null) {
+            worldNameSetter.accept(worldName);
+        }
 
         World world = Bukkit.getWorld(worldName);
-        if (world == null) return null;
-
+        
         double x = section.getDouble("x");
         double y = section.getDouble("y");
         double z = section.getDouble("z");
@@ -197,9 +204,16 @@ public final class JumpPadManager {
      */
     public static final class JumpPad {
         private Location launch;
+        private String launchWorldName;
+        
         private Location launchCorner;
+        private String launchCornerWorldName;
+        
         private Location target;
+        private String targetWorldName;
+        
         private Location targetCorner;
+        private String targetCornerWorldName;
 
         // Requirements
         private int minSkyblockLevel = 0;
@@ -210,20 +224,52 @@ public final class JumpPadManager {
         public JumpPad() {}
 
         public boolean isValid() {
-            return launch != null && target != null;
+            return (launch != null || launchWorldName != null) && (target != null || targetWorldName != null);
         }
 
         public Location getLaunch() { return launch; }
-        public void setLaunch(Location launch) { this.launch = launch; }
+        public void setLaunch(Location launch) { 
+            this.launch = launch; 
+            if (launch != null && launch.getWorld() != null) {
+                this.launchWorldName = launch.getWorld().getName();
+            }
+        }
+        
+        public String getLaunchWorldName() { return launchWorldName; }
+        public void setLaunchWorldName(String name) { this.launchWorldName = name; }
 
         public Location getLaunchCorner() { return launchCorner; }
-        public void setLaunchCorner(Location launchCorner) { this.launchCorner = launchCorner; }
+        public void setLaunchCorner(Location launchCorner) { 
+            this.launchCorner = launchCorner; 
+            if (launchCorner != null && launchCorner.getWorld() != null) {
+                this.launchCornerWorldName = launchCorner.getWorld().getName();
+            }
+        }
+        
+        public String getLaunchCornerWorldName() { return launchCornerWorldName; }
+        public void setLaunchCornerWorldName(String name) { this.launchCornerWorldName = name; }
 
         public Location getTarget() { return target; }
-        public void setTarget(Location target) { this.target = target; }
+        public void setTarget(Location target) { 
+            this.target = target; 
+            if (target != null && target.getWorld() != null) {
+                this.targetWorldName = target.getWorld().getName();
+            }
+        }
+        
+        public String getTargetWorldName() { return targetWorldName; }
+        public void setTargetWorldName(String name) { this.targetWorldName = name; }
 
         public Location getTargetCorner() { return targetCorner; }
-        public void setTargetCorner(Location targetCorner) { this.targetCorner = targetCorner; }
+        public void setTargetCorner(Location targetCorner) { 
+            this.targetCorner = targetCorner; 
+            if (targetCorner != null && targetCorner.getWorld() != null) {
+                this.targetCornerWorldName = targetCorner.getWorld().getName();
+            }
+        }
+        
+        public String getTargetCornerWorldName() { return targetCornerWorldName; }
+        public void setTargetCornerWorldName(String name) { this.targetCornerWorldName = name; }
 
         public int getMinSkyblockLevel() { return minSkyblockLevel; }
         public void setMinSkyblockLevel(int minSkyblockLevel) { this.minSkyblockLevel = minSkyblockLevel; }
@@ -238,8 +284,20 @@ public final class JumpPadManager {
         public void setMinFarmingLevel(int minFarmingLevel) { this.minFarmingLevel = minFarmingLevel; }
 
         public boolean isWithinLaunchArea(Location location) {
-            if (launch == null || location == null || launch.getWorld() == null) return false;
-            if (!launch.getWorld().equals(location.getWorld())) return false;
+            if (location == null) return false;
+            
+            // Ensure we are in the same world
+            if (launchWorldName == null || !launchWorldName.equalsIgnoreCase(location.getWorld().getName())) {
+                return false;
+            }
+            
+            // Resolve world if needed
+            if (launch != null && launch.getWorld() == null) {
+                launch.setWorld(location.getWorld());
+            }
+            if (launchCorner != null && launchCorner.getWorld() == null) {
+                launchCorner.setWorld(location.getWorld());
+            }
 
             if (launchCorner == null) {
                 return launch.getBlockX() == location.getBlockX()
@@ -261,7 +319,18 @@ public final class JumpPadManager {
 
         public Location getLaunchCenter() {
             if (launch == null) return null;
+            if (launch.getWorld() == null && launchWorldName != null) {
+                World w = Bukkit.getWorld(launchWorldName);
+                if (w != null) launch.setWorld(w);
+            }
+            if (launch.getWorld() == null) return null;
+            
             if (launchCorner == null) return launch.clone();
+            
+            if (launchCorner.getWorld() == null && launchCornerWorldName != null) {
+                World w = Bukkit.getWorld(launchCornerWorldName);
+                if (w != null) launchCorner.setWorld(w);
+            }
 
             return new Location(
                     launch.getWorld(),
@@ -274,8 +343,19 @@ public final class JumpPadManager {
         }
 
         public Location getTargetCenter() {
-            if (target == null || target.getWorld() == null) return null;
+            if (target == null) return null;
+            if (target.getWorld() == null && targetWorldName != null) {
+                World w = Bukkit.getWorld(targetWorldName);
+                if (w != null) target.setWorld(w);
+            }
+            if (target.getWorld() == null) return null;
+
             if (targetCorner == null) return target.clone();
+            
+            if (targetCorner.getWorld() == null && targetCornerWorldName != null) {
+                World w = Bukkit.getWorld(targetCornerWorldName);
+                if (w != null) targetCorner.setWorld(w);
+            }
 
             return new Location(
                     target.getWorld(),
